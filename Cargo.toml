@@ -3,4 +3,17 @@ name = "hatchet-rust-sdk"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+client = []
+worker = []
+
 [dependencies]
+tonic = "*"
+prost = "*"
+tokio = "*"
+
+[build-dependencies]
+tonic-build = "*"
+
+[dev-dependencies]
+dotenvy = "*"
