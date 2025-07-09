@@ -5,7 +5,7 @@ use std::env;
 #[derive(Debug)]
 pub struct HatchetConfig {
     pub api_token: String,
-    pub grpc_broadcast_address: String,
+    pub grpc_address: String,
     pub server_url: String,
 }
 
@@ -24,11 +24,14 @@ impl HatchetConfig {
         let payload_json: serde_json::Value =
             serde_json::from_slice(&payload_bytes).map_err(HatchetConfigError::JsonDecode)?;
 
-        let grpc_broadcast_address = payload_json
+        let grpc_address_no_scheme = payload_json
             .get("grpc_broadcast_address")
             .and_then(|v| v.as_str())
             .ok_or(HatchetConfigError::MissingGrpcAddress)?;
 
+        let grpc_address = "http://".to_owned() + grpc_address_no_scheme;
+
+        println!("{}", grpc_address);
         let server_url = payload_json
             .get("server_url")
             .and_then(|v| v.as_str())
@@ -36,7 +39,7 @@ impl HatchetConfig {
 
         Ok(Self {
             api_token: token,
-            grpc_broadcast_address: grpc_broadcast_address.to_string(),
+            grpc_address: grpc_address.to_string(),
             server_url: server_url.to_string(),
         })
     }
