@@ -1,5 +1,5 @@
-use crate::HatchetClient;
-use crate::HatchetError;
+use crate::client::HatchetClient;
+use crate::error::HatchetError;
 use serde::Serialize;
 
 pub struct Workflow<'a> {
