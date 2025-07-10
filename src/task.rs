@@ -1,5 +1,6 @@
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
+use crate::workflow::RunId;
 use serde::{Serialize, de::DeserializeOwned};
 use std::marker::PhantomData;
 
@@ -24,7 +25,7 @@ where
         }
     }
 
-    pub async fn run_no_wait(&mut self, input: I) -> Result<String, HatchetError> {
+    pub async fn run_no_wait(&mut self, input: I) -> Result<RunId, HatchetError> {
         self.client.run_no_wait(&self.name, input).await
     }
 }

@@ -1,5 +1,6 @@
 use crate::config::HatchetConfig;
 use crate::error::HatchetError;
+use crate::workflow::RunId;
 use serde::Serialize;
 use tonic::metadata::MetadataValue;
 use workflows::TriggerWorkflowRequest;
@@ -19,11 +20,7 @@ impl HatchetClient {
         Ok(Self { config })
     }
 
-    pub async fn run_no_wait<I>(
-        &mut self,
-        task_name: &str,
-        input: I,
-    ) -> Result<String, HatchetError>
+    pub async fn run_no_wait<I>(&mut self, task_name: &str, input: I) -> Result<RunId, HatchetError>
     where
         I: Serialize,
     {
@@ -56,6 +53,6 @@ impl HatchetClient {
             .await
             .map_err(HatchetError::GrpcCall)?;
 
-        Ok(response.into_inner().workflow_run_id)
+        Ok(RunId(response.into_inner().workflow_run_id))
     }
 }

@@ -24,7 +24,10 @@ where
         }
     }
 
-    pub async fn run_no_wait(&mut self, input: I) -> Result<String, HatchetError> {
+    pub async fn run_no_wait(&mut self, input: I) -> Result<RunId, HatchetError> {
         self.client.run_no_wait(&self.name, input).await
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunId(pub String);
