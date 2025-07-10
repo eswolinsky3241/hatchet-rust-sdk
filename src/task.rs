@@ -3,14 +3,14 @@ use crate::error::HatchetError;
 use serde::{Serialize, de::DeserializeOwned};
 use std::marker::PhantomData;
 
-pub struct Workflow<'a, I, O> {
+pub struct Task<'a, I, O> {
     name: String,
     client: &'a mut HatchetClient,
     _input: PhantomData<I>,
     _output: PhantomData<O>,
 }
 
-impl<'a, I, O> Workflow<'a, I, O>
+impl<'a, I, O> Task<'a, I, O>
 where
     I: Serialize,
     O: DeserializeOwned,

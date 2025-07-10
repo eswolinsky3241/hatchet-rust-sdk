@@ -13,7 +13,6 @@ impl HatchetConfig {
     pub fn from_env() -> Result<Self, HatchetConfigError> {
         let token = env::var("HATCHET_CLIENT_TOKEN").map_err(HatchetConfigError::MissingEnvVar)?;
         let parts: Vec<&str> = token.split('.').collect();
-        println!("Token parts: {:?}", parts);
         if parts.len() < 2 {
             return Err(HatchetConfigError::InvalidTokenFormat);
         }
@@ -31,7 +30,6 @@ impl HatchetConfig {
 
         let grpc_address = "http://".to_owned() + grpc_address_no_scheme;
 
-        println!("{}", grpc_address);
         let server_url = payload_json
             .get("server_url")
             .and_then(|v| v.as_str())

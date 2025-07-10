@@ -2,7 +2,6 @@ use crate::config::HatchetConfig;
 use crate::error::HatchetError;
 use serde::Serialize;
 use tonic::metadata::MetadataValue;
-use tonic::transport::Channel;
 use workflows::TriggerWorkflowRequest;
 use workflows::workflow_service_client::WorkflowServiceClient;
 
@@ -13,19 +12,11 @@ pub mod workflows {
 #[derive(Debug)]
 pub struct HatchetClient {
     config: HatchetConfig,
-    grpc_client: WorkflowServiceClient<Channel>,
 }
 
 impl HatchetClient {
     pub async fn new(config: HatchetConfig) -> Result<Self, HatchetError> {
-        let grpc_client = WorkflowServiceClient::connect(config.grpc_address.clone())
-            .await
-            .map_err(HatchetError::GrpcConnect)?;
-
-        Ok(Self {
-            config,
-            grpc_client,
-        })
+        Ok(Self { config })
     }
 
     pub async fn run_no_wait<I>(
@@ -37,6 +28,10 @@ impl HatchetClient {
         I: Serialize,
     {
         let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
+
+        let mut grpc_client = WorkflowServiceClient::connect(self.config.grpc_address.clone())
+            .await
+            .map_err(HatchetError::GrpcConnect)?;
 
         let mut request = tonic::Request::new(TriggerWorkflowRequest {
             input: input_json,
@@ -56,8 +51,7 @@ impl HatchetClient {
 
         request.metadata_mut().insert("authorization", token_header);
 
-        let response = self
-            .grpc_client
+        let response = grpc_client
             .trigger_workflow(request)
             .await
             .map_err(HatchetError::GrpcCall)?;
