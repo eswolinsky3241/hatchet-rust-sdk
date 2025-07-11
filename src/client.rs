@@ -24,6 +24,7 @@ impl HatchetClient {
         &mut self,
         task_name: &str,
         input: I,
+        options: crate::workflow::TriggerWorkflowOptions,
     ) -> Result<RunId, HatchetError>
     where
         I: Serialize,
@@ -41,8 +42,8 @@ impl HatchetClient {
             parent_step_run_id: None,
             child_index: None,
             child_key: None,
-            additional_metadata: None,
-            desired_worker_id: None,
+            additional_metadata: options.additional_metadata.map(|v| v.to_string()),
+            desired_worker_id: options.desired_worker_id,
             priority: None,
         });
 

@@ -1,6 +1,7 @@
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use serde::{Serialize, de::DeserializeOwned};
+use std::fmt;
 use std::marker::PhantomData;
 
 pub struct Workflow<'a, I, O> {
@@ -27,14 +28,22 @@ where
     pub async fn run_no_wait(
         &mut self,
         input: I,
-        options: TriggerWorkflowOptions,
+        options: Option<TriggerWorkflowOptions>,
     ) -> Result<RunId, HatchetError> {
-        self.client.trigger_workflow(&self.name, input).await
+        self.client
+            .trigger_workflow(&self.name, input, options.unwrap_or_default())
+            .await
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunId(pub String);
+
+impl fmt::Display for RunId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct TriggerWorkflowOptions {
