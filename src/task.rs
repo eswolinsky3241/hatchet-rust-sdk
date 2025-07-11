@@ -26,6 +26,6 @@ where
     }
 
     pub async fn run_no_wait(&mut self, input: I) -> Result<RunId, HatchetError> {
-        self.client.run_no_wait(&self.name, input).await
+        self.client.trigger_workflow(&self.name, input).await
     }
 }

@@ -24,10 +24,23 @@ where
         }
     }
 
-    pub async fn run_no_wait(&mut self, input: I) -> Result<RunId, HatchetError> {
-        self.client.run_no_wait(&self.name, input).await
+    pub async fn run_no_wait(
+        &mut self,
+        input: I,
+        options: TriggerWorkflowOptions,
+    ) -> Result<RunId, HatchetError> {
+        self.client.trigger_workflow(&self.name, input).await
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunId(pub String);
+
+#[derive(Debug, Default, Clone)]
+pub struct TriggerWorkflowOptions {
+    pub additional_metadata: Option<serde_json::Value>,
+    pub desired_worker_id: Option<String>,
+    pub namespace: Option<String>,
+    pub sticky: bool,
+    pub key: Option<String>,
+}

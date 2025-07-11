@@ -20,7 +20,11 @@ impl HatchetClient {
         Ok(Self { config })
     }
 
-    pub async fn run_no_wait<I>(&mut self, task_name: &str, input: I) -> Result<RunId, HatchetError>
+    pub async fn trigger_workflow<I>(
+        &mut self,
+        task_name: &str,
+        input: I,
+    ) -> Result<RunId, HatchetError>
     where
         I: Serialize,
     {
