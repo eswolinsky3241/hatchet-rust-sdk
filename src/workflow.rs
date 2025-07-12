@@ -3,6 +3,7 @@ use crate::error::HatchetError;
 use serde::{Serialize, de::DeserializeOwned};
 use std::fmt;
 use std::marker::PhantomData;
+use std::ops::Deref;
 
 pub struct Workflow<'a, I, O> {
     name: String,
@@ -42,6 +43,14 @@ pub struct RunId(pub String);
 impl fmt::Display for RunId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl Deref for RunId {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

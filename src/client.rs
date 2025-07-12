@@ -60,4 +60,21 @@ impl HatchetClient {
 
         Ok(RunId(response.into_inner().workflow_run_id))
     }
+
+    pub async fn get_workflow(
+        &self,
+        workflow_run_id: RunId,
+    ) -> Result<crate::models::GetWorkflowRunResponse, HatchetError> {
+        let api_client = crate::api::ApiClient::new(
+            self.config.server_url.clone(),
+            self.config.api_token.clone(),
+        );
+
+        api_client
+            .get::<crate::models::GetWorkflowRunResponse>(&format!(
+                "/api/v1/stable/workflow-runs/{}",
+                workflow_run_id
+            ))
+            .await
+    }
 }
