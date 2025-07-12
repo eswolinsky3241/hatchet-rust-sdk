@@ -21,7 +21,7 @@ impl HatchetClient {
     }
 
     pub async fn trigger_workflow<I>(
-        &mut self,
+        &self,
         task_name: &str,
         input: I,
         options: crate::workflow::TriggerWorkflowOptions,
@@ -63,7 +63,7 @@ impl HatchetClient {
 
     pub async fn get_workflow(
         &self,
-        workflow_run_id: RunId,
+        workflow_run_id: &RunId,
     ) -> Result<crate::models::GetWorkflowRunResponse, HatchetError> {
         let api_client = crate::api::ApiClient::new(
             self.config.server_url.clone(),

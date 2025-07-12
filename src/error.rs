@@ -12,4 +12,6 @@ pub enum HatchetError {
     InvalidAuthHeader(tonic::metadata::errors::InvalidMetadataValue),
     GrpcConnect(tonic::transport::Error),
     GrpcCall(tonic::Status),
+    MissingOutput,
+    WorkflowFailed,
 }

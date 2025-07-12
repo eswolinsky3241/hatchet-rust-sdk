@@ -2,7 +2,7 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use std::env;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HatchetConfig {
     pub api_token: String,
     pub grpc_address: String,
