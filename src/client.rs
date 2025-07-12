@@ -34,7 +34,6 @@ impl HatchetClient {
             std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or("tls".to_string());
 
         let domain_name = self.config.grpc_address.split(":").next().unwrap();
-        println!("{}", &domain_name);
         let channel: tonic::transport::Channel;
         if tls_strategy.to_lowercase() == "none" {
             channel = Channel::from_shared("http://".to_owned() + &self.config.grpc_address)
