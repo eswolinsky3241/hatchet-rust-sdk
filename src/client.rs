@@ -3,6 +3,7 @@ use crate::error::HatchetError;
 use crate::workflow::RunId;
 use serde::Serialize;
 use tonic::metadata::MetadataValue;
+use tonic::transport::{Channel, ClientTlsConfig};
 use workflows::TriggerWorkflowRequest;
 use workflows::workflow_service_client::WorkflowServiceClient;
 
@@ -29,11 +30,36 @@ impl HatchetClient {
     where
         I: Serialize,
     {
-        let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
+        let tls_strategy =
+            std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or("tls".to_string());
 
-        let mut grpc_client = WorkflowServiceClient::connect(self.config.grpc_address.clone())
-            .await
-            .map_err(HatchetError::GrpcConnect)?;
+        let domain_name = self.config.grpc_address.split(":").next().unwrap();
+        println!("{}", &domain_name);
+        let channel: tonic::transport::Channel;
+        if tls_strategy.to_lowercase() == "none" {
+            channel = Channel::from_shared("http://".to_owned() + &self.config.grpc_address)
+                .unwrap()
+                .connect()
+                .await
+                .unwrap();
+        } else {
+            let tls = ClientTlsConfig::new()
+                .domain_name(domain_name)
+                .with_native_roots();
+
+            channel = Channel::from_shared("https://".to_owned() + &self.config.grpc_address)
+                .unwrap()
+                .tls_config(tls)
+                .unwrap()
+                .connect()
+                .await
+                .unwrap();
+        }
+        let input_json = serde_json::to_string(&input)
+            .map_err(HatchetError::JsonEncode)
+            .unwrap();
+
+        let mut client = WorkflowServiceClient::new(channel);
 
         let mut request = tonic::Request::new(TriggerWorkflowRequest {
             input: input_json,
@@ -49,14 +75,16 @@ impl HatchetClient {
 
         let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
             .parse()
-            .map_err(HatchetError::InvalidAuthHeader)?;
+            .map_err(HatchetError::InvalidAuthHeader)
+            .unwrap();
 
         request.metadata_mut().insert("authorization", token_header);
 
-        let response = grpc_client
+        let response = client
             .trigger_workflow(request)
             .await
-            .map_err(HatchetError::GrpcCall)?;
+            .map_err(HatchetError::GrpcCall)
+            .unwrap();
 
         Ok(RunId(response.into_inner().workflow_run_id))
     }

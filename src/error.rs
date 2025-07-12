@@ -14,4 +14,8 @@ pub enum HatchetError {
     GrpcCall(tonic::Status),
     MissingOutput,
     WorkflowFailed,
+    WorkflowNotFound(crate::workflow::RunId),
+    NoTasks,
+    WorkflowCancelled,
+    UnknownStatus(String),
 }

@@ -8,7 +8,11 @@ client = []
 worker = []
 
 [dependencies]
-tonic = "*"
+tonic = { version = "0.13", features = [
+    "channel",
+    "_tls-any",
+    "tls-native-roots",
+] }
 prost = "*"
 tokio = "*"
 serde = { version = "1", features = ["derive"] }

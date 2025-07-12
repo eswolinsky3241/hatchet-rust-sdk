@@ -43,6 +43,8 @@ where
     ) -> Result<O, HatchetError> {
         let run_id = self.run_no_wait(input, options).await?;
 
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
         loop {
             let wf = self.client.get_workflow(&run_id).await?;
 

@@ -28,7 +28,7 @@ impl HatchetConfig {
             .and_then(|v| v.as_str())
             .ok_or(HatchetConfigError::MissingGrpcAddress)?;
 
-        let grpc_address = "http://".to_owned() + grpc_address_no_scheme;
+        let grpc_address = grpc_address_no_scheme;
 
         let server_url = payload_json
             .get("server_url")
