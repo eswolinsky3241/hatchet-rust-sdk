@@ -30,30 +30,8 @@ impl HatchetClient {
     where
         I: Serialize,
     {
-        let tls_strategy =
-            std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or("tls".to_string());
+        let channel = self.create_channel().await?;
 
-        let domain_name = self.config.grpc_address.split(":").next().unwrap();
-        let channel: tonic::transport::Channel;
-        if tls_strategy.to_lowercase() == "none" {
-            channel = Channel::from_shared("http://".to_owned() + &self.config.grpc_address)
-                .unwrap()
-                .connect()
-                .await
-                .unwrap();
-        } else {
-            let tls = ClientTlsConfig::new()
-                .domain_name(domain_name)
-                .with_native_roots();
-
-            channel = Channel::from_shared("https://".to_owned() + &self.config.grpc_address)
-                .unwrap()
-                .tls_config(tls)
-                .unwrap()
-                .connect()
-                .await
-                .unwrap();
-        }
         let input_json = serde_json::to_string(&input)
             .map_err(HatchetError::JsonEncode)
             .unwrap();
@@ -103,5 +81,41 @@ impl HatchetClient {
                 workflow_run_id
             ))
             .await
+    }
+}
+
+impl HatchetClient {
+    async fn create_channel(&self) -> Result<Channel, HatchetError> {
+        let tls_strategy =
+            std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or_else(|_| "tls".to_string());
+
+        let domain_name = self
+            .config
+            .grpc_address
+            .split(':')
+            .next()
+            .ok_or(HatchetError::MissingGrpcAddress)?;
+
+        if tls_strategy.to_lowercase() == "none" {
+            let channel = Channel::from_shared(format!("http://{}", self.config.grpc_address))
+                .unwrap()
+                .connect()
+                .await
+                .map_err(HatchetError::GrpcConnect)?;
+            Ok(channel)
+        } else {
+            let tls = ClientTlsConfig::new()
+                .domain_name(domain_name)
+                .with_native_roots();
+
+            let channel = Channel::from_shared(format!("https://{}", self.config.grpc_address))
+                .unwrap()
+                .tls_config(tls)
+                .unwrap()
+                .connect()
+                .await
+                .map_err(HatchetError::GrpcConnect)?;
+            Ok(channel)
+        }
     }
 }
