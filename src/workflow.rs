@@ -53,17 +53,20 @@ where
             let workflow = self.client.get_workflow(&run_id).await?;
 
             match workflow.run.status {
+                WorkflowStatus::Running => continue,
                 WorkflowStatus::Completed => {
                     let output_json = workflow
                         .output
                         .as_ref()
                         .ok_or(HatchetError::MissingOutput)?;
                     let output: O = serde_json::from_value(output_json.clone())
-                        .map_err(|e| HatchetError::JsonDecode(e))?;
+                        .map_err(|e| HatchetError::JsonDecodeError(e))?;
                     return Ok(output);
                 }
                 WorkflowStatus::Failed => {
-                    return Err(HatchetError::WorkflowFailed(workflow.error_message.clone()));
+                    return Err(HatchetError::WorkflowFailed {
+                        error_message: workflow.run.error_message.clone(),
+                    });
                 }
 
                 _ => {

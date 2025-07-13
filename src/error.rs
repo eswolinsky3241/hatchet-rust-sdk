@@ -2,50 +2,48 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum HatchetError {
-    #[error("Missing required environment variable \"{var}\"")]
+    #[error("Missing required environment variable \"{var}\".")]
     MissingEnvVar {
         var: String,
         #[source]
         source: std::env::VarError,
     },
-    #[error("Invalid token format")]
+    #[error("Token should have three parts.")]
     InvalidTokenFormat,
-    #[error("Error decoding JWT token")]
-    Base64Decode(base64::DecodeError),
-    #[error("Error decoding JSON")]
-    JsonDecode(serde_json::Error),
-    #[error("Missing GRPC Address")]
+    #[error("Error decoding token: {0}.")]
+    Base64DecodeError(#[from] base64::DecodeError),
+    #[error("Error decoding JSON: {0}.")]
+    JsonDecodeError(#[from] serde_json::Error),
+    #[error("Token does not include gRPC broadcast address.")]
     MissingGrpcAddress,
-    #[error("Missing API server URL")]
+    #[error("Token does not include API server URL.")]
     MissingServerUrl,
     #[error("Error sending API request: {0}")]
     ApiRequestError(#[from] reqwest::Error),
-    #[error("Error encoding JSON")]
-    JsonEncode(serde_json::Error),
-    #[error("HTTP {status} returned invalid JSON: {source}\nBody:\n{body}")]
-    HttpJsonDecode {
+    #[error("Hatchet request failed:\nurl: {method} {url}\nstatus: {status}\ncontents: {body}")]
+    HttpError {
+        url: String,
+        method: reqwest::Method,
         status: reqwest::StatusCode,
         body: String,
-        source: serde_json::Error,
+    },
+    #[error("Error encoding JSON")]
+    JsonEncode(serde_json::Error),
+    #[error("Error parsing JSON response:\nstatus: {status}\ncontents: {body}")]
+    JsonParseError {
+        status: reqwest::StatusCode,
+        body: String,
     },
     #[error("Invalid authorization header in gRPC request")]
     InvalidAuthHeader(tonic::metadata::errors::InvalidMetadataValue),
     #[error("Unable to connect to gRPC server")]
-    GrpcConnect(tonic::transport::Error),
+    GrpcConnect(#[from] tonic::transport::Error),
     #[error("Error calling gRPC service")]
     GrpcCall(tonic::Status),
     #[error("Response missing output")]
     MissingOutput,
-    #[error("Workflow failed:\n{0}")]
-    WorkflowFailed(String),
-    #[error("Workflow {0} not found")]
-    WorkflowNotFound(crate::workflow::RunId),
-    #[error("Tasks not found")]
-    NoTasks,
-    #[error("Workflow has been cancelled")]
-    WorkflowCancelled,
-    #[error("Status {0} not recognized")]
-    UnknownStatus(String),
-    #[error("Error in TLS configuration")]
-    TlsConfig,
+    #[error("Workflow failed:\n{error_message}")]
+    WorkflowFailed { error_message: String },
+    #[error("Invalid gRPC URI: {uri}")]
+    InvalidUri { uri: String },
 }

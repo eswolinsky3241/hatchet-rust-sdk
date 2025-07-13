@@ -19,15 +19,12 @@ impl HatchetConfig {
             source: e,
         })?;
         let parts: Vec<&str> = token.split('.').collect();
-        if parts.len() < 2 {
+        if parts.len() != 3 {
             return Err(HatchetError::InvalidTokenFormat);
         }
 
-        let payload_bytes = URL_SAFE_NO_PAD
-            .decode(parts[1])
-            .map_err(HatchetError::Base64Decode)?;
-        let payload_json: serde_json::Value =
-            serde_json::from_slice(&payload_bytes).map_err(HatchetError::JsonDecode)?;
+        let payload_bytes = URL_SAFE_NO_PAD.decode(parts[1])?;
+        let payload_json: serde_json::Value = serde_json::from_slice(&payload_bytes)?;
 
         let grpc_address_no_scheme = payload_json
             .get("grpc_broadcast_address")

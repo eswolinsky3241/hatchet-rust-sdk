@@ -33,9 +33,7 @@ impl HatchetClient {
     {
         let channel = self.create_channel().await?;
 
-        let input_json = serde_json::to_string(&input)
-            .map_err(HatchetError::JsonEncode)
-            .unwrap();
+        let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
 
         let mut client = WorkflowServiceClient::new(channel);
 
@@ -53,16 +51,14 @@ impl HatchetClient {
 
         let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
             .parse()
-            .map_err(HatchetError::InvalidAuthHeader)
-            .unwrap();
+            .map_err(HatchetError::InvalidAuthHeader)?;
 
         request.metadata_mut().insert("authorization", token_header);
 
         let response = client
             .trigger_workflow(request)
             .await
-            .map_err(HatchetError::GrpcCall)
-            .unwrap();
+            .map_err(HatchetError::GrpcCall)?;
 
         Ok(RunId(response.into_inner().workflow_run_id))
     }
@@ -99,7 +95,7 @@ impl HatchetClient {
 
         if tls_strategy.to_lowercase() == "none" {
             let channel = Channel::from_shared(format!("http://{}", self.config.grpc_address))
-                .unwrap()
+                .map_err(|e| HatchetError::InvalidUri { uri: e.to_string() })?
                 .connect()
                 .await
                 .map_err(HatchetError::GrpcConnect)?;
@@ -110,9 +106,8 @@ impl HatchetClient {
                 .with_native_roots();
 
             let channel = Channel::from_shared(format!("https://{}", self.config.grpc_address))
-                .unwrap()
-                .tls_config(tls)
-                .unwrap()
+                .map_err(|e| HatchetError::InvalidUri { uri: e.to_string() })?
+                .tls_config(tls)?
                 .connect()
                 .await
                 .map_err(HatchetError::GrpcConnect)?;
