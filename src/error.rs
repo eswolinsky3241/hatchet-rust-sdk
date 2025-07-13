@@ -2,8 +2,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum HatchetError {
-    #[error("Missing environment variable")]
-    MissingEnvVar(std::env::VarError),
+    #[error("Missing required environment variable \"{var}\"")]
+    MissingEnvVar {
+        var: String,
+        #[source]
+        source: std::env::VarError,
+    },
     #[error("Invalid token format")]
     InvalidTokenFormat,
     #[error("Error decoding JWT token")]
