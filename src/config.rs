@@ -1,6 +1,7 @@
+use std::env;
+
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use std::env;
 
 #[derive(Debug, Clone)]
 pub struct HatchetConfig {

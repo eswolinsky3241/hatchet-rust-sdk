@@ -1,11 +1,12 @@
-use crate::config::HatchetConfig;
-use crate::error::HatchetError;
-use crate::workflow::RunId;
 use serde::Serialize;
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
 use workflows::TriggerWorkflowRequest;
 use workflows::workflow_service_client::WorkflowServiceClient;
+
+use crate::config::HatchetConfig;
+use crate::error::HatchetError;
+use crate::workflow::RunId;
 
 pub mod workflows {
     tonic::include_proto!("_");

@@ -1,9 +1,13 @@
-use crate::client::HatchetClient;
-use crate::error::HatchetError;
-use serde::{Serialize, de::DeserializeOwned};
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Deref;
+
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+
+use crate::client::HatchetClient;
+use crate::error::HatchetError;
+use crate::models::WorkflowStatus;
 
 pub struct Workflow<'a, I, O> {
     name: String,
@@ -46,23 +50,24 @@ where
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
         loop {
-            let wf = self.client.get_workflow(&run_id).await?;
+            let workflow = self.client.get_workflow(&run_id).await?;
 
-            if let Some(task) = wf.tasks.get(0) {
-                match task.status.as_str() {
-                    "COMPLETED" => {
-                        let output_json =
-                            task.output.as_ref().ok_or(HatchetError::MissingOutput)?;
-                        let output: O = serde_json::from_value(output_json.clone())
-                            .map_err(|e| HatchetError::JsonDecode(e))?;
-                        return Ok(output);
-                    }
-                    // "FAILED" => {
-                    //     return Err(HatchetError::WorkflowFailed(task.clone()));
-                    // }
-                    _ => {
-                        // still running
-                    }
+            match workflow.run.status {
+                WorkflowStatus::Completed => {
+                    let output_json = workflow
+                        .output
+                        .as_ref()
+                        .ok_or(HatchetError::MissingOutput)?;
+                    let output: O = serde_json::from_value(output_json.clone())
+                        .map_err(|e| HatchetError::JsonDecode(e))?;
+                    return Ok(output);
+                }
+                WorkflowStatus::Failed => {
+                    return Err(HatchetError::WorkflowFailed(workflow.error_message.clone()));
+                }
+
+                _ => {
+                    // still running
                 }
             }
 

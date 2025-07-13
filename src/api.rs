@@ -1,5 +1,6 @@
-use crate::error::HatchetError;
 use reqwest::Client;
+
+use crate::error::HatchetError;
 
 pub(crate) struct ApiClient {
     base_url: String,
@@ -38,10 +39,17 @@ impl ApiClient {
             .await
             .map_err(HatchetError::ApiRequestError)?;
 
-        let json = response
-            .json::<T>()
+        let status = response.status();
+        let body = response
+            .text()
             .await
-            .map_err(HatchetError::HttpJsonDecode)?;
+            .map_err(HatchetError::ApiRequestError)?;
+
+        let json = serde_json::from_str::<T>(&body).map_err(|e| HatchetError::HttpJsonDecode {
+            status,
+            body: body.clone(),
+            source: e,
+        })?;
 
         Ok(json)
     }
