@@ -8,7 +8,7 @@ pub enum HatchetError {
     InvalidTokenFormat,
     #[error("Error decoding token: {0}.")]
     Base64DecodeError(#[from] base64::DecodeError),
-    #[error("Error decoding JSON: {0}.")]
+    #[error("Error decoding JSON.")]
     JsonDecodeError(#[from] serde_json::Error),
     #[error("Token does not include gRPC broadcast address.")]
     MissingGrpcAddress,
@@ -25,11 +25,6 @@ pub enum HatchetError {
     },
     #[error("Error encoding JSON")]
     JsonEncode(serde_json::Error),
-    #[error("Error parsing JSON response:\nstatus: {status}\ncontents: {body}")]
-    JsonParseError {
-        status: reqwest::StatusCode,
-        body: String,
-    },
     #[error("Invalid authorization header in gRPC request")]
     InvalidAuthHeader(tonic::metadata::errors::InvalidMetadataValue),
     #[error("Unable to connect to gRPC server")]

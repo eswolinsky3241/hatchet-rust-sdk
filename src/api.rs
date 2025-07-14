@@ -54,10 +54,7 @@ impl ApiClient {
             });
         }
 
-        let json = serde_json::from_str::<T>(&body).map_err(|_| HatchetError::JsonParseError {
-            status,
-            body: body.clone(),
-        })?;
+        let json = serde_json::from_str::<T>(&body)?;
 
         Ok(json)
     }
