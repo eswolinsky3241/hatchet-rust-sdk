@@ -14,9 +14,8 @@ pub struct HatchetConfig {
 
 impl HatchetConfig {
     pub fn from_env() -> Result<Self, HatchetError> {
-        let token = env::var("HATCHET_CLIENT_TOKEN").map_err(|e| HatchetError::MissingEnvVar {
+        let token = env::var("HATCHET_CLIENT_TOKEN").map_err(|_| HatchetError::MissingEnvVar {
             var: "HATCHET_CLIENT_TOKEN".to_string(),
-            source: e,
         })?;
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
@@ -26,12 +25,10 @@ impl HatchetConfig {
         let payload_bytes = URL_SAFE_NO_PAD.decode(parts[1])?;
         let payload_json: serde_json::Value = serde_json::from_slice(&payload_bytes)?;
 
-        let grpc_address_no_scheme = payload_json
+        let grpc_address = payload_json
             .get("grpc_broadcast_address")
             .and_then(|v| v.as_str())
             .ok_or(HatchetError::MissingGrpcAddress)?;
-
-        let grpc_address = grpc_address_no_scheme;
 
         let server_url = payload_json
             .get("server_url")
