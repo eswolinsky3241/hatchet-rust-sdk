@@ -5,8 +5,7 @@ use serde_json::Value;
 pub struct GetWorkflowRunResponse {
     pub tasks: Vec<Task>,
     pub run: Run,
-    #[serde(rename = "errorMessage")]
-    pub error_message: String,
+
     pub output: Option<Value>,
 }
 
