@@ -33,7 +33,7 @@ impl ApiClient {
 
         let response = self
             .http_client
-            .get("https://cloud.onhatchet.run/api/v1/stable/workflow-runs/42ebd4a1-cf65-4cd5-9c5c-4e86809ff2b2")
+            .get(&url)
             .bearer_auth(&self.token)
             .send()
             .await
@@ -54,7 +54,7 @@ impl ApiClient {
             });
         }
 
-        let json = serde_json::from_str::<T>(&body).map_err(|_e| HatchetError::JsonParseError {
+        let json = serde_json::from_str::<T>(&body).map_err(|_| HatchetError::JsonParseError {
             status,
             body: body.clone(),
         })?;
