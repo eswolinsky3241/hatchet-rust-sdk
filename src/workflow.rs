@@ -56,6 +56,9 @@ where
                 WorkflowStatus::Running => continue,
                 WorkflowStatus::Completed => {
                     let output_json = workflow
+                        .tasks
+                        .last() // Get the output of the last task
+                        .ok_or(HatchetError::MissingTasks)?
                         .output
                         .as_ref()
                         .ok_or(HatchetError::MissingOutput)?;

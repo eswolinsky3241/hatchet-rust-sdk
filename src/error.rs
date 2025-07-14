@@ -35,4 +35,6 @@ pub enum HatchetError {
     WorkflowFailed { error_message: String },
     #[error("Invalid gRPC URI: {uri}")]
     InvalidUri { uri: String },
+    #[error("No tasks found in workflow.")]
+    MissingTasks,
 }
