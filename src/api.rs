@@ -50,7 +50,7 @@ impl ApiClient {
                 url: url.to_string(),
                 method: reqwest::Method::GET,
                 status,
-                body: body.clone(),
+                body: body,
             });
         }
 

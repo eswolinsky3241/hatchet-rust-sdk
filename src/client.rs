@@ -97,7 +97,7 @@ impl HatchetClient {
             .grpc_address
             .split(':')
             .next()
-            .ok_or(HatchetError::MissingGrpcAddress)?;
+            .ok_or(HatchetError::MissingTokenField("grpc_broadcast_address"))?;
 
         if tls_strategy.to_lowercase() == "none" {
             let channel = Channel::from_shared(format!("http://{}", self.config.grpc_address))

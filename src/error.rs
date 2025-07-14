@@ -10,10 +10,8 @@ pub enum HatchetError {
     Base64DecodeError(#[from] base64::DecodeError),
     #[error("Error decoding JSON.")]
     JsonDecodeError(#[from] serde_json::Error),
-    #[error("Token does not include gRPC broadcast address.")]
-    MissingGrpcAddress,
-    #[error("Token does not include API server URL.")]
-    MissingServerUrl,
+    #[error("Missing required field in JWT payload: {0}")]
+    MissingTokenField(&'static str),
     #[error("Error sending API request: {0}")]
     ApiRequestError(#[from] reqwest::Error),
     #[error("Hatchet request failed:\nurl: {method} {url}\nstatus: {status}\ncontents: {body}")]

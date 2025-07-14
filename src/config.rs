@@ -28,12 +28,12 @@ impl HatchetConfig {
         let grpc_address = payload_json
             .get("grpc_broadcast_address")
             .and_then(|v| v.as_str())
-            .ok_or(HatchetError::MissingGrpcAddress)?;
+            .ok_or(HatchetError::MissingTokenField("grpc_broadcast_address"))?;
 
         let server_url = payload_json
             .get("server_url")
             .and_then(|v| v.as_str())
-            .ok_or(HatchetError::MissingServerUrl)?;
+            .ok_or(HatchetError::MissingTokenField("server_url"))?;
 
         Ok(Self {
             api_token: token,
