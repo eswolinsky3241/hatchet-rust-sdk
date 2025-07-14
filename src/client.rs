@@ -22,6 +22,12 @@ impl HatchetClient {
         Ok(Self { config })
     }
 
+    pub fn from_env() -> Result<Self, HatchetError> {
+        Ok(Self {
+            config: HatchetConfig::from_env()?,
+        })
+    }
+
     pub async fn trigger_workflow<I>(
         &self,
         task_name: &str,
