@@ -1,3 +1,5 @@
+use dispatcher::WorkerRegisterRequest;
+use dispatcher::dispatcher_client::DispatcherClient;
 use serde::Serialize;
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
@@ -6,9 +8,13 @@ use workflows::workflow_service_client::WorkflowServiceClient;
 
 use crate::config::HatchetConfig;
 use crate::error::HatchetError;
+use crate::worker::Worker;
 use crate::workflow::RunId;
 
 pub mod workflows {
+    tonic::include_proto!("_");
+}
+pub mod dispatcher {
     tonic::include_proto!("_");
 }
 
@@ -26,6 +32,45 @@ impl HatchetClient {
         Ok(Self {
             config: HatchetConfig::from_env()?,
         })
+    }
+
+    pub async fn register_worker(&self, name: &str) -> Result<String, HatchetError> {
+        let channel = self.create_channel().await?;
+
+        let mut request = tonic::Request::new(WorkerRegisterRequest {
+            worker_name: name.to_string(),
+            actions: vec![],
+            services: vec![],
+            max_runs: None,
+            labels: std::collections::HashMap::new(),
+            webhook_id: None,
+            runtime_info: None,
+        });
+
+        let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
+            .parse()
+            .map_err(HatchetError::InvalidAuthHeader)?;
+
+        let mut client = DispatcherClient::new(channel);
+
+        request.metadata_mut().insert("authorization", token_header);
+
+        let response = client
+            .register(request)
+            .await
+            .map_err(HatchetError::GrpcCall)?;
+
+        Ok(response.into_inner().worker_id)
+    }
+
+    pub async fn worker(&self, name: String) -> Worker {
+        let worker_id = self.register_worker(&name).await.unwrap();
+        let worker = Worker {
+            client: self,
+            id: worker_id,
+            name: name,
+        };
+        worker
     }
 
     pub async fn trigger_workflow<I>(
@@ -85,9 +130,7 @@ impl HatchetClient {
             ))
             .await
     }
-}
 
-impl HatchetClient {
     async fn create_channel(&self) -> Result<Channel, HatchetError> {
         let tls_strategy =
             std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or("tls".to_string());

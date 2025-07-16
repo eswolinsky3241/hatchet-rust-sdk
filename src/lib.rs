@@ -10,3 +10,5 @@ pub mod workflow;
 pub(crate) mod api;
 
 pub mod models;
+
+pub mod worker;
