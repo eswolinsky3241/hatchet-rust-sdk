@@ -36,6 +36,7 @@ impl HatchetClient {
 
     pub async fn register_worker(&self, name: &str) -> Result<String, HatchetError> {
         let channel = self.create_channel().await?;
+        let mut client = DispatcherClient::new(channel);
 
         let mut request = tonic::Request::new(WorkerRegisterRequest {
             worker_name: name.to_string(),
@@ -47,13 +48,7 @@ impl HatchetClient {
             runtime_info: None,
         });
 
-        let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
-            .parse()
-            .map_err(HatchetError::InvalidAuthHeader)?;
-
-        let mut client = DispatcherClient::new(channel);
-
-        request.metadata_mut().insert("authorization", token_header);
+        self.add_auth_header(&mut request)?;
 
         let response = client
             .register(request)
@@ -65,19 +60,14 @@ impl HatchetClient {
 
     pub async fn heartbeat(&self, worker_id: &str) -> Result<(), HatchetError> {
         let channel = self.create_channel().await?;
+        let mut client = DispatcherClient::new(channel);
 
         let mut request = tonic::Request::new(dispatcher::HeartbeatRequest {
             worker_id: worker_id.to_string(),
             heartbeat_at: None,
         });
 
-        let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
-            .parse()
-            .map_err(HatchetError::InvalidAuthHeader)?;
-
-        let mut client = DispatcherClient::new(channel);
-
-        request.metadata_mut().insert("authorization", token_header);
+        self.add_auth_header(&mut request)?;
 
         client
             .heartbeat(request)
@@ -107,10 +97,9 @@ impl HatchetClient {
         I: Serialize,
     {
         let channel = self.create_channel().await?;
+        let mut client = WorkflowServiceClient::new(channel);
 
         let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
-
-        let mut client = WorkflowServiceClient::new(channel);
 
         let mut request = tonic::Request::new(TriggerWorkflowRequest {
             input: input_json,
@@ -124,11 +113,7 @@ impl HatchetClient {
             priority: None,
         });
 
-        let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
-            .parse()
-            .map_err(HatchetError::InvalidAuthHeader)?;
-
-        request.metadata_mut().insert("authorization", token_header);
+        self.add_auth_header(&mut request)?;
 
         let response = client
             .trigger_workflow(request)
@@ -167,24 +152,39 @@ impl HatchetClient {
             .ok_or(HatchetError::MissingTokenField("grpc_broadcast_address"))?;
 
         if tls_strategy.to_lowercase() == "none" {
-            let channel = Channel::from_shared(format!("http://{}", self.config.grpc_address))
-                .map_err(|e| HatchetError::InvalidUri { uri: e.to_string() })?
-                .connect()
-                .await
-                .map_err(HatchetError::GrpcConnect)?;
-            Ok(channel)
+            self.create_insecure_channel().await
         } else {
-            let tls = ClientTlsConfig::new()
-                .domain_name(domain_name)
-                .with_native_roots();
-
-            let channel = Channel::from_shared(format!("https://{}", self.config.grpc_address))
-                .map_err(|e| HatchetError::InvalidUri { uri: e.to_string() })?
-                .tls_config(tls)?
-                .connect()
-                .await
-                .map_err(HatchetError::GrpcConnect)?;
-            Ok(channel)
+            self.create_secure_channel(domain_name).await
         }
+    }
+
+    async fn create_insecure_channel(&self) -> Result<Channel, HatchetError> {
+        Channel::from_shared(format!("http://{}", self.config.grpc_address))
+            .map_err(|e| HatchetError::InvalidUri { uri: e.to_string() })?
+            .connect()
+            .await
+            .map_err(HatchetError::GrpcConnect)
+    }
+
+    async fn create_secure_channel(&self, domain_name: &str) -> Result<Channel, HatchetError> {
+        let tls = ClientTlsConfig::new()
+            .domain_name(domain_name)
+            .with_native_roots();
+
+        Channel::from_shared(format!("https://{}", self.config.grpc_address))
+            .map_err(|e| HatchetError::InvalidUri { uri: e.to_string() })?
+            .tls_config(tls)?
+            .connect()
+            .await
+            .map_err(HatchetError::GrpcConnect)
+    }
+
+    fn add_auth_header<T>(&self, request: &mut tonic::Request<T>) -> Result<(), HatchetError> {
+        let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
+            .parse()
+            .map_err(HatchetError::InvalidAuthHeader)?;
+
+        request.metadata_mut().insert("authorization", token_header);
+        Ok(())
     }
 }
