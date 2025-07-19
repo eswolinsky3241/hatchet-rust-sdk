@@ -109,7 +109,7 @@ where
 
         let response = self
             .client
-            .grpc_unary_with_auth(request, |channel, request| async move {
+            .grpc_unary(request, |channel, request| async move {
                 let mut client = WorkflowServiceClient::new(channel);
                 client.trigger_workflow(request).await
             })

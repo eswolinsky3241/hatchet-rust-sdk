@@ -1,3 +1,4 @@
+use tokio_stream::{Stream, StreamExt};
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Request, Response};
@@ -28,20 +29,7 @@ impl HatchetClient {
         })
     }
 
-    // Generic gRPC methods
     pub async fn grpc_unary<Req, Resp, F, Fut>(
-        &self,
-        service_call: F,
-    ) -> Result<Response<Resp>, HatchetError>
-    where
-        F: FnOnce(Channel) -> Fut,
-        Fut: std::future::Future<Output = Result<Response<Resp>, tonic::Status>>,
-    {
-        let channel = self.create_channel().await?;
-        service_call(channel).await.map_err(HatchetError::GrpcCall)
-    }
-
-    pub async fn grpc_unary_with_auth<Req, Resp, F, Fut>(
         &self,
         mut request: Request<Req>,
         service_call: F,

@@ -44,7 +44,7 @@ impl<'a> Worker<'a> {
         });
 
         self.client
-            .grpc_unary_with_auth(request, |channel, request| async move {
+            .grpc_unary(request, |channel, request| async move {
                 let mut client = DispatcherClient::new(channel);
                 client.heartbeat(request).await
             })
@@ -65,7 +65,7 @@ impl<'a> Worker<'a> {
         });
 
         let response = client
-            .grpc_unary_with_auth(request, |channel, request| async move {
+            .grpc_unary(request, |channel, request| async move {
                 let mut client = DispatcherClient::new(channel);
                 client.register(request).await
             })
