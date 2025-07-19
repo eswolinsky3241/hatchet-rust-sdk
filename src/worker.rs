@@ -22,7 +22,7 @@ impl<'a> Worker<'a> {
     pub async fn start(&self) -> Result<(), HatchetError> {
         loop {
             self.client.heartbeat(&self.id).await?;
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
         }
     }
 
