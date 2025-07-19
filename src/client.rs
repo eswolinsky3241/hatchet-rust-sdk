@@ -63,6 +63,30 @@ impl HatchetClient {
         Ok(response.into_inner().worker_id)
     }
 
+    pub async fn heartbeat(&self, worker_id: &str) -> Result<(), HatchetError> {
+        let channel = self.create_channel().await?;
+
+        let mut request = tonic::Request::new(dispatcher::HeartbeatRequest {
+            worker_id: worker_id.to_string(),
+            heartbeat_at: None,
+        });
+
+        let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
+            .parse()
+            .map_err(HatchetError::InvalidAuthHeader)?;
+
+        let mut client = DispatcherClient::new(channel);
+
+        request.metadata_mut().insert("authorization", token_header);
+
+        client
+            .heartbeat(request)
+            .await
+            .map_err(HatchetError::GrpcCall)?;
+
+        Ok(())
+    }
+
     pub async fn worker(&self, name: String) -> Worker {
         let worker_id = self.register_worker(&name).await.unwrap();
         let worker = Worker {

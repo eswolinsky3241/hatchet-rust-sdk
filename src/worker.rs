@@ -19,8 +19,11 @@ impl<'a> Worker<'a> {
         Ok(())
     }
 
-    pub fn start() -> Result<(), HatchetError> {
-        Ok(())
+    pub async fn start(&self) -> Result<(), HatchetError> {
+        loop {
+            self.client.heartbeat(&self.id).await?;
+            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        }
     }
 
     pub async fn heartbeat() -> Result<(), HatchetError> {
