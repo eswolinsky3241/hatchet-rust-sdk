@@ -1,5 +1,6 @@
 use dispatcher::dispatcher_client::DispatcherClient;
-use dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
+use dispatcher::{AssignedAction, HeartbeatRequest, WorkerListenRequest, WorkerRegisterRequest};
+use serde_json::json;
 use tonic::Request;
 
 use crate::client::HatchetClient;
@@ -31,10 +32,20 @@ impl<'a> Worker<'a> {
     }
 
     pub async fn start(&self) -> Result<(), HatchetError> {
-        loop {
-            self.heartbeat().await?;
-            tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
-        }
+        let heartbeat_worker = async {
+            loop {
+                self.heartbeat().await?;
+                tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+            }
+            #[allow(unreachable_code)]
+            Ok::<(), HatchetError>(()) // required for try_join!
+        };
+
+        let listen_worker = self.listen();
+
+        tokio::try_join!(heartbeat_worker, listen_worker)?;
+
+        Ok(())
     }
 
     pub async fn heartbeat(&self) -> Result<(), HatchetError> {
@@ -51,6 +62,30 @@ impl<'a> Worker<'a> {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn listen(&self) -> Result<(), HatchetError> {
+        let request = Request::new(WorkerListenRequest {
+            worker_id: self.id.clone(),
+        });
+
+        let response = self
+            .client
+            .grpc_stream(request, |channel, request| async move {
+                let mut client = DispatcherClient::new(channel);
+                client.listen_v2(request).await
+            })
+            .await?;
+        let mut response = response.into_inner();
+        loop {
+            match response.message().await {
+                Ok(message) => match message {
+                    Some(message) => println!("{}", message.action_payload),
+                    None => return Ok(()),
+                },
+                Err(e) => println!("{e}"),
+            };
+        }
     }
 
     async fn register_worker(client: &HatchetClient, name: &str) -> Result<String, HatchetError> {

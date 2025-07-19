@@ -29,6 +29,24 @@ impl HatchetClient {
         })
     }
 
+    pub async fn grpc_stream<Req, Resp, F, Fut>(
+        &self,
+        mut request: Request<Req>,
+        service_call: F,
+    ) -> Result<Response<Resp>, HatchetError>
+    where
+        F: FnOnce(Channel, Request<Req>) -> Fut,
+        Fut: std::future::Future<Output = Result<Response<Resp>, tonic::Status>>,
+    {
+        self.add_auth_header(&mut request)?;
+        let channel = self.create_channel().await?;
+        let stream = service_call(channel, request)
+            .await
+            .map_err(HatchetError::GrpcCall)?;
+
+        Ok(stream)
+    }
+
     pub async fn grpc_unary<Req, Resp, F, Fut>(
         &self,
         mut request: Request<Req>,
