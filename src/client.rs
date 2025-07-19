@@ -40,9 +40,9 @@ impl HatchetClient {
 
         let mut request = tonic::Request::new(WorkerRegisterRequest {
             worker_name: name.to_string(),
-            actions: vec![],
+            actions: vec!["simpletask:simpletask".to_string()],
             services: vec![],
-            max_runs: None,
+            max_runs: Some(5),
             labels: std::collections::HashMap::new(),
             webhook_id: None,
             runtime_info: None,
