@@ -1,15 +1,9 @@
-use dispatcher::WorkerRegisterRequest;
-use dispatcher::dispatcher_client::DispatcherClient;
-use serde::Serialize;
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
-use workflows::TriggerWorkflowRequest;
-use workflows::workflow_service_client::WorkflowServiceClient;
+use tonic::{Request, Response};
 
 use crate::config::HatchetConfig;
 use crate::error::HatchetError;
-use crate::worker::Worker;
-use crate::workflow::RunId;
 
 pub mod workflows {
     tonic::include_proto!("_");
@@ -34,110 +28,45 @@ impl HatchetClient {
         })
     }
 
-    pub async fn register_worker(&self, name: &str) -> Result<String, HatchetError> {
-        let channel = self.create_channel().await?;
-        let mut client = DispatcherClient::new(channel);
-
-        let mut request = tonic::Request::new(WorkerRegisterRequest {
-            worker_name: name.to_string(),
-            actions: vec!["simpletask:simpletask".to_string()],
-            services: vec![],
-            max_runs: Some(5),
-            labels: std::collections::HashMap::new(),
-            webhook_id: None,
-            runtime_info: None,
-        });
-
-        self.add_auth_header(&mut request)?;
-
-        let response = client
-            .register(request)
-            .await
-            .map_err(HatchetError::GrpcCall)?;
-
-        Ok(response.into_inner().worker_id)
-    }
-
-    pub async fn heartbeat(&self, worker_id: &str) -> Result<(), HatchetError> {
-        let channel = self.create_channel().await?;
-        let mut client = DispatcherClient::new(channel);
-
-        let mut request = tonic::Request::new(dispatcher::HeartbeatRequest {
-            worker_id: worker_id.to_string(),
-            heartbeat_at: None,
-        });
-
-        self.add_auth_header(&mut request)?;
-
-        client
-            .heartbeat(request)
-            .await
-            .map_err(HatchetError::GrpcCall)?;
-
-        Ok(())
-    }
-
-    pub async fn worker(&self, name: String) -> Worker {
-        let worker_id = self.register_worker(&name).await.unwrap();
-        let worker = Worker {
-            client: self,
-            id: worker_id,
-            name: name,
-        };
-        worker
-    }
-
-    pub async fn trigger_workflow<I>(
+    // Generic gRPC methods
+    pub async fn grpc_unary<Req, Resp, F, Fut>(
         &self,
-        task_name: &str,
-        input: I,
-        options: crate::workflow::TriggerWorkflowOptions,
-    ) -> Result<RunId, HatchetError>
+        service_call: F,
+    ) -> Result<Response<Resp>, HatchetError>
     where
-        I: Serialize,
+        F: FnOnce(Channel) -> Fut,
+        Fut: std::future::Future<Output = Result<Response<Resp>, tonic::Status>>,
     {
         let channel = self.create_channel().await?;
-        let mut client = WorkflowServiceClient::new(channel);
-
-        let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
-
-        let mut request = tonic::Request::new(TriggerWorkflowRequest {
-            input: input_json,
-            name: task_name.to_string(),
-            parent_id: None,
-            parent_step_run_id: None,
-            child_index: None,
-            child_key: None,
-            additional_metadata: options.additional_metadata.map(|v| v.to_string()),
-            desired_worker_id: options.desired_worker_id,
-            priority: None,
-        });
-
-        self.add_auth_header(&mut request)?;
-
-        let response = client
-            .trigger_workflow(request)
-            .await
-            .map_err(HatchetError::GrpcCall)?;
-
-        Ok(RunId(response.into_inner().workflow_run_id))
+        service_call(channel).await.map_err(HatchetError::GrpcCall)
     }
 
-    pub async fn get_workflow(
+    pub async fn grpc_unary_with_auth<Req, Resp, F, Fut>(
         &self,
-        workflow_run_id: &RunId,
-    ) -> Result<crate::models::GetWorkflowRunResponse, HatchetError> {
+        mut request: Request<Req>,
+        service_call: F,
+    ) -> Result<Response<Resp>, HatchetError>
+    where
+        F: FnOnce(Channel, Request<Req>) -> Fut,
+        Fut: std::future::Future<Output = Result<Response<Resp>, tonic::Status>>,
+    {
+        self.add_auth_header(&mut request)?;
+        let channel = self.create_channel().await?;
+        service_call(channel, request)
+            .await
+            .map_err(HatchetError::GrpcCall)
+    }
+
+    pub async fn api_get<T>(&self, path: &str) -> Result<T, HatchetError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
         let api_client = crate::api::ApiClient::new(
             self.config.server_url.clone(),
             self.config.api_token.clone(),
         );
 
-        api_client
-            .get::<crate::models::GetWorkflowRunResponse>(&format!(
-                "/api/v1/stable/workflow-runs/{}",
-                workflow_run_id
-            ))
-            .await
+        api_client.get::<T>(path).await
     }
 
     async fn create_channel(&self) -> Result<Channel, HatchetError> {
@@ -179,7 +108,7 @@ impl HatchetClient {
             .map_err(HatchetError::GrpcConnect)
     }
 
-    fn add_auth_header<T>(&self, request: &mut tonic::Request<T>) -> Result<(), HatchetError> {
+    fn add_auth_header<T>(&self, request: &mut Request<T>) -> Result<(), HatchetError> {
         let token_header: MetadataValue<_> = format!("Bearer {}", self.config.api_token)
             .parse()
             .map_err(HatchetError::InvalidAuthHeader)?;

@@ -4,10 +4,16 @@ use std::ops::Deref;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use tonic::Request;
+use workflows::{TriggerWorkflowRequest, workflow_service_client::WorkflowServiceClient};
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::models::WorkflowStatus;
+
+pub mod workflows {
+    tonic::include_proto!("_");
+}
 
 pub struct Workflow<'a, I, O> {
     name: String,
@@ -35,9 +41,7 @@ where
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<RunId, HatchetError> {
-        self.client
-            .trigger_workflow(&self.name, input, options.unwrap_or_default())
-            .await
+        self.trigger(input, options.unwrap_or_default()).await
     }
 
     pub async fn run(
@@ -50,7 +54,7 @@ where
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
         loop {
-            let workflow = self.client.get_workflow(&run_id).await?;
+            let workflow = self.get_run(&run_id).await?;
 
             match workflow.run.status {
                 WorkflowStatus::Running => continue,
@@ -79,6 +83,48 @@ where
 
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
+    }
+
+    pub async fn trigger<T>(
+        &self,
+        input: T,
+        options: TriggerWorkflowOptions,
+    ) -> Result<RunId, HatchetError>
+    where
+        T: Serialize,
+    {
+        let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
+
+        let request = Request::new(TriggerWorkflowRequest {
+            input: input_json,
+            name: self.name.clone(),
+            parent_id: None,
+            parent_step_run_id: None,
+            child_index: None,
+            child_key: None,
+            additional_metadata: options.additional_metadata.map(|v| v.to_string()),
+            desired_worker_id: options.desired_worker_id,
+            priority: None,
+        });
+
+        let response = self
+            .client
+            .grpc_unary_with_auth(request, |channel, request| async move {
+                let mut client = WorkflowServiceClient::new(channel);
+                client.trigger_workflow(request).await
+            })
+            .await?;
+
+        Ok(RunId(response.into_inner().workflow_run_id))
+    }
+
+    pub async fn get_run(
+        &self,
+        run_id: &RunId,
+    ) -> Result<crate::models::GetWorkflowRunResponse, HatchetError> {
+        self.client
+            .api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
+            .await
     }
 }
 
