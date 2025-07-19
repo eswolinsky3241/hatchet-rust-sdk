@@ -1,6 +1,5 @@
 use dispatcher::dispatcher_client::DispatcherClient;
-use dispatcher::{AssignedAction, HeartbeatRequest, WorkerListenRequest, WorkerRegisterRequest};
-use serde_json::json;
+use dispatcher::{HeartbeatRequest, WorkerListenRequest, WorkerRegisterRequest};
 use tonic::Request;
 
 use crate::client::HatchetClient;
@@ -38,7 +37,7 @@ impl<'a> Worker<'a> {
                 tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
             }
             #[allow(unreachable_code)]
-            Ok::<(), HatchetError>(()) // required for try_join!
+            Ok::<(), HatchetError>(())
         };
 
         let listen_worker = self.listen();
