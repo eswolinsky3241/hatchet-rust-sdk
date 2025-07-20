@@ -1,4 +1,3 @@
-use tokio_stream::{Stream, StreamExt};
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig};
 use tonic::{Request, Response};

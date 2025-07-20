@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use dispatcher::dispatcher_client::DispatcherClient;
 use dispatcher::{HeartbeatRequest, WorkerListenRequest, WorkerRegisterRequest};
+use prost_types::Timestamp;
 use tonic::Request;
 
 use crate::client::HatchetClient;
@@ -9,7 +12,7 @@ use crate::workflow::Workflow;
 pub mod dispatcher {
     tonic::include_proto!("_");
 }
-
+use std::time::{SystemTime, UNIX_EPOCH};
 pub struct Worker<'a> {
     pub name: String,
     pub id: String,
@@ -31,6 +34,7 @@ impl<'a> Worker<'a> {
     }
 
     pub async fn start(&self) -> Result<(), HatchetError> {
+        println!("{}", proto_timestamp_now());
         let heartbeat_worker = async {
             loop {
                 self.heartbeat().await?;
@@ -50,7 +54,7 @@ impl<'a> Worker<'a> {
     pub async fn heartbeat(&self) -> Result<(), HatchetError> {
         let request = Request::new(HeartbeatRequest {
             worker_id: self.id.clone(),
-            heartbeat_at: None,
+            heartbeat_at: Some(proto_timestamp_now()),
         });
 
         self.client
@@ -79,7 +83,14 @@ impl<'a> Worker<'a> {
         loop {
             match response.message().await {
                 Ok(message) => match message {
-                    Some(message) => println!("{}", message.action_payload),
+                    Some(message) => {
+                        println!("{:?}", message);
+                        match message.action_type().as_str_name() {
+                            "START_STEP_RUN" => println!("STARTING {}", message.action_id),
+                            "CANCEL_STEP_RUN" => println!("CANCELING"),
+                            _ => println!("GOT SOMETHING ELSE"),
+                        };
+                    }
                     None => return Ok(()),
                 },
                 Err(e) => println!("{e}"),
@@ -93,7 +104,7 @@ impl<'a> Worker<'a> {
             actions: vec!["simpletask:simpletask".to_string()],
             services: vec![],
             max_runs: Some(5),
-            labels: std::collections::HashMap::new(),
+            labels: HashMap::new(),
             webhook_id: None,
             runtime_info: None,
         });
@@ -106,5 +117,16 @@ impl<'a> Worker<'a> {
             .await?;
 
         Ok(response.into_inner().worker_id)
+    }
+}
+
+fn proto_timestamp_now() -> Timestamp {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+
+    Timestamp {
+        seconds: now.as_secs() as i64,
+        nanos: now.subsec_nanos() as i32,
     }
 }
