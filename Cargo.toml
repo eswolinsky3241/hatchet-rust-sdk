@@ -25,6 +25,8 @@ serde_json = "1"
 tokio = "1.46.1"
 thiserror = "2"
 tokio-stream = "0.1.17"
+tokio-util = "0.7.15"
+async-trait = "0.1.88"
 
 [build-dependencies]
 tonic-build = { version = "0.13.1", features = ["prost"] }
