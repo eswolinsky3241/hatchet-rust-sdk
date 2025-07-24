@@ -5,7 +5,8 @@ use std::ops::Deref;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tonic::Request;
-use workflows::{TriggerWorkflowRequest, workflow_service_client::WorkflowServiceClient};
+use workflows::TriggerWorkflowRequest;
+use workflows::workflow_service_client::WorkflowServiceClient;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
