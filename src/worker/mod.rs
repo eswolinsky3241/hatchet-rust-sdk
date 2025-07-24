@@ -59,7 +59,7 @@ impl Worker {
     pub async fn start(&self) -> Result<(), HatchetError> {
         let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(100);
 
-        let listener = Arc::new(ActionListener {
+        let action_listener = Arc::new(ActionListener {
             client: self.client.clone(),
         });
 
@@ -67,11 +67,12 @@ impl Worker {
         let dispatcher = Arc::new(crate::worker::task_dispatcher::TaskDispatcher {
             registry: test_registry,
             client: self.client.clone(),
+            task_runs: Arc::new(std::sync::Mutex::new(HashMap::new())),
         });
 
         let worker_id = self.worker_id.clone();
         tokio::spawn(async move {
-            listener.listen(worker_id, tx).await.unwrap();
+            action_listener.listen(worker_id, tx).await.unwrap();
         });
 
         let worker_id = self.worker_id.clone();
@@ -86,21 +87,9 @@ impl Worker {
             },
             async {
                 while let Some(task) = rx.recv().await {
-                    match task.action_type().as_str_name() {
-                        "START_STEP_RUN" => {
-                            let worker_id = worker_id.clone();
-                            let dispatcher = dispatcher.clone();
-                            let _ = tokio::spawn(async move {
-                                if let Err(e) = dispatcher.dispatch(worker_id, task).await {
-                                    eprintln!("Task failed: {e}");
-                                }
-                            });
-                        }
-                        "CANCEL_STEP_RUN" => {
-                            // Add cancel code here
-                        }
-                        _ => println!("GOT SOMETHING ELSE"),
-                    };
+                    let worker_id = worker_id.clone();
+                    let dispatcher = dispatcher.clone();
+                    dispatcher.dispatch(worker_id, task).await?
                 }
                 Ok(())
             }
