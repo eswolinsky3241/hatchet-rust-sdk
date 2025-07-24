@@ -86,13 +86,21 @@ impl Worker {
             },
             async {
                 while let Some(task) = rx.recv().await {
-                    let worker_id = worker_id.clone();
-                    let dispatcher = dispatcher.clone();
-                    tokio::spawn(async move {
-                        if let Err(e) = dispatcher.dispatch(worker_id, task).await {
-                            eprintln!("Task failed: {e}");
+                    match task.action_type().as_str_name() {
+                        "START_STEP_RUN" => {
+                            let worker_id = worker_id.clone();
+                            let dispatcher = dispatcher.clone();
+                            let _ = tokio::spawn(async move {
+                                if let Err(e) = dispatcher.dispatch(worker_id, task).await {
+                                    eprintln!("Task failed: {e}");
+                                }
+                            });
                         }
-                    });
+                        "CANCEL_STEP_RUN" => {
+                            // Add cancel code here
+                        }
+                        _ => println!("GOT SOMETHING ELSE"),
+                    };
                 }
                 Ok(())
             }
