@@ -1,15 +1,13 @@
-pub mod error;
-
 pub mod client;
-
 pub mod config;
-
+pub mod error;
+pub(crate) mod grpc;
+pub mod models;
+pub(crate) mod rest;
+pub mod tasks;
+pub mod worker;
 pub mod workflow;
 
-pub(crate) mod api;
-
-pub mod models;
-
-pub mod worker;
-
-pub mod task;
+pub use client::HatchetClient;
+pub use error::HatchetError;
+pub use worker::Worker;

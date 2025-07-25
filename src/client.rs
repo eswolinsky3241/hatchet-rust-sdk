@@ -66,7 +66,7 @@ impl HatchetClient {
     where
         T: serde::de::DeserializeOwned,
     {
-        let api_client = crate::api::ApiClient::new(
+        let api_client = crate::rest::ApiClient::new(
             self.config.server_url.clone(),
             self.config.api_token.clone(),
         );

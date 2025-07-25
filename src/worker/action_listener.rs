@@ -4,8 +4,8 @@ use tonic::Request;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
-use crate::worker::dispatcher::WorkerListenRequest;
-use crate::worker::dispatcher::dispatcher_client::DispatcherClient;
+use crate::grpc::dispatcher;
+use crate::grpc::dispatcher::dispatcher_client::DispatcherClient;
 
 pub struct ActionListener {
     pub client: Arc<HatchetClient>,
@@ -15,9 +15,9 @@ impl ActionListener {
     pub async fn listen(
         &self,
         worker_id: Arc<String>,
-        tx: tokio::sync::mpsc::Sender<crate::worker::dispatcher::AssignedAction>,
+        tx: tokio::sync::mpsc::Sender<dispatcher::AssignedAction>,
     ) -> Result<(), HatchetError> {
-        let request = Request::new(WorkerListenRequest {
+        let request = Request::new(dispatcher::WorkerListenRequest {
             worker_id: worker_id.to_string(),
         });
 

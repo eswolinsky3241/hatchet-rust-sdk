@@ -6,10 +6,10 @@ use prost_types::Timestamp;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use crate::task::ErasedTask;
-use crate::worker::dispatcher::AssignedAction;
+use crate::error::HatchetError;
+use crate::grpc::dispatcher;
+use crate::tasks::ErasedTask;
 
-/// Responsible for managing task threads and reporting the results back to Hatchet
 pub struct TaskDispatcher {
     pub registry: Arc<HashMap<String, Arc<dyn ErasedTask>>>,
     pub client: Arc<crate::client::HatchetClient>,
@@ -20,7 +20,7 @@ impl TaskDispatcher {
     pub async fn dispatch(
         &self,
         worker_id: Arc<String>,
-        message: AssignedAction,
+        message: dispatcher::AssignedAction,
     ) -> Result<(), crate::error::HatchetError> {
         match message.action_type().as_str_name() {
             "START_STEP_RUN" => {
@@ -44,7 +44,7 @@ impl TaskDispatcher {
     async fn handle_start_step_run(
         &self,
         worker_id: Arc<String>,
-        message: AssignedAction,
+        message: dispatcher::AssignedAction,
     ) -> Result<(), crate::error::HatchetError> {
         let step_run_id = message.step_run_id.clone();
 
@@ -78,7 +78,7 @@ impl TaskDispatcher {
 
             let event_type = if result.is_ok() { 2 } else { 3 };
 
-            let event = crate::worker::dispatcher::StepActionEvent {
+            let event = dispatcher::StepActionEvent {
                 worker_id: worker_id_clone.to_string(),
                 job_id: message.job_id.clone(),
                 job_run_id: message.job_run_id.clone(),
@@ -95,10 +95,7 @@ impl TaskDispatcher {
             let request = tonic::Request::new(event);
             let _ = client
                 .grpc_unary(request, |channel, request| async move {
-                    let mut client =
-                        crate::worker::dispatcher::dispatcher_client::DispatcherClient::new(
-                            channel,
-                        );
+                    let mut client = dispatcher::dispatcher_client::DispatcherClient::new(channel);
                     client.send_step_action_event(request).await
                 })
                 .await;
@@ -115,11 +112,11 @@ impl TaskDispatcher {
     async fn send_step_action_event_common(
         &self,
         worker_id: &Arc<String>,
-        message: &AssignedAction,
+        message: &dispatcher::AssignedAction,
         event_type: i32,
         event_payload: String,
-    ) -> Result<(), crate::error::HatchetError> {
-        let event = crate::worker::dispatcher::StepActionEvent {
+    ) -> Result<(), HatchetError> {
+        let event = dispatcher::StepActionEvent {
             worker_id: worker_id.to_string(),
             job_id: message.job_id.clone(),
             job_run_id: message.job_run_id.clone(),
@@ -136,8 +133,7 @@ impl TaskDispatcher {
         let request = tonic::Request::new(event);
         self.client
             .grpc_unary(request, |channel, request| async move {
-                let mut client =
-                    crate::worker::dispatcher::dispatcher_client::DispatcherClient::new(channel);
+                let mut client = dispatcher::dispatcher_client::DispatcherClient::new(channel);
                 client.send_step_action_event(request).await
             })
             .await?;

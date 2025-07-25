@@ -5,16 +5,12 @@ use std::ops::Deref;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tonic::Request;
-use workflows::TriggerWorkflowRequest;
-use workflows::workflow_service_client::WorkflowServiceClient;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
+use crate::grpc::workflows::TriggerWorkflowRequest;
+use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::models::WorkflowStatus;
-
-pub mod workflows {
-    tonic::include_proto!("_");
-}
 
 pub struct Workflow<'a, I, O> {
     name: String,
