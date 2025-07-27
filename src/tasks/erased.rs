@@ -4,6 +4,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::error::HatchetError;
+use crate::tasks::Context;
 use crate::tasks::task_trait::Task;
 
 #[async_trait::async_trait]
@@ -13,6 +14,7 @@ pub trait ErasedTask: Send + Sync {
     async fn run_from_json(
         &self,
         input: serde_json::Value,
+        ctx: Context,
     ) -> Result<serde_json::Value, HatchetError>;
 }
 
@@ -54,9 +56,10 @@ where
     async fn run_from_json(
         &self,
         input: serde_json::Value,
+        ctx: Context,
     ) -> Result<serde_json::Value, HatchetError> {
         let typed_input: I = serde_json::from_value(input)?;
-        let output = self.inner.run(typed_input).await?;
+        let output = self.inner.run(typed_input, ctx).await?;
         Ok(serde_json::to_value(output)?)
     }
 }

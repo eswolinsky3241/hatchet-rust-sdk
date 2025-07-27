@@ -8,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::error::HatchetError;
 use crate::grpc::dispatcher;
-use crate::tasks::ErasedTask;
+use crate::tasks::{Context, ErasedTask};
 
 pub struct TaskDispatcher {
     pub registry: Arc<HashMap<String, Arc<dyn ErasedTask>>>,
@@ -59,7 +59,8 @@ impl TaskDispatcher {
                 .cloned()
                 .expect("missing `input` field");
 
-            let result = AssertUnwindSafe(handler.run_from_json(input_value))
+            let context = Context {};
+            let result = AssertUnwindSafe(handler.run_from_json(input_value, context))
                 .catch_unwind()
                 .await;
 
