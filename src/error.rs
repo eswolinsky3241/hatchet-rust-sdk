@@ -37,4 +37,8 @@ pub enum HatchetError {
     InvalidUri { uri: String },
     #[error("No tasks found in workflow.")]
     MissingTasks,
+    #[error("{0}")]
+    SystemTimeError(#[from] std::time::SystemTimeError),
+    #[error("Unrecognized action received: {action}")]
+    UnrecognizedAction { action: String },
 }

@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-use prost_types::Timestamp;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
@@ -92,10 +90,10 @@ impl Worker {
         Ok(())
     }
 
-    pub async fn heartbeat(&self) -> Result<(), HatchetError> {
+    async fn heartbeat(&self) -> Result<(), HatchetError> {
         let request = Request::new(HeartbeatRequest {
             worker_id: self.worker_id.to_string(),
-            heartbeat_at: Some(proto_timestamp_now()),
+            heartbeat_at: Some(crate::utils::proto_timestamp_now()?),
         });
 
         self.client
@@ -132,14 +130,5 @@ impl Worker {
             .await?;
 
         Ok(response.into_inner().worker_id)
-    }
-}
-
-fn proto_timestamp_now() -> Timestamp {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
-    Timestamp {
-        seconds: now.as_secs() as i64,
-        nanos: now.subsec_nanos() as i32,
     }
 }

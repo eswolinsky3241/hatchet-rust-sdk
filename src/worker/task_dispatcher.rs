@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
 
-use prost_types::Timestamp;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
@@ -21,31 +19,21 @@ impl TaskDispatcher {
         &self,
         worker_id: Arc<String>,
         message: dispatcher::AssignedAction,
-    ) -> Result<(), crate::error::HatchetError> {
+    ) -> Result<(), crate::HatchetError> {
         match message.action_type().as_str_name() {
-            "START_STEP_RUN" => {
-                self.handle_start_step_run(worker_id, message).await?;
-            }
-            "CANCEL_STEP_RUN" => {
-                let step_run_id = message.step_run_id.clone();
-                if let Some((handle, token)) = self.task_runs.lock().unwrap().remove(&step_run_id) {
-                    println!("[{step_run_id}] Cancelling task...");
-                    token.cancel();
-                    handle.abort();
-                } else {
-                    println!("[{step_run_id}] No running task found to cancel.");
-                }
-            }
-            _ => println!("GOT SOMETHING ELSE"),
+            "START_STEP_RUN" => Ok(self.handle_start_step_run(worker_id, message).await?),
+            "CANCEL_STEP_RUN" => Ok(self.handle_cancel_step_run(message).await?),
+            _ => Err(HatchetError::UnrecognizedAction {
+                action: message.action_type().as_str_name().to_string(),
+            }),
         }
-        Ok(())
     }
 
     async fn handle_start_step_run(
         &self,
         worker_id: Arc<String>,
         message: dispatcher::AssignedAction,
-    ) -> Result<(), crate::error::HatchetError> {
+    ) -> Result<(), crate::HatchetError> {
         let step_run_id = message.step_run_id.clone();
 
         self.send_step_action_event_common(&worker_id, &message, 1, "".to_string())
@@ -85,7 +73,7 @@ impl TaskDispatcher {
                 step_id: message.step_id.clone(),
                 step_run_id: message.step_run_id.clone(),
                 action_id: message.action_id.clone(),
-                event_timestamp: Some(proto_timestamp_now()),
+                event_timestamp: Some(crate::utils::proto_timestamp_now().unwrap()),
                 event_type,
                 event_payload,
                 retry_count: None,
@@ -109,6 +97,19 @@ impl TaskDispatcher {
         Ok(())
     }
 
+    async fn handle_cancel_step_run(
+        &self,
+        message: dispatcher::AssignedAction,
+    ) -> Result<(), crate::HatchetError> {
+        let step_run_id = message.step_run_id.clone();
+        if let Some((handle, token)) = self.task_runs.lock().unwrap().remove(&step_run_id) {
+            println!("[{step_run_id}] Cancelling task...");
+            token.cancel();
+            handle.abort();
+        }
+        Ok(())
+    }
+
     async fn send_step_action_event_common(
         &self,
         worker_id: &Arc<String>,
@@ -123,7 +124,7 @@ impl TaskDispatcher {
             step_id: message.step_id.clone(),
             step_run_id: message.step_run_id.clone(),
             action_id: message.action_id.clone(),
-            event_timestamp: Some(proto_timestamp_now()),
+            event_timestamp: Some(crate::utils::proto_timestamp_now()?),
             event_type,
             event_payload,
             retry_count: None,
@@ -138,14 +139,5 @@ impl TaskDispatcher {
             })
             .await?;
         Ok(())
-    }
-}
-
-fn proto_timestamp_now() -> Timestamp {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
-    Timestamp {
-        seconds: now.as_secs() as i64,
-        nanos: now.subsec_nanos() as i32,
     }
 }
