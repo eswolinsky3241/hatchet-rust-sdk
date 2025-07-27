@@ -11,4 +11,5 @@ pub mod workflow;
 
 pub use client::HatchetClient;
 pub use error::HatchetError;
+pub use tasks::Context;
 pub use worker::Worker;
