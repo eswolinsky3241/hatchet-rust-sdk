@@ -51,10 +51,6 @@ impl Worker {
     pub async fn start(&self) -> Result<(), HatchetError> {
         let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(100);
 
-        let action_listener = Arc::new(ActionListener {
-            client: self.client.clone(),
-        });
-
         let test_registry = self.tasks.clone();
         let dispatcher = Arc::new(crate::worker::task_dispatcher::TaskDispatcher {
             registry: test_registry,
@@ -63,6 +59,9 @@ impl Worker {
         });
 
         let worker_id = self.worker_id.clone();
+        let action_listener = Arc::new(ActionListener {
+            client: self.client.clone(),
+        });
         tokio::spawn(async move {
             action_listener.listen(worker_id, tx).await.unwrap();
         });
@@ -80,7 +79,6 @@ impl Worker {
             async {
                 while let Some(task) = rx.recv().await {
                     let worker_id = worker_id.clone();
-                    let dispatcher = dispatcher.clone();
                     dispatcher.dispatch(worker_id, task).await?
                 }
                 Ok(())

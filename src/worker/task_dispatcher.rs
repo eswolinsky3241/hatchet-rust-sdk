@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, Mutex};
 
+use futures::FutureExt;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
@@ -57,11 +59,24 @@ impl TaskDispatcher {
                 .cloned()
                 .expect("missing `input` field");
 
-            let result = handler.run_from_json(input_value).await;
+            let result = AssertUnwindSafe(handler.run_from_json(input_value))
+                .catch_unwind()
+                .await;
 
             let event_payload = match &result {
-                Ok(json) => json.to_string(),
-                Err(e) => format!("Task error: {e}"),
+                Ok(Ok(json)) => json.to_string(),
+                Ok(Err(e)) => e.to_string(),
+                Err(panic_payload) => {
+                    // Panic occurred
+                    let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                        s.to_string()
+                    } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                        s.clone()
+                    } else {
+                        "Unknown panic".to_string()
+                    };
+                    format!("Task panicked: {panic_msg}")
+                }
             };
 
             let event_type = if result.is_ok() { 2 } else { 3 };
