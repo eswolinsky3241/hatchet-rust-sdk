@@ -67,7 +67,6 @@ impl TaskDispatcher {
                 Ok(Ok(json)) => json.to_string(),
                 Ok(Err(e)) => e.to_string(),
                 Err(panic_payload) => {
-                    // Panic occurred
                     let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
                         s.to_string()
                     } else if let Some(s) = panic_payload.downcast_ref::<String>() {
