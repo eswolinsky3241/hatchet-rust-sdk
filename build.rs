@@ -3,6 +3,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &[
             "api-contracts/protos/workflows.proto",
             "api-contracts/protos/dispatcher.proto",
+            "api-contracts/protos/events.proto",
         ],
         &["api-contracts/protos"],
     )?;
