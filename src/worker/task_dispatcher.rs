@@ -38,7 +38,7 @@ impl TaskDispatcher {
     ) -> Result<(), crate::HatchetError> {
         let step_run_id = message.step_run_id.clone();
 
-        self.send_step_action_event_common(&worker_id, &message, 1, "".to_string())
+        self.send_step_action_event_common(&worker_id, &message, 1, String::from(""))
             .await?;
 
         let handler = self
@@ -73,7 +73,7 @@ impl TaskDispatcher {
                     } else if let Some(s) = panic_payload.downcast_ref::<String>() {
                         s.clone()
                     } else {
-                        "Unknown panic".to_string()
+                        String::from("Unknown panic")
                     };
                     format!("Task panicked: {panic_msg}")
                 }

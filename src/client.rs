@@ -76,7 +76,7 @@ impl HatchetClient {
 
     async fn create_channel(&self) -> Result<Channel, HatchetError> {
         let tls_strategy =
-            std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or("tls".to_string());
+            std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or(String::from("tls"));
 
         let domain_name = self
             .config

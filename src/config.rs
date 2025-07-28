@@ -15,7 +15,7 @@ pub struct HatchetConfig {
 impl HatchetConfig {
     pub fn from_env() -> Result<Self, HatchetError> {
         let token = env::var("HATCHET_CLIENT_TOKEN").map_err(|_| HatchetError::MissingEnvVar {
-            var: "HATCHET_CLIENT_TOKEN".to_string(),
+            var: String::from("HATCHET_CLIENT_TOKEN"),
         })?;
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
