@@ -10,7 +10,7 @@ pub struct EventClient {
 }
 
 impl EventClient {
-    pub async fn new(client: Arc<HatchetClient>) -> Self {
+    pub fn new(client: Arc<HatchetClient>) -> Self {
         Self { client: client }
     }
     pub async fn put_log(

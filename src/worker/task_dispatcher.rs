@@ -59,7 +59,7 @@ impl TaskDispatcher {
                 .cloned()
                 .expect("missing `input` field");
 
-            let context = Context {};
+            let context = Context::new(client.clone(), &message.step_run_id);
             let result = AssertUnwindSafe(handler.run_from_json(input_value, context))
                 .catch_unwind()
                 .await;
