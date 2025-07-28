@@ -26,8 +26,7 @@ impl EventClient {
             metadata: String::from(""),
         });
 
-        let _ = self
-            .client
+        self.client
             .grpc_unary(request, |channel, request| async move {
                 let mut client = events::events_service_client::EventsServiceClient::new(channel);
                 client.put_log(request).await
