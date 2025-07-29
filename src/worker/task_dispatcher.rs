@@ -9,6 +9,7 @@ use tokio_util::sync::CancellationToken;
 use crate::error::HatchetError;
 use crate::grpc::dispatcher;
 use crate::tasks::{Context, ErasedTask};
+use crate::{TASK_CONTEXT, TaskContext};
 
 pub struct TaskDispatcher {
     pub registry: Arc<HashMap<String, Arc<dyn ErasedTask>>>,
@@ -52,58 +53,68 @@ impl TaskDispatcher {
         let worker_id_clone = worker_id.clone();
 
         let handle = tokio::spawn(async move {
-            let raw_json: serde_json::Value = serde_json::from_str(&message.action_payload)
-                .expect("could not parse payload as JSON");
-            let input_value = raw_json
-                .get("input")
-                .cloned()
-                .expect("missing `input` field");
-
-            let context = Context::new(client.clone(), &message.step_run_id);
-            let result = AssertUnwindSafe(handler.run_from_json(input_value, context))
-                .catch_unwind()
-                .await;
-
-            let event_payload = match &result {
-                Ok(Ok(json)) => json.to_string(),
-                Ok(Err(e)) => e.to_string(),
-                Err(panic_payload) => {
-                    let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
-                        s.to_string()
-                    } else if let Some(s) = panic_payload.downcast_ref::<String>() {
-                        s.clone()
-                    } else {
-                        String::from("Unknown panic")
-                    };
-                    format!("Task panicked: {panic_msg}")
-                }
-            };
-
-            let event_type = if result.is_ok() { 2 } else { 3 };
-
-            let event = dispatcher::StepActionEvent {
-                worker_id: worker_id_clone.to_string(),
-                job_id: message.job_id.clone(),
-                job_run_id: message.job_run_id.clone(),
-                step_id: message.step_id.clone(),
+            let ctx = TaskContext {
+                workflow_run_id: message.workflow_run_id.clone(),
                 step_run_id: message.step_run_id.clone(),
-                action_id: message.action_id.clone(),
-                event_timestamp: Some(crate::utils::proto_timestamp_now().unwrap()),
-                event_type,
-                event_payload,
-                retry_count: None,
-                should_not_retry: None,
+                worker_id: worker_id.to_string(),
+                child_index: 0,
             };
+            TASK_CONTEXT
+                .scope(ctx.into(), async move {
+                    let raw_json: serde_json::Value = serde_json::from_str(&message.action_payload)
+                        .expect("could not parse payload as JSON");
+                    let input_value = raw_json
+                        .get("input")
+                        .cloned()
+                        .expect("missing `input` field");
 
-            let request = tonic::Request::new(event);
-            let _ = client
-                .grpc_unary(request, |channel, request| async move {
-                    let mut client = dispatcher::dispatcher_client::DispatcherClient::new(channel);
-                    client.send_step_action_event(request).await
+                    let context = Context::new(client.clone(), &message.step_run_id);
+                    let result = AssertUnwindSafe(handler.run_from_json(input_value, context))
+                        .catch_unwind()
+                        .await;
+
+                    let event_payload = match &result {
+                        Ok(Ok(json)) => json.to_string(),
+                        Ok(Err(e)) => e.to_string(),
+                        Err(panic_payload) => {
+                            let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                                s.to_string()
+                            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                                s.clone()
+                            } else {
+                                String::from("Unknown panic")
+                            };
+                            format!("Task panicked: {panic_msg}")
+                        }
+                    };
+
+                    let event_type = if result.is_ok() { 2 } else { 3 };
+
+                    let event = dispatcher::StepActionEvent {
+                        worker_id: worker_id_clone.to_string(),
+                        job_id: message.job_id.clone(),
+                        job_run_id: message.job_run_id.clone(),
+                        step_id: message.step_id.clone(),
+                        step_run_id: message.step_run_id.clone(),
+                        action_id: message.action_id.clone(),
+                        event_timestamp: Some(crate::utils::proto_timestamp_now().unwrap()),
+                        event_type,
+                        event_payload,
+                        retry_count: None,
+                        should_not_retry: None,
+                    };
+
+                    let request = tonic::Request::new(event);
+                    let _ = client
+                        .grpc_unary(request, |channel, request| async move {
+                            let mut client =
+                                dispatcher::dispatcher_client::DispatcherClient::new(channel);
+                            client.send_step_action_event(request).await
+                        })
+                        .await;
                 })
-                .await;
+                .await
         });
-
         self.task_runs
             .lock()
             .unwrap()

@@ -1,6 +1,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -11,20 +12,20 @@ use crate::error::HatchetError;
 use crate::grpc::workflows::TriggerWorkflowRequest;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::models::WorkflowStatus;
-
-pub struct Workflow<'a, I, O> {
+use crate::{TASK_CONTEXT, TaskContext};
+pub struct Workflow<I, O> {
     name: String,
-    client: &'a HatchetClient,
+    client: Arc<HatchetClient>,
     _input: PhantomData<I>,
     _output: PhantomData<O>,
 }
 
-impl<'a, I, O> Workflow<'a, I, O>
+impl<I, O> Workflow<I, O>
 where
     I: Serialize,
     O: DeserializeOwned,
 {
-    pub fn new(name: impl Into<String>, client: &'a HatchetClient) -> Self {
+    pub fn new(name: impl Into<String>, client: Arc<HatchetClient>) -> Self {
         Self {
             name: name.into(),
             client,
@@ -34,7 +35,7 @@ where
     }
 
     pub async fn run_no_wait(
-        &mut self,
+        &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<RunId, HatchetError> {
@@ -42,7 +43,7 @@ where
     }
 
     pub async fn run(
-        mut self,
+        self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<O, HatchetError> {
@@ -92,7 +93,7 @@ where
     {
         let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
 
-        let request = Request::new(TriggerWorkflowRequest {
+        let mut request = TriggerWorkflowRequest {
             input: input_json,
             name: self.name.clone(),
             parent_id: None,
@@ -102,11 +103,25 @@ where
             additional_metadata: options.additional_metadata.map(|v| v.to_string()),
             desired_worker_id: options.desired_worker_id,
             priority: None,
-        });
+        };
+
+        if let Ok(mut ctx) = TASK_CONTEXT.try_with(|c| c.clone()) {
+            // Automatically fill parent info:
+            let ctx_inner: TaskContext = ctx.into_inner();
+            request.child_index = Some(ctx_inner.child_index.clone());
+            request.parent_id = Some(ctx_inner.workflow_run_id.clone());
+            request.parent_step_run_id = Some(ctx_inner.step_run_id.clone());
+            TASK_CONTEXT.with(|ctx| {
+                let mut ctx = ctx.borrow_mut();
+                ctx.child_index += 1;
+                let index = ctx.child_index;
+                println!("Incremented child index to {index}");
+            });
+        }
 
         let response = self
             .client
-            .grpc_unary(request, |channel, request| async move {
+            .grpc_unary(Request::new(request), |channel, request| async move {
                 let mut client = WorkflowServiceClient::new(channel);
                 client.trigger_workflow(request).await
             })

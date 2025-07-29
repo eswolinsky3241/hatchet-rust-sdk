@@ -27,7 +27,7 @@ pub enum HatchetError {
     InvalidAuthHeader(tonic::metadata::errors::InvalidMetadataValue),
     #[error("Unable to connect to gRPC server")]
     GrpcConnect(#[from] tonic::transport::Error),
-    #[error("Error calling gRPC service")]
+    #[error("Error calling gRPC service: {0}")]
     GrpcCall(tonic::Status),
     #[error("Response missing output")]
     MissingOutput,
