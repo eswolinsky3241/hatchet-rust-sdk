@@ -12,7 +12,7 @@ use crate::error::HatchetError;
 use crate::grpc::workflows::TriggerWorkflowRequest;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::models::WorkflowStatus;
-use crate::{TASK_CONTEXT, TaskContext};
+use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 pub struct Workflow<I, O> {
     name: String,
     client: Arc<HatchetClient>,
@@ -55,7 +55,7 @@ where
             let workflow = self.get_run(&run_id).await?;
 
             match workflow.run.status {
-                WorkflowStatus::Running => continue,
+                WorkflowStatus::Running => {}
                 WorkflowStatus::Completed => {
                     let output_json = workflow
                         .tasks
@@ -73,17 +73,14 @@ where
                         error_message: workflow.run.error_message.clone(),
                     });
                 }
-
-                _ => {
-                    // still running
-                }
+                _ => {}
             }
 
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
     }
 
-    pub async fn trigger<T>(
+    async fn trigger<T>(
         &self,
         input: T,
         options: TriggerWorkflowOptions,
@@ -105,19 +102,7 @@ where
             priority: None,
         };
 
-        if let Ok(mut ctx) = TASK_CONTEXT.try_with(|c| c.clone()) {
-            // Automatically fill parent info:
-            let ctx_inner: TaskContext = ctx.into_inner();
-            request.child_index = Some(ctx_inner.child_index.clone());
-            request.parent_id = Some(ctx_inner.workflow_run_id.clone());
-            request.parent_step_run_id = Some(ctx_inner.step_run_id.clone());
-            TASK_CONTEXT.with(|ctx| {
-                let mut ctx = ctx.borrow_mut();
-                ctx.child_index += 1;
-                let index = ctx.child_index;
-                println!("Incremented child index to {index}");
-            });
-        }
+        Self::update_task_execution_context(&mut request);
 
         let response = self
             .client
@@ -137,6 +122,19 @@ where
         self.client
             .api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
             .await
+    }
+
+    fn update_task_execution_context(request: &mut TriggerWorkflowRequest) {
+        if let Ok(ctx) = EXECUTION_CONTEXT.try_with(|c| c.clone()) {
+            let ctx_inner: ExecutionContext = ctx.into_inner();
+            request.child_index = Some(ctx_inner.child_index.clone());
+            request.parent_id = Some(ctx_inner.workflow_run_id.clone());
+            request.parent_step_run_id = Some(ctx_inner.step_run_id.clone());
+            EXECUTION_CONTEXT.with(|ctx| {
+                let mut ctx = ctx.borrow_mut();
+                ctx.child_index += 1;
+            });
+        }
     }
 }
 

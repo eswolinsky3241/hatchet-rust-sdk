@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 use crate::error::HatchetError;
 use crate::grpc::dispatcher;
 use crate::tasks::{Context, ErasedTask};
-use crate::{TASK_CONTEXT, TaskContext};
+use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 
 pub struct TaskDispatcher {
     pub registry: Arc<HashMap<String, Arc<dyn ErasedTask>>>,
@@ -52,15 +52,17 @@ impl TaskDispatcher {
         let client = self.client.clone();
         let worker_id_clone = worker_id.clone();
 
+        // Used for tracking dynamic child spawning relationships
+        let execution_context = ExecutionContext {
+            workflow_run_id: message.workflow_run_id.clone(),
+            step_run_id: message.step_run_id.clone(),
+            worker_id: worker_id.to_string(),
+            child_index: 0,
+        };
+
         let handle = tokio::spawn(async move {
-            let ctx = TaskContext {
-                workflow_run_id: message.workflow_run_id.clone(),
-                step_run_id: message.step_run_id.clone(),
-                worker_id: worker_id.to_string(),
-                child_index: 0,
-            };
-            TASK_CONTEXT
-                .scope(ctx.into(), async move {
+            EXECUTION_CONTEXT
+                .scope(execution_context.into(), async move {
                     let raw_json: serde_json::Value = serde_json::from_str(&message.action_payload)
                         .expect("could not parse payload as JSON");
                     let input_value = raw_json
