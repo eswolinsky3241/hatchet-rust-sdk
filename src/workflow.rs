@@ -1,6 +1,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -11,20 +12,20 @@ use crate::error::HatchetError;
 use crate::grpc::workflows::TriggerWorkflowRequest;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::models::WorkflowStatus;
-
-pub struct Workflow<'a, I, O> {
+use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
+pub struct Workflow<I, O> {
     name: String,
-    client: &'a HatchetClient,
+    client: Arc<HatchetClient>,
     _input: PhantomData<I>,
     _output: PhantomData<O>,
 }
 
-impl<'a, I, O> Workflow<'a, I, O>
+impl<I, O> Workflow<I, O>
 where
     I: Serialize,
     O: DeserializeOwned,
 {
-    pub fn new(name: impl Into<String>, client: &'a HatchetClient) -> Self {
+    pub fn new(name: impl Into<String>, client: Arc<HatchetClient>) -> Self {
         Self {
             name: name.into(),
             client,
@@ -34,7 +35,7 @@ where
     }
 
     pub async fn run_no_wait(
-        &mut self,
+        &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<RunId, HatchetError> {
@@ -42,7 +43,7 @@ where
     }
 
     pub async fn run(
-        mut self,
+        self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<O, HatchetError> {
@@ -54,7 +55,7 @@ where
             let workflow = self.get_run(&run_id).await?;
 
             match workflow.run.status {
-                WorkflowStatus::Running => continue,
+                WorkflowStatus::Running => {}
                 WorkflowStatus::Completed => {
                     let output_json = workflow
                         .tasks
@@ -72,17 +73,14 @@ where
                         error_message: workflow.run.error_message.clone(),
                     });
                 }
-
-                _ => {
-                    // still running
-                }
+                _ => {}
             }
 
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
     }
 
-    pub async fn trigger<T>(
+    async fn trigger<T>(
         &self,
         input: T,
         options: TriggerWorkflowOptions,
@@ -92,7 +90,7 @@ where
     {
         let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
 
-        let request = Request::new(TriggerWorkflowRequest {
+        let mut request = TriggerWorkflowRequest {
             input: input_json,
             name: self.name.clone(),
             parent_id: None,
@@ -102,11 +100,13 @@ where
             additional_metadata: options.additional_metadata.map(|v| v.to_string()),
             desired_worker_id: options.desired_worker_id,
             priority: None,
-        });
+        };
+
+        Self::update_task_execution_context(&mut request);
 
         let response = self
             .client
-            .grpc_unary(request, |channel, request| async move {
+            .grpc_unary(Request::new(request), |channel, request| async move {
                 let mut client = WorkflowServiceClient::new(channel);
                 client.trigger_workflow(request).await
             })
@@ -122,6 +122,19 @@ where
         self.client
             .api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
             .await
+    }
+
+    fn update_task_execution_context(request: &mut TriggerWorkflowRequest) {
+        if let Ok(ctx) = EXECUTION_CONTEXT.try_with(|c| c.clone()) {
+            let ctx_inner: ExecutionContext = ctx.into_inner();
+            request.child_index = Some(ctx_inner.child_index.clone());
+            request.parent_id = Some(ctx_inner.workflow_run_id.clone());
+            request.parent_step_run_id = Some(ctx_inner.step_run_id.clone());
+            EXECUTION_CONTEXT.with(|ctx| {
+                let mut ctx = ctx.borrow_mut();
+                ctx.child_index += 1;
+            });
+        }
     }
 }
 

@@ -6,6 +6,7 @@ use crate::clients::EventClient;
 use crate::{HatchetClient, HatchetError};
 pub struct Context {
     logger_tx: mpsc::Sender<String>,
+    pub client: Arc<HatchetClient>,
 }
 
 impl Context {
@@ -18,7 +19,10 @@ impl Context {
                 event_client.put_log(&step_run_id, message).await.unwrap();
             }
         });
-        Self { logger_tx: tx }
+        Self {
+            logger_tx: tx,
+            client: client,
+        }
     }
 
     pub async fn run_logger_thread(&self) -> () {}
