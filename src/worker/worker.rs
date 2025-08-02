@@ -11,14 +11,14 @@ use crate::error::HatchetError;
 use crate::grpc::dispatcher;
 use crate::grpc::dispatcher::dispatcher_client::DispatcherClient;
 use crate::grpc::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
-use crate::tasks::{ErasedTask, ErasedTaskImpl, Task};
+use crate::tasks::{ErasedTask, ErasedTaskFunction, Task};
 use crate::worker::action_listener::ActionListener;
 
 pub struct Worker {
     pub name: String,
     pub worker_id: Arc<String>,
     pub client: Arc<HatchetClient>,
-    pub tasks: Arc<HashMap<String, Arc<dyn ErasedTask>>>,
+    pub tasks: Arc<HashMap<String, Arc<dyn ErasedTaskFunction>>>,
 }
 
 impl Worker {
@@ -36,8 +36,8 @@ impl Worker {
         let actions = vec![task.name().to_string()];
         let worker_id = Self::register_worker(&client, &name, actions, max_runs).await?;
 
-        let erased = Arc::new(ErasedTaskImpl::new(task));
-        let mut tasks: HashMap<String, Arc<dyn ErasedTask>> = HashMap::new();
+        let erased = Arc::new(ErasedTask::new(task));
+        let mut tasks: HashMap<String, Arc<dyn ErasedTaskFunction>> = HashMap::new();
         tasks.insert(erased.name().to_string(), erased);
 
         Ok(Self {

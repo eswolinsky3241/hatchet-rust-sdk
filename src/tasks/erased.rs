@@ -8,7 +8,7 @@ use crate::tasks::Context;
 use crate::tasks::task_trait::Task;
 
 #[async_trait::async_trait]
-pub trait ErasedTask: Send + Sync {
+pub trait ErasedTaskFunction: Send + Sync {
     fn name(&self) -> &'static str;
 
     async fn run_from_json(
@@ -18,7 +18,7 @@ pub trait ErasedTask: Send + Sync {
     ) -> Result<serde_json::Value, HatchetError>;
 }
 
-pub struct ErasedTaskImpl<T, I, O>
+pub struct ErasedTask<T, I, O>
 where
     T: Task<I, O>,
     I: DeserializeOwned + Send + 'static,
@@ -28,7 +28,7 @@ where
     _marker: PhantomData<fn(I) -> O>,
 }
 
-impl<T, I, O> ErasedTaskImpl<T, I, O>
+impl<T, I, O> ErasedTask<T, I, O>
 where
     T: Task<I, O>,
     I: DeserializeOwned + Send + 'static,
@@ -43,7 +43,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<T, I, O> ErasedTask for ErasedTaskImpl<T, I, O>
+impl<T, I, O> ErasedTaskFunction for ErasedTask<T, I, O>
 where
     T: Task<I, O>,
     I: DeserializeOwned + Send + 'static,
