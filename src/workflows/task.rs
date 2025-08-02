@@ -6,7 +6,6 @@ pub struct Task<T> {
     pub name: String,
     pub function: T,
     pub parents: Vec<String>,
-    workflow: String,
 }
 
 impl<T> Task<T> {
@@ -15,7 +14,6 @@ impl<T> Task<T> {
             name,
             function,
             parents: vec![],
-            workflow: "".to_string(),
         }
     }
 
