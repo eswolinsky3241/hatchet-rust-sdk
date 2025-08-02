@@ -9,13 +9,21 @@ use tonic::Request;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
-use crate::grpc::workflows::TriggerWorkflowRequest;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
+use crate::grpc::workflows::{
+    CreateWorkflowJobOpts,
+    CreateWorkflowStepOpts,
+    CreateWorkflowVersionOpts,
+    TriggerWorkflowRequest,
+};
 use crate::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
+use crate::workflows::task::Task;
+
 pub struct Workflow<I, O> {
     name: String,
     client: Arc<HatchetClient>,
+    steps: Vec<CreateWorkflowStepOpts>,
     _input: PhantomData<I>,
     _output: PhantomData<O>,
 }
@@ -29,8 +37,36 @@ where
         Self {
             name: name.into(),
             client,
+            steps: vec![],
             _input: PhantomData,
             _output: PhantomData,
+        }
+    }
+
+    pub fn add_task<T>(&mut self, task: Task<T>) -> () {
+        self.steps.push(task.to_proto(&self.name));
+    }
+
+    pub(crate) fn to_proto(&self) -> CreateWorkflowVersionOpts {
+        CreateWorkflowVersionOpts {
+            name: self.name.clone(),
+            description: String::from(""),
+            version: String::from(""),
+            event_triggers: vec![],
+            cron_triggers: vec![],
+            scheduled_triggers: vec![],
+            jobs: vec![CreateWorkflowJobOpts {
+                name: String::from("job"),
+                description: String::from(""),
+                steps: self.steps.clone(),
+            }],
+            concurrency: None,
+            schedule_timeout: None,
+            cron_input: None,
+            on_failure_job: None,
+            sticky: None,
+            kind: None,
+            default_priority: None,
         }
     }
 
