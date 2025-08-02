@@ -2,7 +2,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::error::HatchetError;
-use crate::tasks::Context;
+use crate::workflows::Context;
 
 #[async_trait::async_trait]
 pub trait Task<I, O>: Send + Sync

@@ -4,8 +4,8 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::error::HatchetError;
-use crate::tasks::Context;
-use crate::tasks::task_trait::Task;
+use crate::workflows::Context;
+use crate::workflows::task_trait::Task;
 
 #[async_trait::async_trait]
 pub trait ErasedTaskFunction: Send + Sync {

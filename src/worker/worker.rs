@@ -11,8 +11,8 @@ use crate::error::HatchetError;
 use crate::grpc::dispatcher;
 use crate::grpc::dispatcher::dispatcher_client::DispatcherClient;
 use crate::grpc::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
-use crate::tasks::{ErasedTask, ErasedTaskFunction, Task};
 use crate::worker::action_listener::ActionListener;
+use crate::workflows::{ErasedTask, ErasedTaskFunction, Task};
 
 pub struct Worker {
     pub name: String,

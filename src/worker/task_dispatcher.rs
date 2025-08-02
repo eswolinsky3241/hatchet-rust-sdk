@@ -8,8 +8,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::error::HatchetError;
 use crate::grpc::dispatcher;
-use crate::tasks::{Context, ErasedTaskFunction};
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
+use crate::workflows::{Context, ErasedTaskFunction};
 
 pub struct TaskDispatcher {
     pub registry: Arc<HashMap<String, Arc<dyn ErasedTaskFunction>>>,

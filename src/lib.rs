@@ -5,12 +5,12 @@ pub mod error;
 pub(crate) mod grpc;
 pub mod models;
 pub(crate) mod rest;
-pub mod tasks;
 pub mod utils;
 pub mod worker;
+pub mod workflows;
 
 pub use client::HatchetClient;
 pub use error::HatchetError;
-pub use tasks::Context;
-pub use tasks::workflow::{TriggerWorkflowOptions, Workflow};
 pub use worker::Worker;
+pub use workflows::Context;
+pub use workflows::workflow::{TriggerWorkflowOptions, Workflow};
