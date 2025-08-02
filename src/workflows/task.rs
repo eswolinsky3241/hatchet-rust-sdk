@@ -16,6 +16,10 @@ impl<T> Task<T> {
         }
     }
 
+    pub fn add_parent<U>(&mut self, parent: Self) -> () {
+        self.parents.push(parent.name);
+    }
+
     pub(crate) async fn run<I, O>(&self, input: I, ctx: crate::Context) -> Result<O, HatchetError>
     where
         I: serde::de::DeserializeOwned + Send + Sync + 'static,
