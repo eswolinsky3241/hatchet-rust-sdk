@@ -5,7 +5,7 @@ use serde::de::DeserializeOwned;
 
 use crate::error::HatchetError;
 use crate::workflows::Context;
-use crate::workflows::task_trait::Task;
+use crate::workflows::task_function::TaskFunction;
 
 #[async_trait::async_trait]
 pub trait ErasedTaskFunction: Send + Sync {
@@ -20,7 +20,7 @@ pub trait ErasedTaskFunction: Send + Sync {
 
 pub struct ErasedTask<T, I, O>
 where
-    T: Task<I, O>,
+    T: TaskFunction<I, O>,
     I: DeserializeOwned + Send + 'static,
     O: Serialize + Send + 'static,
 {
@@ -30,7 +30,7 @@ where
 
 impl<T, I, O> ErasedTask<T, I, O>
 where
-    T: Task<I, O>,
+    T: TaskFunction<I, O>,
     I: DeserializeOwned + Send + 'static,
     O: Serialize + Send + 'static,
 {
@@ -45,7 +45,7 @@ where
 #[async_trait::async_trait]
 impl<T, I, O> ErasedTaskFunction for ErasedTask<T, I, O>
 where
-    T: Task<I, O>,
+    T: TaskFunction<I, O>,
     I: DeserializeOwned + Send + 'static,
     O: Serialize + Send + 'static,
 {

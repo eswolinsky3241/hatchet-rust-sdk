@@ -12,7 +12,7 @@ use crate::grpc::dispatcher;
 use crate::grpc::dispatcher::dispatcher_client::DispatcherClient;
 use crate::grpc::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
 use crate::worker::action_listener::ActionListener;
-use crate::workflows::{ErasedTask, ErasedTaskFunction, Task};
+use crate::workflows::{ErasedTask, ErasedTaskFunction, TaskFunction};
 
 pub struct Worker {
     pub name: String,
@@ -29,7 +29,7 @@ impl Worker {
         max_runs: i32,
     ) -> Result<Self, HatchetError>
     where
-        T: Task<I, O> + 'static,
+        T: TaskFunction<I, O> + 'static,
         I: DeserializeOwned + Send + 'static,
         O: Serialize + Send + std::fmt::Debug + 'static,
     {

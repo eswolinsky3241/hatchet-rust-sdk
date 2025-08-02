@@ -5,7 +5,7 @@ use crate::error::HatchetError;
 use crate::workflows::Context;
 
 #[async_trait::async_trait]
-pub trait Task<I, O>: Send + Sync
+pub trait TaskFunction<I, O>: Send + Sync
 where
     I: DeserializeOwned + Send + 'static,
     O: Serialize + Send + 'static,
