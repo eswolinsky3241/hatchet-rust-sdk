@@ -10,7 +10,7 @@ where
     I: DeserializeOwned + Send + 'static,
     O: Serialize + Send + 'static,
 {
-    fn name(&self) -> &'static str;
+    fn name(&self) -> &str;
 
     async fn run(&self, input: I, ctx: Context) -> Result<O, HatchetError>;
 }
