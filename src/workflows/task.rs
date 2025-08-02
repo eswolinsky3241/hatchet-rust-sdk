@@ -19,8 +19,9 @@ impl<T> Task<T> {
         }
     }
 
-    pub fn add_parent<U>(&mut self, parent: Self) -> () {
-        self.parents.push(parent.name);
+    pub fn add_parent<U>(mut self, parent: &Self) -> Self {
+        self.parents.push(parent.name.clone());
+        self
     }
 
     pub(crate) async fn run<I, O>(&self, input: I, ctx: crate::Context) -> Result<O, HatchetError>

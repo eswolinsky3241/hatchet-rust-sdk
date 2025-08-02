@@ -11,6 +11,7 @@ use crate::error::HatchetError;
 use crate::grpc::dispatcher;
 use crate::grpc::dispatcher::dispatcher_client::DispatcherClient;
 use crate::grpc::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
+use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::worker::action_listener::ActionListener;
 use crate::workflows::{ErasedTask, ErasedTaskFunction, TaskFunction};
 
@@ -19,6 +20,7 @@ pub struct Worker {
     pub worker_id: Arc<String>,
     pub client: Arc<HatchetClient>,
     pub tasks: Arc<HashMap<String, Arc<dyn ErasedTaskFunction>>>,
+    workflows: Vec<crate::grpc::workflows::CreateWorkflowVersionOpts>,
 }
 
 impl Worker {
@@ -45,7 +47,28 @@ impl Worker {
             worker_id: Arc::new(worker_id),
             client: Arc::new(client),
             tasks: Arc::new(tasks),
+            workflows: vec![],
         })
+    }
+
+    pub async fn register_workflow<I, O>(
+        &mut self,
+        workflow: crate::workflows::workflow::Workflow<I, O>,
+    ) where
+        I: Serialize + Send + 'static,
+        O: DeserializeOwned + Send + std::fmt::Debug + 'static,
+    {
+        let request = Request::new(crate::grpc::workflows::PutWorkflowRequest {
+            opts: Some(workflow.to_proto()),
+        });
+        println!("{:?}", request);
+        self.client
+            .grpc_unary(request, |channel, request| async move {
+                let mut client = WorkflowServiceClient::new(channel);
+                client.put_workflow(request).await
+            })
+            .await
+            .unwrap();
     }
 
     pub async fn start(&self) -> Result<(), HatchetError> {

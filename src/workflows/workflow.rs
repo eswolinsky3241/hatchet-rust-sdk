@@ -43,7 +43,7 @@ where
         }
     }
 
-    pub fn add_task<T>(&mut self, task: Task<T>) -> () {
+    pub fn add_task<T>(&mut self, task: &Task<T>) -> () {
         self.steps.push(task.to_proto(&self.name));
     }
 
