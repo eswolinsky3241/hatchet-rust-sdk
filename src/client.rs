@@ -12,7 +12,7 @@ pub mod dispatcher {
     tonic::include_proto!("_");
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HatchetClient {
     config: HatchetConfig,
 }
