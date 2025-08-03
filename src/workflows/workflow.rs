@@ -22,28 +22,26 @@ pub struct Workflow<I, O> {
     name: String,
     client: Arc<HatchetClient>,
     steps: Vec<CreateWorkflowStepOpts>,
-    actions: Vec<String>,
-    _input: PhantomData<I>,
-    _output: PhantomData<O>,
+    _phantom: std::marker::PhantomData<(I, O)>,
 }
 
 impl<I, O> Workflow<I, O>
 where
-    I: Serialize,
-    O: DeserializeOwned,
+    I: Serialize + Send + Sync,
+    O: DeserializeOwned + Send + Sync,
 {
     pub fn new(name: impl Into<String>, client: Arc<HatchetClient>) -> Self {
         Self {
             name: name.into(),
             client,
             steps: vec![],
-            _input: PhantomData,
-            _output: PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 
-    pub fn add_task<T>(&mut self, task: &Task<T>) -> () {
+    pub fn add_task<F>(&mut self, task: &Task<F>) -> &mut Self {
         self.steps.push(task.to_proto(&self.name));
+        self
     }
 
     pub(crate) fn to_proto(&self) -> CreateWorkflowVersionOpts {

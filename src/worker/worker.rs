@@ -26,19 +26,14 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub async fn new<T, I, O>(
+    pub async fn new(
         client: HatchetClient,
         name: String,
         max_runs: i32,
-    ) -> Result<Self, HatchetError>
-    where
-        T: TaskFunction<I, O> + 'static,
-        I: DeserializeOwned + Send + 'static,
-        O: Serialize + Send + std::fmt::Debug + 'static,
-    {
-        let erased = Arc::new(ErasedTask::new(task));
-        let mut tasks: HashMap<String, Arc<dyn ErasedTaskFunction>> = HashMap::new();
-        tasks.insert(erased.name().to_string(), erased);
+    ) -> Result<Self, HatchetError> {
+        // let erased = Arc::new(ErasedTask::new(task));
+        // let mut tasks: HashMap<String, Arc<dyn ErasedTaskFunction>> = HashMap::new();
+        // tasks.insert(erased.name().to_string(), erased);
 
         Ok(Self {
             name,
@@ -46,15 +41,15 @@ impl Worker {
             max_runs,
             registered_actions: vec![],
             client: Arc::new(client),
-            tasks: Arc::new(tasks),
+            tasks: Arc::new(HashMap::new()),
             workflows: vec![],
         })
     }
 
     pub fn add_workflow<I, O>(&mut self, workflow: crate::workflows::workflow::Workflow<I, O>)
     where
-        I: Serialize + Send + 'static,
-        O: DeserializeOwned + Send + std::fmt::Debug + 'static,
+        I: Serialize + Send + Sync,
+        O: DeserializeOwned + Send + Sync,
     {
         self.workflows.push(workflow.to_proto());
     }

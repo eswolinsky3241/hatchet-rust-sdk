@@ -2,16 +2,23 @@ use crate::HatchetError;
 use crate::grpc::workflows::CreateWorkflowStepOpts;
 use crate::workflows::task_function::TaskFunction;
 
-pub struct Task<T> {
+pub struct Task<F> {
     pub name: String,
-    pub function: T,
+    pub function: F,
     pub parents: Vec<String>,
 }
 
-impl<T> Task<T> {
-    pub fn new(name: String, function: T) -> Self {
+impl<F> Task<F> {
+    pub fn new<I, O, E, Fut>(name: String, function: F) -> Self
+    where
+        F: FnOnce(I, crate::Context) -> Fut,
+        Fut: Future<Output = Result<O, E>> + Send + 'static,
+        O: Send,
+        I: serde::Serialize,
+        E: std::error::Error,
+    {
         Self {
-            name,
+            name: name.to_lowercase(),
             function,
             parents: vec![],
         }
@@ -20,15 +27,6 @@ impl<T> Task<T> {
     pub fn add_parent<U>(mut self, parent: &Self) -> Self {
         self.parents.push(parent.name.clone());
         self
-    }
-
-    pub(crate) async fn run<I, O>(&self, input: I, ctx: crate::Context) -> Result<O, HatchetError>
-    where
-        I: serde::de::DeserializeOwned + Send + Sync + 'static,
-        O: serde::Serialize + Send + Sync + 'static,
-        T: TaskFunction<I, O>,
-    {
-        self.function.run(input, ctx).await
     }
 
     pub(crate) fn to_proto(&self, workflow_name: &str) -> CreateWorkflowStepOpts {
