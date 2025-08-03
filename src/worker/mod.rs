@@ -1,6 +1,7 @@
-pub mod worker;
-pub use worker::Worker;
-
 pub(crate) mod action_listener;
 pub(crate) mod task_dispatcher;
-pub(crate) mod task_manager;
+pub mod types;
+pub mod worker;
+
+pub(crate) use types::ErasedTaskFn;
+pub use worker::Worker;
