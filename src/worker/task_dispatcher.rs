@@ -9,10 +9,10 @@ use tokio_util::sync::CancellationToken;
 use crate::error::HatchetError;
 use crate::grpc::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::workflows::{Context, ErasedTaskFunction};
-
+use crate::worker::types::ErasedTaskFn;
+use crate::workflows::Context;
 pub struct TaskDispatcher {
-    pub registry: Arc<HashMap<String, Arc<dyn ErasedTaskFunction>>>,
+    pub registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
     pub client: Arc<crate::client::HatchetClient>,
     pub task_runs: Arc<Mutex<HashMap<String, (JoinHandle<()>, CancellationToken)>>>,
 }
@@ -46,6 +46,8 @@ impl TaskDispatcher {
 
         let handler = self
             .registry
+            .lock()
+            .unwrap()
             .get(&message.action_id)
             .expect("handler not found")
             .clone();
@@ -73,12 +75,16 @@ impl TaskDispatcher {
                         .expect("missing `input` field");
 
                     let context = Context::new(client.clone(), &message.step_run_id);
-                    let result = AssertUnwindSafe(handler.run_from_json(input_value, context))
+
+                    let result: Result<
+                        Result<serde_json::Value, HatchetError>,
+                        Box<dyn std::any::Any + Send>,
+                    > = AssertUnwindSafe(handler(input_value, context))
                         .catch_unwind()
                         .await;
 
                     let event_payload = match &result {
-                        Ok(Ok(json)) => json.to_string(),
+                        Ok(Ok(output)) => output.to_string(),
                         Ok(Err(e)) => e.to_string(),
                         Err(panic_payload) => {
                             let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {

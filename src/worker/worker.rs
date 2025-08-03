@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -13,15 +13,15 @@ use crate::grpc::dispatcher::dispatcher_client::DispatcherClient;
 use crate::grpc::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::worker::action_listener::ActionListener;
-use crate::workflows::{ErasedTask, ErasedTaskFunction, TaskFunction};
+use crate::worker::types::ErasedTaskFn;
+use crate::workflows::Context;
 
 pub struct Worker {
     pub name: String,
     worker_id: Option<Arc<String>>,
     max_runs: i32,
-    registered_actions: Vec<String>,
     pub client: Arc<HatchetClient>,
-    pub tasks: Arc<HashMap<String, Arc<dyn ErasedTaskFunction>>>,
+    tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
     workflows: Vec<crate::grpc::workflows::CreateWorkflowVersionOpts>,
 }
 
@@ -31,17 +31,12 @@ impl Worker {
         name: String,
         max_runs: i32,
     ) -> Result<Self, HatchetError> {
-        // let erased = Arc::new(ErasedTask::new(task));
-        // let mut tasks: HashMap<String, Arc<dyn ErasedTaskFunction>> = HashMap::new();
-        // tasks.insert(erased.name().to_string(), erased);
-
         Ok(Self {
             name,
             worker_id: None,
             max_runs,
-            registered_actions: vec![],
             client: Arc::new(client),
-            tasks: Arc::new(HashMap::new()),
+            tasks: Arc::new(Mutex::new(HashMap::new())),
             workflows: vec![],
         })
     }
@@ -52,6 +47,17 @@ impl Worker {
         O: DeserializeOwned + Send + Sync,
     {
         self.workflows.push(workflow.to_proto());
+        for task in &workflow.tasks {
+            let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
+            let task_function = task.function.clone();
+            let task_fn = Arc::new(Box::new(move |input: serde_json::Value, ctx: Context| {
+                task_function.call(input, ctx)
+            }) as ErasedTaskFn);
+            self.tasks
+                .lock()
+                .unwrap()
+                .insert(fully_qualified_name, task_fn);
+        }
     }
 
     pub async fn register_workflows(&self) {
@@ -83,9 +89,8 @@ impl Worker {
 
         let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(100);
 
-        let test_registry = self.tasks.clone();
         let dispatcher = Arc::new(crate::worker::task_dispatcher::TaskDispatcher {
-            registry: test_registry,
+            registry: self.tasks.clone(),
             client: self.client.clone(),
             task_runs: Arc::new(std::sync::Mutex::new(HashMap::new())),
         });

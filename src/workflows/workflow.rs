@@ -1,5 +1,4 @@
 use std::fmt;
-use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -11,16 +10,20 @@ use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::grpc::workflows::{
-    CreateWorkflowJobOpts, CreateWorkflowStepOpts, CreateWorkflowVersionOpts,
+    CreateWorkflowJobOpts,
+    CreateWorkflowStepOpts,
+    CreateWorkflowVersionOpts,
     TriggerWorkflowRequest,
 };
 use crate::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::workflows::task::Task;
+use crate::workflows::task::{ErasedTask, Task};
 
+#[derive(Clone)]
 pub struct Workflow<I, O> {
-    name: String,
+    pub(crate) name: String,
     client: Arc<HatchetClient>,
+    pub(crate) tasks: Vec<ErasedTask>,
     steps: Vec<CreateWorkflowStepOpts>,
     _phantom: std::marker::PhantomData<(I, O)>,
 }
@@ -34,13 +37,20 @@ where
         Self {
             name: name.into(),
             client,
+            tasks: vec![],
             steps: vec![],
             _phantom: std::marker::PhantomData,
         }
     }
 
-    pub fn add_task<F>(&mut self, task: &Task<F>) -> &mut Self {
+    pub fn add_task<P>(&mut self, task: Task<I, P>) -> &mut Self
+    where
+        I: serde::de::DeserializeOwned + Send + 'static,
+        P: serde::Serialize + Send + 'static,
+    {
         self.steps.push(task.to_proto(&self.name));
+        let erased_task = task.into_erased();
+        self.tasks.push(erased_task);
         self
     }
 
@@ -71,7 +81,7 @@ where
         &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
-    ) -> Result<RunId, HatchetError> {
+    ) -> Result<String, HatchetError> {
         self.trigger(input, options.unwrap_or_default()).await
     }
 
@@ -117,7 +127,7 @@ where
         &self,
         input: T,
         options: TriggerWorkflowOptions,
-    ) -> Result<RunId, HatchetError>
+    ) -> Result<String, HatchetError>
     where
         T: Serialize,
     {
@@ -145,12 +155,12 @@ where
             })
             .await?;
 
-        Ok(RunId(response.into_inner().workflow_run_id))
+        Ok(response.into_inner().workflow_run_id)
     }
 
     pub async fn get_run(
         &self,
-        run_id: &RunId,
+        run_id: &str,
     ) -> Result<crate::models::GetWorkflowRunResponse, HatchetError> {
         self.client
             .api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
@@ -168,23 +178,6 @@ where
                 ctx.child_index += 1;
             });
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RunId(pub String);
-
-impl fmt::Display for RunId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Deref for RunId {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
