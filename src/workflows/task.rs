@@ -12,14 +12,12 @@ pub struct Task<I, O> {
     pub parents: Vec<String>,
 }
 
-// Type-erased task that can hold tasks with different input/output types
 #[derive(Clone)]
 pub(crate) struct ErasedTask {
     pub(crate) name: String,
     pub(crate) function: Arc<dyn ErasedTaskFn + Send + Sync>,
 }
 
-// Trait for type-erased task functions
 pub trait ErasedTaskFn {
     fn call(
         &self,
@@ -51,7 +49,7 @@ where
 }
 
 impl<I, O> Task<I, O> {
-    pub fn new<F, Fut>(name: String, f: F) -> Self
+    pub fn new<F, Fut>(name: &str, f: F) -> Self
     where
         F: Fn(I, Context) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<O, HatchetError>> + Send + 'static,
@@ -61,7 +59,7 @@ impl<I, O> Task<I, O> {
             Box::pin(fut) as Pin<Box<dyn Future<Output = Result<O, HatchetError>> + Send>>
         }) as TaskFn<I, O>);
         Self {
-            name,
+            name: name.to_string(),
             function,
             parents: vec![],
         }
