@@ -17,7 +17,9 @@ use crate::workflows::{ErasedTask, ErasedTaskFunction, TaskFunction};
 
 pub struct Worker {
     pub name: String,
-    pub worker_id: Arc<String>,
+    worker_id: Option<Arc<String>>,
+    max_runs: i32,
+    registered_actions: Vec<String>,
     pub client: Arc<HatchetClient>,
     pub tasks: Arc<HashMap<String, Arc<dyn ErasedTaskFunction>>>,
     workflows: Vec<crate::grpc::workflows::CreateWorkflowVersionOpts>,
@@ -27,7 +29,6 @@ impl Worker {
     pub async fn new<T, I, O>(
         client: HatchetClient,
         name: String,
-        task: T,
         max_runs: i32,
     ) -> Result<Self, HatchetError>
     where
@@ -35,43 +36,56 @@ impl Worker {
         I: DeserializeOwned + Send + 'static,
         O: Serialize + Send + std::fmt::Debug + 'static,
     {
-        let actions = vec![task.name().to_string()];
-        let worker_id = Self::register_worker(&client, &name, actions, max_runs).await?;
-
         let erased = Arc::new(ErasedTask::new(task));
         let mut tasks: HashMap<String, Arc<dyn ErasedTaskFunction>> = HashMap::new();
         tasks.insert(erased.name().to_string(), erased);
 
         Ok(Self {
             name,
-            worker_id: Arc::new(worker_id),
+            worker_id: None,
+            max_runs,
+            registered_actions: vec![],
             client: Arc::new(client),
             tasks: Arc::new(tasks),
             workflows: vec![],
         })
     }
 
-    pub async fn register_workflow<I, O>(
-        &mut self,
-        workflow: crate::workflows::workflow::Workflow<I, O>,
-    ) where
+    pub fn add_workflow<I, O>(&mut self, workflow: crate::workflows::workflow::Workflow<I, O>)
+    where
         I: Serialize + Send + 'static,
         O: DeserializeOwned + Send + std::fmt::Debug + 'static,
     {
-        let request = Request::new(crate::grpc::workflows::PutWorkflowRequest {
-            opts: Some(workflow.to_proto()),
-        });
-        println!("{:?}", request);
-        self.client
-            .grpc_unary(request, |channel, request| async move {
-                let mut client = WorkflowServiceClient::new(channel);
-                client.put_workflow(request).await
-            })
-            .await
-            .unwrap();
+        self.workflows.push(workflow.to_proto());
     }
 
-    pub async fn start(&self) -> Result<(), HatchetError> {
+    pub async fn register_workflows(&self) {
+        for workflow in &self.workflows {
+            let request = Request::new(crate::grpc::workflows::PutWorkflowRequest {
+                opts: Some(workflow.clone()),
+            });
+            self.client
+                .grpc_unary(request, |channel, request| async move {
+                    let mut client = WorkflowServiceClient::new(channel);
+                    client.put_workflow(request).await
+                })
+                .await
+                .unwrap();
+        }
+    }
+
+    pub async fn start(&mut self) -> Result<(), HatchetError> {
+        let mut actions = vec![];
+        for workflow in &self.workflows {
+            for step in &workflow.jobs[0].steps {
+                actions.push(step.action.clone());
+            }
+        }
+        self.worker_id = Some(Arc::new(
+            Self::register_worker(&self.client, &self.name, actions, self.max_runs).await?,
+        ));
+        self.register_workflows().await;
+
         let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(100);
 
         let test_registry = self.tasks.clone();
@@ -81,19 +95,22 @@ impl Worker {
             task_runs: Arc::new(std::sync::Mutex::new(HashMap::new())),
         });
 
-        let worker_id = self.worker_id.clone();
         let action_listener = Arc::new(ActionListener {
             client: self.client.clone(),
         });
+        let worker_id = self.worker_id.clone();
         tokio::spawn(async move {
-            action_listener.listen(worker_id, tx).await.unwrap();
+            action_listener
+                .listen(worker_id.unwrap(), tx)
+                .await
+                .unwrap();
         });
 
-        let worker_id = self.worker_id.clone();
         tokio::try_join!(
             async {
                 loop {
-                    self.heartbeat().await?;
+                    let worker_id = self.worker_id.clone();
+                    self.heartbeat(worker_id.unwrap().to_string()).await?;
                     tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
                 }
                 #[allow(unreachable_code)]
@@ -101,8 +118,10 @@ impl Worker {
             },
             async {
                 while let Some(task) = rx.recv().await {
-                    let worker_id = worker_id.clone();
-                    dispatcher.dispatch(worker_id, task).await?
+                    let worker_id = self.worker_id.clone();
+                    dispatcher
+                        .dispatch(worker_id.unwrap().to_string(), task)
+                        .await?
                 }
                 Ok(())
             }
@@ -111,9 +130,9 @@ impl Worker {
         Ok(())
     }
 
-    async fn heartbeat(&self) -> Result<(), HatchetError> {
+    async fn heartbeat(&self, worker_id: String) -> Result<(), HatchetError> {
         let request = Request::new(HeartbeatRequest {
-            worker_id: self.worker_id.to_string(),
+            worker_id: worker_id.to_string(),
             heartbeat_at: Some(crate::utils::proto_timestamp_now()?),
         });
 

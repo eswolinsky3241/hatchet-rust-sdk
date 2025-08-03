@@ -11,9 +11,7 @@ use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::grpc::workflows::{
-    CreateWorkflowJobOpts,
-    CreateWorkflowStepOpts,
-    CreateWorkflowVersionOpts,
+    CreateWorkflowJobOpts, CreateWorkflowStepOpts, CreateWorkflowVersionOpts,
     TriggerWorkflowRequest,
 };
 use crate::models::WorkflowStatus;
@@ -24,6 +22,7 @@ pub struct Workflow<I, O> {
     name: String,
     client: Arc<HatchetClient>,
     steps: Vec<CreateWorkflowStepOpts>,
+    actions: Vec<String>,
     _input: PhantomData<I>,
     _output: PhantomData<O>,
 }

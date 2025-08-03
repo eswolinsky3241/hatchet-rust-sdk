@@ -20,11 +20,13 @@ pub struct TaskDispatcher {
 impl TaskDispatcher {
     pub async fn dispatch(
         &self,
-        worker_id: Arc<String>,
+        worker_id: String,
         message: dispatcher::AssignedAction,
     ) -> Result<(), crate::HatchetError> {
         match message.action_type().as_str_name() {
-            "START_STEP_RUN" => Ok(self.handle_start_step_run(worker_id, message).await?),
+            "START_STEP_RUN" => Ok(self
+                .handle_start_step_run(Arc::new(worker_id), message)
+                .await?),
             "CANCEL_STEP_RUN" => Ok(self.handle_cancel_step_run(message).await?),
             _ => Err(HatchetError::UnrecognizedAction {
                 action: message.action_type().as_str_name().to_string(),
