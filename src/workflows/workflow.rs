@@ -1,5 +1,3 @@
-use std::fmt;
-use std::ops::Deref;
 use std::sync::Arc;
 
 use serde::Serialize;
