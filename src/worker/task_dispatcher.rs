@@ -98,7 +98,7 @@ impl TaskDispatcher {
                         }
                     };
 
-                    let event_type = if result.is_ok() { 2 } else { 3 };
+                    let event_type = if result.unwrap().is_ok() { 2 } else { 3 };
 
                     let event = dispatcher::StepActionEvent {
                         worker_id: worker_id_clone.to_string(),
