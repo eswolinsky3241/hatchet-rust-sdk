@@ -5,7 +5,6 @@ use tonic::Request;
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::dispatcher;
-use crate::grpc::dispatcher::dispatcher_client::DispatcherClient;
 
 pub struct ActionListener {
     pub client: Arc<HatchetClient>,
@@ -24,7 +23,7 @@ impl ActionListener {
         let response = self
             .client
             .grpc_stream(request, |channel, request| async move {
-                let mut client = DispatcherClient::new(channel);
+                let mut client = dispatcher::dispatcher_client::DispatcherClient::new(channel);
                 client.listen_v2(request).await
             })
             .await?;
