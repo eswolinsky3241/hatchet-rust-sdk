@@ -15,11 +15,10 @@ pub(crate) fn proto_timestamp_now() -> Result<Timestamp, HatchetError> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ExecutionContext {
-    pub workflow_run_id: String,
-    pub step_run_id: String,
-    pub worker_id: String,
-    pub child_index: i32,
+pub(crate) struct ExecutionContext {
+    pub(crate) workflow_run_id: String,
+    pub(crate) step_run_id: String,
+    pub(crate) child_index: i32,
 }
 
 tokio::task_local! {

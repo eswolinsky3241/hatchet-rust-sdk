@@ -7,9 +7,9 @@ use crate::error::HatchetError;
 
 #[derive(Debug, Clone)]
 pub struct HatchetConfig {
-    pub api_token: String,
-    pub grpc_address: String,
-    pub server_url: String,
+    pub(crate) api_token: String,
+    pub(crate) grpc_address: String,
+    pub(crate) server_url: String,
 }
 
 impl HatchetConfig {

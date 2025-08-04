@@ -6,12 +6,12 @@ use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::dispatcher;
 
-pub struct ActionListener {
-    pub client: Arc<HatchetClient>,
+pub(crate) struct ActionListener {
+    pub(crate) client: Arc<HatchetClient>,
 }
 
 impl ActionListener {
-    pub async fn listen(
+    pub(crate) async fn listen(
         &self,
         worker_id: Arc<String>,
         tx: tokio::sync::mpsc::Sender<dispatcher::AssignedAction>,

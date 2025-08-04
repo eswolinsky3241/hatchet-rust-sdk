@@ -11,14 +11,14 @@ use crate::grpc::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::Context;
-pub struct TaskDispatcher {
-    pub registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
-    pub client: Arc<crate::client::HatchetClient>,
-    pub task_runs: Arc<Mutex<HashMap<String, (JoinHandle<()>, CancellationToken)>>>,
+pub(crate) struct TaskDispatcher {
+    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
+    pub(crate) client: Arc<crate::client::HatchetClient>,
+    pub(crate) task_runs: Arc<Mutex<HashMap<String, (JoinHandle<()>, CancellationToken)>>>,
 }
 
 impl TaskDispatcher {
-    pub async fn dispatch(
+    pub(crate) async fn dispatch(
         &self,
         worker_id: String,
         message: dispatcher::AssignedAction,
@@ -41,7 +41,7 @@ impl TaskDispatcher {
     ) -> Result<(), crate::HatchetError> {
         let step_run_id = message.step_run_id.clone();
 
-        self.send_step_action_event_common(&worker_id, &message, 1, String::from(""))
+        self.send_step_action_event(&worker_id, &message, 1, String::from(""))
             .await?;
 
         let handler = self
@@ -49,18 +49,15 @@ impl TaskDispatcher {
             .lock()
             .unwrap()
             .get(&message.action_id)
-            .expect("handler not found")
+            .unwrap()
             .clone();
 
         let token = CancellationToken::new();
         let client = self.client.clone();
-        let worker_id_clone = worker_id.clone();
 
-        // Used for tracking dynamic child spawning relationships
         let execution_context = ExecutionContext {
             workflow_run_id: message.workflow_run_id.clone(),
             step_run_id: message.step_run_id.clone(),
-            worker_id: worker_id.to_string(),
             child_index: 0,
         };
 
@@ -101,7 +98,7 @@ impl TaskDispatcher {
                     let event_type = if result.unwrap().is_ok() { 2 } else { 3 };
 
                     let event = dispatcher::StepActionEvent {
-                        worker_id: worker_id_clone.to_string(),
+                        worker_id: worker_id.to_string(),
                         job_id: message.job_id.clone(),
                         job_run_id: message.job_run_id.clone(),
                         step_id: message.step_id.clone(),
@@ -146,7 +143,7 @@ impl TaskDispatcher {
         Ok(())
     }
 
-    async fn send_step_action_event_common(
+    async fn send_step_action_event(
         &self,
         worker_id: &Arc<String>,
         message: &dispatcher::AssignedAction,

@@ -46,6 +46,7 @@ impl Worker {
         O: DeserializeOwned + Send + Sync,
     {
         self.workflows.push(workflow.to_proto());
+
         for task in &workflow.tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
             let task_function = task.function.clone();
@@ -92,12 +93,13 @@ impl Worker {
         let dispatcher = Arc::new(crate::worker::task_dispatcher::TaskDispatcher {
             registry: self.tasks.clone(),
             client: self.client.clone(),
-            task_runs: Arc::new(std::sync::Mutex::new(HashMap::new())),
+            task_runs: Arc::new(Mutex::new(HashMap::new())),
         });
 
         let action_listener = Arc::new(ActionListener {
             client: self.client.clone(),
         });
+
         let worker_id = self.worker_id.clone();
         tokio::spawn(async move {
             action_listener

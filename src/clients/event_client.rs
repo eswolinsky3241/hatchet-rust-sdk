@@ -5,15 +5,15 @@ use crate::grpc::events;
 use crate::grpc::events::PutLogRequest;
 use crate::utils::proto_timestamp_now;
 
-pub struct EventClient {
+pub(crate) struct EventClient {
     client: Arc<HatchetClient>,
 }
 
 impl EventClient {
-    pub fn new(client: Arc<HatchetClient>) -> Self {
+    pub(crate) fn new(client: Arc<HatchetClient>) -> Self {
         Self { client: client }
     }
-    pub async fn put_log(
+    pub(crate) async fn put_log(
         &self,
         step_run_id: &str,
         message: String,
