@@ -8,11 +8,11 @@ use tokio_util::sync::CancellationToken;
 
 use crate::error::HatchetError;
 use crate::grpc::dispatcher;
-use crate::tasks::{Context, ErasedTask};
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-
+use crate::worker::types::ErasedTaskFn;
+use crate::workflows::Context;
 pub struct TaskDispatcher {
-    pub registry: Arc<HashMap<String, Arc<dyn ErasedTask>>>,
+    pub registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
     pub client: Arc<crate::client::HatchetClient>,
     pub task_runs: Arc<Mutex<HashMap<String, (JoinHandle<()>, CancellationToken)>>>,
 }
@@ -20,11 +20,13 @@ pub struct TaskDispatcher {
 impl TaskDispatcher {
     pub async fn dispatch(
         &self,
-        worker_id: Arc<String>,
+        worker_id: String,
         message: dispatcher::AssignedAction,
     ) -> Result<(), crate::HatchetError> {
         match message.action_type().as_str_name() {
-            "START_STEP_RUN" => Ok(self.handle_start_step_run(worker_id, message).await?),
+            "START_STEP_RUN" => Ok(self
+                .handle_start_step_run(Arc::new(worker_id), message)
+                .await?),
             "CANCEL_STEP_RUN" => Ok(self.handle_cancel_step_run(message).await?),
             _ => Err(HatchetError::UnrecognizedAction {
                 action: message.action_type().as_str_name().to_string(),
@@ -44,6 +46,8 @@ impl TaskDispatcher {
 
         let handler = self
             .registry
+            .lock()
+            .unwrap()
             .get(&message.action_id)
             .expect("handler not found")
             .clone();
@@ -71,12 +75,16 @@ impl TaskDispatcher {
                         .expect("missing `input` field");
 
                     let context = Context::new(client.clone(), &message.step_run_id);
-                    let result = AssertUnwindSafe(handler.run_from_json(input_value, context))
+
+                    let result: Result<
+                        Result<serde_json::Value, HatchetError>,
+                        Box<dyn std::any::Any + Send>,
+                    > = AssertUnwindSafe(handler(input_value, context))
                         .catch_unwind()
                         .await;
 
                     let event_payload = match &result {
-                        Ok(Ok(json)) => json.to_string(),
+                        Ok(Ok(output)) => output.to_string(),
                         Ok(Err(e)) => e.to_string(),
                         Err(panic_payload) => {
                             let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
@@ -90,7 +98,7 @@ impl TaskDispatcher {
                         }
                     };
 
-                    let event_type = if result.is_ok() { 2 } else { 3 };
+                    let event_type = if result.unwrap().is_ok() { 2 } else { 3 };
 
                     let event = dispatcher::StepActionEvent {
                         worker_id: worker_id_clone.to_string(),

@@ -1,6 +1,3 @@
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::Deref;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -9,28 +6,72 @@ use tonic::Request;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
-use crate::grpc::workflows::TriggerWorkflowRequest;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
+use crate::grpc::workflows::{
+    CreateWorkflowJobOpts,
+    CreateWorkflowStepOpts,
+    CreateWorkflowVersionOpts,
+    TriggerWorkflowRequest,
+};
 use crate::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
+use crate::workflows::task::{ErasedTask, Task};
+
+#[derive(Clone)]
 pub struct Workflow<I, O> {
-    name: String,
+    pub(crate) name: String,
     client: Arc<HatchetClient>,
-    _input: PhantomData<I>,
-    _output: PhantomData<O>,
+    pub(crate) tasks: Vec<ErasedTask>,
+    steps: Vec<CreateWorkflowStepOpts>,
+    _phantom: std::marker::PhantomData<(I, O)>,
 }
 
 impl<I, O> Workflow<I, O>
 where
-    I: Serialize,
-    O: DeserializeOwned,
+    I: Serialize + Send + Sync,
+    O: DeserializeOwned + Send + Sync,
 {
-    pub fn new(name: impl Into<String>, client: Arc<HatchetClient>) -> Self {
+    pub fn new(name: impl Into<String>, client: &HatchetClient) -> Self {
         Self {
             name: name.into(),
-            client,
-            _input: PhantomData,
-            _output: PhantomData,
+            client: Arc::new(client.clone()),
+            tasks: vec![],
+            steps: vec![],
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    pub fn add_task<P>(mut self, task: Task<I, P>) -> Self
+    where
+        I: serde::de::DeserializeOwned + Send + 'static,
+        P: serde::Serialize + Send + 'static,
+    {
+        self.steps.push(task.to_proto(&self.name));
+        let erased_task = task.into_erased();
+        self.tasks.push(erased_task);
+        self
+    }
+
+    pub(crate) fn to_proto(&self) -> CreateWorkflowVersionOpts {
+        CreateWorkflowVersionOpts {
+            name: self.name.clone(),
+            description: String::from(""),
+            version: String::from(""),
+            event_triggers: vec![],
+            cron_triggers: vec![],
+            scheduled_triggers: vec![],
+            jobs: vec![CreateWorkflowJobOpts {
+                name: String::from("job"),
+                description: String::from(""),
+                steps: self.steps.clone(),
+            }],
+            concurrency: None,
+            schedule_timeout: None,
+            cron_input: None,
+            on_failure_job: None,
+            sticky: None,
+            kind: None,
+            default_priority: None,
         }
     }
 
@@ -38,12 +79,12 @@ where
         &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
-    ) -> Result<RunId, HatchetError> {
+    ) -> Result<String, HatchetError> {
         self.trigger(input, options.unwrap_or_default()).await
     }
 
     pub async fn run(
-        self,
+        &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<O, HatchetError> {
@@ -84,7 +125,7 @@ where
         &self,
         input: T,
         options: TriggerWorkflowOptions,
-    ) -> Result<RunId, HatchetError>
+    ) -> Result<String, HatchetError>
     where
         T: Serialize,
     {
@@ -112,12 +153,12 @@ where
             })
             .await?;
 
-        Ok(RunId(response.into_inner().workflow_run_id))
+        Ok(response.into_inner().workflow_run_id)
     }
 
     pub async fn get_run(
         &self,
-        run_id: &RunId,
+        run_id: &str,
     ) -> Result<crate::models::GetWorkflowRunResponse, HatchetError> {
         self.client
             .api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
@@ -135,23 +176,6 @@ where
                 ctx.child_index += 1;
             });
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RunId(pub String);
-
-impl fmt::Display for RunId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Deref for RunId {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 

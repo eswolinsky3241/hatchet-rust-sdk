@@ -25,8 +25,6 @@ impl Context {
         }
     }
 
-    pub async fn run_logger_thread(&self) -> () {}
-
     pub async fn log(&self, message: String) -> Result<(), HatchetError> {
         self.logger_tx.send(message).await.unwrap();
 
