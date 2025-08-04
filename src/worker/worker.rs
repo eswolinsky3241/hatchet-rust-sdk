@@ -26,22 +26,21 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub async fn new(
-        client: HatchetClient,
-        name: String,
-        max_runs: i32,
-    ) -> Result<Self, HatchetError> {
+    pub fn new(name: &str, client: &HatchetClient, max_runs: i32) -> Result<Self, HatchetError> {
         Ok(Self {
-            name,
+            name: name.to_string(),
             worker_id: None,
             max_runs,
-            client: Arc::new(client),
+            client: Arc::new(client.clone()),
             tasks: Arc::new(Mutex::new(HashMap::new())),
             workflows: vec![],
         })
     }
 
-    pub fn add_workflow<I, O>(&mut self, workflow: crate::workflows::workflow::Workflow<I, O>)
+    pub fn add_workflow<I, O>(
+        mut self,
+        workflow: crate::workflows::workflow::Workflow<I, O>,
+    ) -> Self
     where
         I: Serialize + Send + Sync,
         O: DeserializeOwned + Send + Sync,
@@ -58,6 +57,7 @@ impl Worker {
                 .unwrap()
                 .insert(fully_qualified_name, task_fn);
         }
+        self
     }
 
     pub async fn register_workflows(&self) {

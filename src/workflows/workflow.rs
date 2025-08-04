@@ -31,17 +31,17 @@ where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
 {
-    pub fn new(name: impl Into<String>, client: Arc<HatchetClient>) -> Self {
+    pub fn new(name: impl Into<String>, client: &HatchetClient) -> Self {
         Self {
             name: name.into(),
-            client,
+            client: Arc::new(client.clone()),
             tasks: vec![],
             steps: vec![],
             _phantom: std::marker::PhantomData,
         }
     }
 
-    pub fn add_task<P>(&mut self, task: Task<I, P>) -> &mut Self
+    pub fn add_task<P>(mut self, task: Task<I, P>) -> Self
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         P: serde::Serialize + Send + 'static,
@@ -84,7 +84,7 @@ where
     }
 
     pub async fn run(
-        self,
+        &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<O, HatchetError> {
