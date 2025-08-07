@@ -13,7 +13,7 @@ use crate::grpc::workflows::{
     CreateWorkflowVersionOpts,
     TriggerWorkflowRequest,
 };
-use crate::models::WorkflowStatus;
+use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::workflows::task::{ErasedTask, Task};
 
@@ -159,7 +159,7 @@ where
     pub async fn get_run(
         &self,
         run_id: &str,
-    ) -> Result<crate::models::GetWorkflowRunResponse, HatchetError> {
+    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
         self.client
             .api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
             .await

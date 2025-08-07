@@ -3,7 +3,6 @@ pub(crate) mod clients;
 pub mod config;
 pub mod error;
 pub(crate) mod grpc;
-pub mod models;
 pub(crate) mod rest;
 pub mod utils;
 pub mod worker;
