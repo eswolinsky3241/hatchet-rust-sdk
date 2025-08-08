@@ -1,33 +1,43 @@
+use std::collections::HashMap;
+
 use serde::Deserialize;
 use serde_json::Value;
 
 #[derive(Debug, Deserialize)]
-pub struct GetWorkflowRunResponse {
-    pub tasks: Vec<Task>,
-    pub run: Run,
+pub(crate) struct GetWorkflowRunResponse {
+    pub(crate) tasks: Vec<Task>,
+    pub(crate) run: Run,
 
-    pub output: Option<Value>,
+    pub(crate) output: Option<Value>,
+}
+
+struct TaskParent {
+    result: serde_json::Value,
+}
+
+struct TaskInput {
+    parents: HashMap<String, TaskParent>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Task {
-    pub status: WorkflowStatus,
+pub(crate) struct Task {
+    pub(crate) status: WorkflowStatus,
     #[serde(rename = "errorMessage")]
-    pub error_message: String,
-    pub output: Option<Value>,
+    pub(crate) error_message: String,
+    pub(crate) output: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Run {
-    pub status: WorkflowStatus,
+pub(crate) struct Run {
+    pub(crate) status: WorkflowStatus,
     #[serde(rename = "errorMessage")]
-    pub error_message: String,
-    pub output: Option<Value>,
+    pub(crate) error_message: String,
+    pub(crate) output: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum WorkflowStatus {
+pub(crate) enum WorkflowStatus {
     Running,
     Failed,
     Completed,
@@ -36,3 +46,6 @@ pub enum WorkflowStatus {
     #[serde(other)]
     Unknown,
 }
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct Workflow;
