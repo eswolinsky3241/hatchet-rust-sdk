@@ -39,15 +39,26 @@ where
         }
     }
 
-    pub fn add_task<P>(mut self, task: Task<I, P>) -> Self
+    pub fn add_task<P>(mut self, task: Task<I, P>) -> Result<Self, HatchetError>
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         P: serde::Serialize + Send + 'static,
     {
+        if self
+            .tasks
+            .iter()
+            .any(|existing_task| existing_task.name == task.name)
+        {
+            return Err(HatchetError::DuplicateTask {
+                task_name: task.name.clone(),
+                workflow_name: self.name.clone(),
+            });
+        }
+
         self.steps.push(task.to_proto(&self.name));
         let erased_task = task.into_erased();
         self.tasks.push(erased_task);
-        self
+        Ok(self)
     }
 
     pub(crate) fn to_proto(&self) -> CreateWorkflowVersionOpts {

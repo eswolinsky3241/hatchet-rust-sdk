@@ -45,4 +45,9 @@ pub enum HatchetError {
     TaskNotFound { task_name: String },
     #[error("Parent task not found: {parent_step_name}")]
     ParentTaskNotFound { parent_step_name: String },
+    #[error("Duplicate task name '{task_name}' in workflow '{workflow_name}'")]
+    DuplicateTask {
+        task_name: String,
+        workflow_name: String,
+    },
 }
