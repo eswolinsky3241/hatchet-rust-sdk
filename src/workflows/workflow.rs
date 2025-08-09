@@ -8,12 +8,10 @@ use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::grpc::workflows::{
-    CreateWorkflowJobOpts,
-    CreateWorkflowStepOpts,
-    CreateWorkflowVersionOpts,
+    CreateWorkflowJobOpts, CreateWorkflowStepOpts, CreateWorkflowVersionOpts,
     TriggerWorkflowRequest,
 };
-use crate::models::WorkflowStatus;
+use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::workflows::task::{ErasedTask, Task};
 
@@ -41,15 +39,26 @@ where
         }
     }
 
-    pub fn add_task<P>(mut self, task: Task<I, P>) -> Self
+    pub fn add_task<P>(mut self, task: Task<I, P>) -> Result<Self, HatchetError>
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         P: serde::Serialize + Send + 'static,
     {
+        if self
+            .tasks
+            .iter()
+            .any(|existing_task| existing_task.name == task.name)
+        {
+            return Err(HatchetError::DuplicateTask {
+                task_name: task.name.clone(),
+                workflow_name: self.name.clone(),
+            });
+        }
+
         self.steps.push(task.to_proto(&self.name));
         let erased_task = task.into_erased();
         self.tasks.push(erased_task);
-        self
+        Ok(self)
     }
 
     pub(crate) fn to_proto(&self) -> CreateWorkflowVersionOpts {
@@ -156,10 +165,10 @@ where
         Ok(response.into_inner().workflow_run_id)
     }
 
-    pub async fn get_run(
+    async fn get_run(
         &self,
         run_id: &str,
-    ) -> Result<crate::models::GetWorkflowRunResponse, HatchetError> {
+    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
         self.client
             .api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
             .await

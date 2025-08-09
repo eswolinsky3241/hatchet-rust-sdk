@@ -3,26 +3,74 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::clients::EventClient;
+use crate::rest::models::GetWorkflowRunResponse;
 use crate::{HatchetClient, HatchetError};
+
 pub struct Context {
     logger_tx: mpsc::Sender<String>,
     pub client: Arc<HatchetClient>,
+    workflow_run_id: String,
+    step_run_id: String,
 }
 
 impl Context {
-    pub fn new(client: Arc<HatchetClient>, step_run_id: &str) -> Self {
+    pub(crate) fn new(
+        client: Arc<HatchetClient>,
+        workflow_run_id: &str,
+        step_run_id: &str,
+    ) -> Self {
         let event_client = Arc::new(EventClient::new(client.clone()));
         let (tx, mut rx) = mpsc::channel::<String>(100);
         let step_run_id = step_run_id.to_string();
+        let workflow_run_id = workflow_run_id.to_string();
+        let step_run_id_clone = step_run_id.clone();
+
         tokio::spawn(async move {
             while let Some(message) = rx.recv().await {
-                event_client.put_log(&step_run_id, message).await.unwrap();
+                event_client
+                    .put_log(&step_run_id_clone, message)
+                    .await
+                    .unwrap();
             }
         });
         Self {
             logger_tx: tx,
             client: client,
+            workflow_run_id,
+            step_run_id,
         }
+    }
+
+    async fn get_current_workflow(&self) -> Result<GetWorkflowRunResponse, HatchetError> {
+        self.client
+            .api_get(&format!(
+                "/api/v1/stable/workflow-runs/{}",
+                self.workflow_run_id
+            ))
+            .await
+    }
+
+    pub async fn parent_output(
+        &self,
+        parent_step_name: &str,
+    ) -> Result<serde_json::Value, HatchetError> {
+        let workflow_run = self.get_current_workflow().await?;
+
+        let current_task = workflow_run
+            .tasks
+            .iter()
+            .find(|task| task.task_external_id == self.step_run_id)
+            .unwrap();
+
+        let parent = current_task
+            .input
+            .parents
+            .get(parent_step_name)
+            .ok_or_else(|| HatchetError::ParentTaskNotFound {
+                parent_step_name: parent_step_name.to_string(),
+            })?;
+
+        Ok(parent.0.clone())
     }
 
     pub async fn log(&self, message: String) -> Result<(), HatchetError> {

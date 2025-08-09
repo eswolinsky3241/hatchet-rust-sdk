@@ -41,4 +41,13 @@ pub enum HatchetError {
     SystemTimeError(#[from] std::time::SystemTimeError),
     #[error("Unrecognized action received: {action}")]
     UnrecognizedAction { action: String },
+    #[error("Task not found: {task_name}")]
+    TaskNotFound { task_name: String },
+    #[error("Parent task not found: {parent_step_name}")]
+    ParentTaskNotFound { parent_step_name: String },
+    #[error("Duplicate task name '{task_name}' in workflow '{workflow_name}'")]
+    DuplicateTask {
+        task_name: String,
+        workflow_name: String,
+    },
 }
