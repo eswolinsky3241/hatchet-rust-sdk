@@ -71,7 +71,11 @@ impl TaskDispatcher {
                         .cloned()
                         .expect("missing `input` field");
 
-                    let context = Context::new(client.clone(), &message.step_run_id);
+                    let context = Context::new(
+                        client.clone(),
+                        &message.workflow_run_id,
+                        &message.step_run_id,
+                    );
 
                     let result: Result<
                         Result<serde_json::Value, HatchetError>,

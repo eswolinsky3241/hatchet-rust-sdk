@@ -8,9 +8,7 @@ use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::grpc::workflows::{
-    CreateWorkflowJobOpts,
-    CreateWorkflowStepOpts,
-    CreateWorkflowVersionOpts,
+    CreateWorkflowJobOpts, CreateWorkflowStepOpts, CreateWorkflowVersionOpts,
     TriggerWorkflowRequest,
 };
 use crate::rest::models::WorkflowStatus;
@@ -156,7 +154,7 @@ where
         Ok(response.into_inner().workflow_run_id)
     }
 
-    pub async fn get_run(
+    async fn get_run(
         &self,
         run_id: &str,
     ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {

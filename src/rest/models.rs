@@ -7,24 +7,23 @@ use serde_json::Value;
 pub(crate) struct GetWorkflowRunResponse {
     pub(crate) tasks: Vec<Task>,
     pub(crate) run: Run,
-
-    pub(crate) output: Option<Value>,
 }
 
-struct TaskParent {
-    result: serde_json::Value,
-}
+#[derive(Debug, Deserialize)]
+pub(crate) struct TaskParent(pub(crate) Value);
 
-struct TaskInput {
-    parents: HashMap<String, TaskParent>,
+#[derive(Debug, Deserialize)]
+pub(crate) struct TaskInput {
+    pub(crate) parents: HashMap<String, TaskParent>,
 }
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct Task {
-    pub(crate) status: WorkflowStatus,
     #[serde(rename = "errorMessage")]
-    pub(crate) error_message: String,
     pub(crate) output: Option<Value>,
+    pub(crate) input: TaskInput,
+    #[serde(rename = "taskExternalId")]
+    pub(crate) task_external_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,7 +31,6 @@ pub(crate) struct Run {
     pub(crate) status: WorkflowStatus,
     #[serde(rename = "errorMessage")]
     pub(crate) error_message: String,
-    pub(crate) output: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
