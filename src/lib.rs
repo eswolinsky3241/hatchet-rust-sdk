@@ -10,5 +10,6 @@ pub mod workflows;
 
 pub use client::HatchetClient;
 pub use error::HatchetError;
+pub use utils::EmptyModel;
 pub use worker::Worker;
 pub use workflows::{Context, Task, TriggerWorkflowOptions, Workflow};
