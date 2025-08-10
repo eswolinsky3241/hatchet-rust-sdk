@@ -8,10 +8,10 @@ use tonic::Request;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
-use crate::grpc::dispatcher;
-use crate::grpc::dispatcher::dispatcher_client::DispatcherClient;
-use crate::grpc::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
-use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
+use crate::grpc::v0::dispatcher;
+use crate::grpc::v0::dispatcher::dispatcher_client::DispatcherClient;
+use crate::grpc::v0::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
+use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::worker::action_listener::ActionListener;
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::Context;
@@ -22,7 +22,7 @@ pub struct Worker {
     max_runs: i32,
     pub client: Arc<HatchetClient>,
     tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
-    workflows: Vec<crate::grpc::workflows::CreateWorkflowVersionOpts>,
+    workflows: Vec<crate::grpc::v0::workflows::CreateWorkflowVersionOpts>,
 }
 
 impl Worker {
@@ -63,7 +63,7 @@ impl Worker {
 
     pub async fn register_workflows(&self) {
         for workflow in &self.workflows {
-            let request = Request::new(crate::grpc::workflows::PutWorkflowRequest {
+            let request = Request::new(crate::grpc::v0::workflows::PutWorkflowRequest {
                 opts: Some(workflow.clone()),
             });
             self.client

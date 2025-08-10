@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::HatchetClient;
-use crate::grpc::events;
-use crate::grpc::events::PutLogRequest;
+use crate::grpc::v0::events;
+use crate::grpc::v0::events::PutLogRequest;
 use crate::utils::proto_timestamp_now;
 
 pub(crate) struct EventClient {
@@ -24,6 +24,7 @@ impl EventClient {
             message: message,
             level: None,
             metadata: String::from(""),
+            task_retry_count: None,
         });
 
         self.client

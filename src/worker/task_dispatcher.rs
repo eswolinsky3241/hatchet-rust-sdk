@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 use crate::error::HatchetError;
-use crate::grpc::dispatcher;
+use crate::grpc::v0::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::Context;

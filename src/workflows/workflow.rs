@@ -6,8 +6,8 @@ use tonic::Request;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
-use crate::grpc::workflows::workflow_service_client::WorkflowServiceClient;
-use crate::grpc::workflows::{
+use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
+use crate::grpc::v0::workflows::{
     CreateWorkflowJobOpts, CreateWorkflowStepOpts, CreateWorkflowVersionOpts,
     TriggerWorkflowRequest,
 };
