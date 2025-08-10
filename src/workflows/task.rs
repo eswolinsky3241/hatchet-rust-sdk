@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::grpc::workflows::CreateWorkflowStepOpts;
+use crate::grpc::v0::workflows::CreateWorkflowStepOpts;
 use crate::worker::types::TaskFn;
 use crate::{Context, HatchetError};
 

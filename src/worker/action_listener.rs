@@ -4,7 +4,7 @@ use tonic::Request;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
-use crate::grpc::dispatcher;
+use crate::grpc::v0::dispatcher;
 
 pub(crate) struct ActionListener {
     pub(crate) client: Arc<HatchetClient>,
