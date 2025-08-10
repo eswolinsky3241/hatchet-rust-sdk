@@ -6,11 +6,9 @@ use tonic::Request;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
+use crate::grpc::v0::workflows::TriggerWorkflowRequest;
 use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
-use crate::grpc::v0::workflows::{
-    CreateWorkflowJobOpts, CreateWorkflowStepOpts, CreateWorkflowVersionOpts,
-    TriggerWorkflowRequest,
-};
+use crate::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
 use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::workflows::task::{ErasedTask, Task};
@@ -19,8 +17,8 @@ use crate::workflows::task::{ErasedTask, Task};
 pub struct Workflow<I, O> {
     pub(crate) name: String,
     client: Arc<HatchetClient>,
-    pub(crate) tasks: Vec<ErasedTask>,
-    steps: Vec<CreateWorkflowStepOpts>,
+    pub(crate) erased_tasks: Vec<ErasedTask>,
+    tasks: Vec<CreateTaskOpts>,
     event_triggers: Vec<String>,
     _phantom: std::marker::PhantomData<(I, O)>,
 }
@@ -38,8 +36,8 @@ where
         Self {
             name: name.into(),
             client: Arc::new(client.clone()),
+            erased_tasks: vec![],
             tasks: vec![],
-            steps: vec![],
             event_triggers,
             _phantom: std::marker::PhantomData,
         }
@@ -53,7 +51,7 @@ where
         if self
             .tasks
             .iter()
-            .any(|existing_task| existing_task.name == task.name)
+            .any(|existing_task| existing_task.readable_id == task.name)
         {
             return Err(HatchetError::DuplicateTask {
                 task_name: task.name.clone(),
@@ -61,32 +59,27 @@ where
             });
         }
 
-        self.steps.push(task.to_proto(&self.name));
+        self.tasks.push(task.to_proto(&self.name));
         let erased_task = task.into_erased();
-        self.tasks.push(erased_task);
+        self.erased_tasks.push(erased_task);
         Ok(self)
     }
 
-    pub(crate) fn to_proto(&self) -> CreateWorkflowVersionOpts {
-        CreateWorkflowVersionOpts {
+    pub(crate) fn to_proto(&self) -> CreateWorkflowVersionRequest {
+        CreateWorkflowVersionRequest {
             name: self.name.clone(),
             description: String::from(""),
             version: String::from(""),
             event_triggers: self.event_triggers.clone(),
             cron_triggers: vec![],
-            scheduled_triggers: vec![],
-            jobs: vec![CreateWorkflowJobOpts {
-                name: String::from("job"),
-                description: String::from(""),
-                steps: self.steps.clone(),
-            }],
+            tasks: self.tasks.clone(),
             concurrency: None,
-            schedule_timeout: None,
             cron_input: None,
-            on_failure_job: None,
+            on_failure_task: None,
             sticky: None,
-            kind: None,
             default_priority: None,
+            concurrency_arr: vec![],
+            default_filters: vec![],
         }
     }
 

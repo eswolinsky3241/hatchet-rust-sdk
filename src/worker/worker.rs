@@ -11,7 +11,7 @@ use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::grpc::v0::dispatcher::dispatcher_client::DispatcherClient;
 use crate::grpc::v0::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
-use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
+use crate::grpc::v1::workflows::admin_service_client::AdminServiceClient;
 use crate::worker::action_listener::ActionListener;
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::Context;
@@ -22,7 +22,7 @@ pub struct Worker {
     max_runs: i32,
     pub client: Arc<HatchetClient>,
     tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
-    workflows: Vec<crate::grpc::v0::workflows::CreateWorkflowVersionOpts>,
+    workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
 impl Worker {
@@ -47,7 +47,7 @@ impl Worker {
     {
         self.workflows.push(workflow.to_proto());
 
-        for task in &workflow.tasks {
+        for task in &workflow.erased_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
             let task_function = task.function.clone();
             let task_fn = Arc::new(Box::new(move |input: serde_json::Value, ctx: Context| {
@@ -63,12 +63,24 @@ impl Worker {
 
     pub async fn register_workflows(&self) {
         for workflow in &self.workflows {
-            let request = Request::new(crate::grpc::v0::workflows::PutWorkflowRequest {
-                opts: Some(workflow.clone()),
+            let request = Request::new(crate::grpc::v1::workflows::CreateWorkflowVersionRequest {
+                name: workflow.name.clone(),
+                description: workflow.description.clone(),
+                version: workflow.version.clone(),
+                event_triggers: workflow.event_triggers.clone(),
+                cron_triggers: workflow.cron_triggers.clone(),
+                tasks: workflow.tasks.clone(),
+                concurrency: None,
+                cron_input: None,
+                on_failure_task: None,
+                sticky: None,
+                default_priority: None,
+                concurrency_arr: vec![],
+                default_filters: vec![],
             });
             self.client
                 .grpc_unary(request, |channel, request| async move {
-                    let mut client = WorkflowServiceClient::new(channel);
+                    let mut client = AdminServiceClient::new(channel);
                     client.put_workflow(request).await
                 })
                 .await
@@ -79,8 +91,8 @@ impl Worker {
     pub async fn start(&mut self) -> Result<(), HatchetError> {
         let mut actions = vec![];
         for workflow in &self.workflows {
-            for step in &workflow.jobs[0].steps {
-                actions.push(step.action.clone());
+            for task in &workflow.tasks {
+                actions.push(task.action.clone());
             }
         }
         self.worker_id = Some(Arc::new(
