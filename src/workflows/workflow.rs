@@ -21,6 +21,7 @@ pub struct Workflow<I, O> {
     client: Arc<HatchetClient>,
     pub(crate) tasks: Vec<ErasedTask>,
     steps: Vec<CreateWorkflowStepOpts>,
+    event_triggers: Vec<String>,
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 
@@ -29,12 +30,17 @@ where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
 {
-    pub fn new(name: impl Into<String>, client: &HatchetClient) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        client: &HatchetClient,
+        event_triggers: Vec<String>,
+    ) -> Self {
         Self {
             name: name.into(),
             client: Arc::new(client.clone()),
             tasks: vec![],
             steps: vec![],
+            event_triggers,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -66,7 +72,7 @@ where
             name: self.name.clone(),
             description: String::from(""),
             version: String::from(""),
-            event_triggers: vec![],
+            event_triggers: self.event_triggers.clone(),
             cron_triggers: vec![],
             scheduled_triggers: vec![],
             jobs: vec![CreateWorkflowJobOpts {
