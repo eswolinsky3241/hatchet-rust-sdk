@@ -76,7 +76,7 @@ impl Worker {
                 sticky: None,
                 default_priority: None,
                 concurrency_arr: vec![],
-                default_filters: vec![],
+                default_filters: workflow.default_filters.clone(),
             });
             self.client
                 .grpc_unary(request, |channel, request| async move {

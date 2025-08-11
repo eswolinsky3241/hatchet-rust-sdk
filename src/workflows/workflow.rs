@@ -21,7 +21,7 @@ pub struct Workflow<I, O> {
     client: Arc<HatchetClient>,
     pub(crate) erased_tasks: Vec<ErasedTask>,
     tasks: Vec<CreateTaskOpts>,
-    event_triggers: Vec<String>,
+    on_events: Vec<String>,
     default_filters: Vec<DefaultFilter>,
     _phantom: std::marker::PhantomData<(I, O)>,
 }
@@ -34,7 +34,7 @@ where
     pub fn new(
         name: impl Into<String>,
         client: &HatchetClient,
-        event_triggers: Vec<String>,
+        on_events: Vec<String>,
         default_filters: Vec<DefaultFilter>,
     ) -> Self {
         Self {
@@ -42,7 +42,7 @@ where
             client: Arc::new(client.clone()),
             erased_tasks: vec![],
             tasks: vec![],
-            event_triggers,
+            on_events,
             default_filters,
             _phantom: std::marker::PhantomData,
         }
@@ -75,7 +75,7 @@ where
             name: self.name.clone(),
             description: String::from(""),
             version: String::from(""),
-            event_triggers: self.event_triggers.clone(),
+            event_triggers: self.on_events.clone(),
             cron_triggers: vec![],
             tasks: self.tasks.clone(),
             concurrency: None,
