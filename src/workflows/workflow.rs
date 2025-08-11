@@ -8,7 +8,9 @@ use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::v0::workflows::TriggerWorkflowRequest;
 use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
-use crate::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
+use crate::grpc::v1::workflows::{
+    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
+};
 use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::workflows::task::{ErasedTask, Task};
@@ -20,6 +22,7 @@ pub struct Workflow<I, O> {
     pub(crate) erased_tasks: Vec<ErasedTask>,
     tasks: Vec<CreateTaskOpts>,
     event_triggers: Vec<String>,
+    default_filters: Vec<DefaultFilter>,
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 
@@ -32,6 +35,7 @@ where
         name: impl Into<String>,
         client: &HatchetClient,
         event_triggers: Vec<String>,
+        default_filters: Vec<DefaultFilter>,
     ) -> Self {
         Self {
             name: name.into(),
@@ -39,6 +43,7 @@ where
             erased_tasks: vec![],
             tasks: vec![],
             event_triggers,
+            default_filters,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -79,7 +84,12 @@ where
             sticky: None,
             default_priority: None,
             concurrency_arr: vec![],
-            default_filters: vec![],
+            default_filters: self
+                .default_filters
+                .clone()
+                .into_iter()
+                .map(|f| f.to_proto())
+                .collect(),
         }
     }
 
@@ -194,4 +204,31 @@ pub struct TriggerWorkflowOptions {
     pub namespace: Option<String>,
     pub sticky: bool,
     pub key: Option<String>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct DefaultFilter {
+    pub expression: String,
+    pub scope: String,
+    pub payload: Option<serde_json::Value>,
+}
+
+impl DefaultFilter {
+    pub fn new(expression: String, scope: String, payload: Option<serde_json::Value>) -> Self {
+        Self {
+            expression,
+            scope,
+            payload,
+        }
+    }
+}
+
+impl DefaultFilter {
+    pub fn to_proto(&self) -> DefaultFilterProto {
+        DefaultFilterProto {
+            expression: self.expression.clone(),
+            scope: self.scope.clone(),
+            payload: self.payload.clone().map(|v| v.to_string().into()),
+        }
+    }
 }
