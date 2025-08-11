@@ -13,8 +13,14 @@ pub(crate) struct GetWorkflowRunResponse {
 pub(crate) struct TaskParent(pub(crate) Value);
 
 #[derive(Debug, Deserialize)]
+pub(crate) struct Triggers {
+    pub(crate) filter_payload: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize)]
 pub(crate) struct TaskInput {
     pub(crate) parents: HashMap<String, TaskParent>,
+    pub(crate) triggers: Triggers,
 }
 
 #[derive(Debug, Deserialize)]

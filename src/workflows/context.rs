@@ -73,6 +73,18 @@ impl Context {
         Ok(parent.0.clone())
     }
 
+    pub async fn filter_payload(&self) -> Result<serde_json::Value, HatchetError> {
+        let workflow_run = self.get_current_workflow().await?;
+
+        let current_task = workflow_run
+            .tasks
+            .iter()
+            .find(|task| task.task_external_id == self.step_run_id)
+            .unwrap();
+
+        Ok(current_task.input.triggers.filter_payload.clone())
+    }
+
     pub async fn log(&self, message: String) -> Result<(), HatchetError> {
         self.logger_tx.send(message).await.unwrap();
 

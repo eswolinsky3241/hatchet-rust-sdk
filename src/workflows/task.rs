@@ -2,7 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::grpc::v0::workflows::CreateWorkflowStepOpts;
+use crate::grpc::v1::workflows::CreateTaskOpts;
 use crate::worker::types::TaskFn;
 use crate::{Context, HatchetError};
 
@@ -81,19 +81,21 @@ impl<I, O> Task<I, O> {
         }
     }
 
-    pub(crate) fn to_proto(&self, workflow_name: &str) -> CreateWorkflowStepOpts {
-        CreateWorkflowStepOpts {
+    pub(crate) fn to_proto(&self, workflow_name: &str) -> CreateTaskOpts {
+        CreateTaskOpts {
             readable_id: self.name.clone(),
             action: format!("{workflow_name}:{}", &self.name),
             timeout: String::from(""),
             inputs: String::from("{{}}"),
             parents: self.parents.clone(),
-            user_data: String::from(""),
             retries: 0,
             rate_limits: vec![],
             worker_labels: std::collections::HashMap::new(),
             backoff_factor: None,
             backoff_max_seconds: None,
+            concurrency: vec![],
+            conditions: None,
+            schedule_timeout: None,
         }
     }
 }
