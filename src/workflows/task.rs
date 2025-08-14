@@ -7,9 +7,9 @@ use crate::worker::types::TaskFn;
 use crate::{Context, HatchetError};
 
 pub struct Task<I, O> {
-    pub name: String,
-    pub function: Arc<TaskFn<I, O>>,
-    pub parents: Vec<String>,
+    pub(crate) name: String,
+    pub(crate) function: Arc<TaskFn<I, O>>,
+    pub(crate) parents: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -97,5 +97,30 @@ impl<I, O> Task<I, O> {
             conditions: None,
             schedule_timeout: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_task_to_proto() {
+        let task = Task::new(
+            "test-task",
+            |_input: serde_json::Value, _ctx: Context| async move { Ok(()) },
+        );
+
+        let proto = task.to_proto("test-workflow");
+        assert_eq!(proto.readable_id, "test-task");
+        assert_eq!(proto.action, "test-workflow:test-task");
+        assert_eq!(proto.retries, 0);
+        assert_eq!(proto.rate_limits, vec![]);
+        assert_eq!(proto.worker_labels, std::collections::HashMap::new());
+        assert_eq!(proto.backoff_factor, None);
+        assert_eq!(proto.backoff_max_seconds, None);
+        assert_eq!(proto.concurrency, vec![]);
+        assert_eq!(proto.conditions, None);
+        assert_eq!(proto.schedule_timeout, None);
     }
 }
