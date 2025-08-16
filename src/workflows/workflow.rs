@@ -9,7 +9,9 @@ use crate::error::HatchetError;
 use crate::grpc::v0::workflows::TriggerWorkflowRequest;
 use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::grpc::v1::workflows::{
-    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
+    CreateTaskOpts,
+    CreateWorkflowVersionRequest,
+    DefaultFilter as DefaultFilterProto,
 };
 use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
@@ -231,4 +233,9 @@ impl DefaultFilter {
             payload: self.payload.clone().map(|v| v.to_string().into()),
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }
