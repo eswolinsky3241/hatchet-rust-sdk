@@ -24,7 +24,7 @@ pub enum HatchetError {
     #[error("Error encoding JSON")]
     JsonEncode(serde_json::Error),
     #[error("Invalid authorization header in gRPC request")]
-    InvalidAuthHeader(tonic::metadata::errors::InvalidMetadataValue),
+    InvalidAuthHeader(#[from] tonic::metadata::errors::InvalidMetadataValue),
     #[error("Unable to connect to gRPC server")]
     GrpcConnect(#[from] tonic::transport::Error),
     #[error("Error calling gRPC service: {0}")]
@@ -33,8 +33,8 @@ pub enum HatchetError {
     MissingOutput,
     #[error("Workflow failed:\n{error_message}")]
     WorkflowFailed { error_message: String },
-    #[error("Invalid gRPC URI: {uri}")]
-    InvalidUri { uri: String },
+    #[error("Invalid gRPC URI: {0}")]
+    InvalidUri(String),
     #[error("No tasks found in workflow.")]
     MissingTasks,
     #[error("{0}")]
@@ -50,4 +50,8 @@ pub enum HatchetError {
         task_name: String,
         workflow_name: String,
     },
+    #[error("Invalid gRPC address: {0}")]
+    InvalidGrpcAddress(String),
+    #[error("Invalid TLS strategy: '{0}'. Valid options are 'none' or 'tls'")]
+    InvalidTlsStrategy(String),
 }

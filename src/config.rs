@@ -5,15 +5,22 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 use crate::error::HatchetError;
 
+#[derive(Clone, Debug)]
+pub(crate) enum TlsStrategy {
+    None,
+    Tls,
+}
+
 #[derive(Debug, Clone)]
 pub struct HatchetConfig {
     pub(crate) api_token: String,
     pub(crate) grpc_address: String,
     pub(crate) server_url: String,
+    pub(crate) tls_strategy: TlsStrategy,
 }
 
 impl HatchetConfig {
-    pub fn new(token: String) -> Result<Self, HatchetError> {
+    pub fn new(token: &str, tls_strategy: &str) -> Result<Self, HatchetError> {
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
             return Err(HatchetError::InvalidTokenFormat);
@@ -23,10 +30,17 @@ impl HatchetConfig {
 
         let (grpc_address, server_url) = Self::parse_token(payload_json)?;
 
+        let strategy = match tls_strategy {
+            "none" => TlsStrategy::None,
+            "tls" => TlsStrategy::Tls,
+            other => return Err(HatchetError::InvalidTlsStrategy(other.to_string())),
+        };
+
         Ok(Self {
-            api_token: token,
+            api_token: token.to_string(),
             grpc_address: grpc_address.to_string(),
             server_url: server_url.to_string(),
+            tls_strategy: strategy,
         })
     }
 
@@ -35,7 +49,10 @@ impl HatchetConfig {
             var: String::from("HATCHET_CLIENT_TOKEN"),
         })?;
 
-        Ok(Self::new(token)?)
+        let tls_strategy =
+            std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or(String::from("tls"));
+
+        Ok(Self::new(&token, &tls_strategy)?)
     }
 
     fn decode_token(token_payload: &str) -> Result<serde_json::Value, HatchetError> {
@@ -65,22 +82,32 @@ mod tests {
 
     #[test]
     fn test_token_without_three_parts_raises_error() {
-        let config = HatchetConfig::new(String::from("part0.part1.part2.part3"));
+        let config = HatchetConfig::new("part0.part1.part2.part3", "tls");
         assert!(matches!(config, Err(HatchetError::InvalidTokenFormat)));
-        let config = HatchetConfig::new(String::from("part0.part1"));
+        let config = HatchetConfig::new("part0.part1", "tls");
         assert!(matches!(config, Err(HatchetError::InvalidTokenFormat)));
     }
 
     #[test]
     fn test_invalid_base64_raises_error() {
-        let config = HatchetConfig::new(String::from("part0.part1.part2"));
+        let config = HatchetConfig::new("part0.part1.part2", "tls");
         assert!(matches!(config, Err(HatchetError::Base64DecodeError(_))));
     }
 
     #[test]
     fn test_token_decoded_into_config() {
-        let config = HatchetConfig::new(format!("header.{}.sig", "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ".to_string())).unwrap();
+        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
+        let token = format!("header.{}.sig", payload.to_string());
+        let config = HatchetConfig::new(&token, "tls").unwrap();
         assert_eq!(config.server_url, "https://hatchet.com");
         assert_eq!(config.grpc_address, "engine.hatchet.com");
+    }
+
+    #[test]
+    fn test_invalid_tls_strategy_raises_error() {
+        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
+        let token = format!("header.{}.sig", payload.to_string());
+        let config = HatchetConfig::new(&token, "bad_strategy");
+        assert!(matches!(config, Err(HatchetError::InvalidTlsStrategy(_))));
     }
 }
