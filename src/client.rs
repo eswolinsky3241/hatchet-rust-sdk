@@ -4,6 +4,25 @@ use tonic::{Request, Response};
 
 use crate::config::{HatchetConfig, TlsStrategy};
 use crate::error::HatchetError;
+use crate::grpc::v0::workflows::{
+    TriggerWorkflowRequest,
+    TriggerWorkflowResponse,
+    workflow_service_client,
+};
+
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub(crate) trait HatchetClientTrait: Send + Sync {
+    async fn trigger_workflow(
+        &self,
+        request: TriggerWorkflowRequest,
+    ) -> Result<TriggerWorkflowResponse, HatchetError>;
+
+    async fn get_workflow_run(
+        &self,
+        run_id: &str,
+    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError>;
+}
 
 pub mod workflows {
     tonic::include_proto!("_");
@@ -118,5 +137,52 @@ impl HatchetClient {
 
         request.metadata_mut().insert("authorization", token_header);
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl HatchetClientTrait for HatchetClient {
+    async fn trigger_workflow(
+        &self,
+        request: TriggerWorkflowRequest,
+    ) -> Result<TriggerWorkflowResponse, HatchetError> {
+        use workflow_service_client::WorkflowServiceClient;
+
+        let response = self
+            .grpc_unary(Request::new(request), |channel, request| async move {
+                let mut client = WorkflowServiceClient::new(channel);
+                client.trigger_workflow(request).await
+            })
+            .await?;
+
+        Ok(response.into_inner())
+    }
+
+    async fn get_workflow_run(
+        &self,
+        run_id: &str,
+    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
+        self.api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> HatchetClientTrait for std::sync::Arc<T>
+where
+    T: HatchetClientTrait + ?Sized,
+{
+    async fn trigger_workflow(
+        &self,
+        request: crate::grpc::v0::workflows::TriggerWorkflowRequest,
+    ) -> Result<crate::grpc::v0::workflows::TriggerWorkflowResponse, HatchetError> {
+        (**self).trigger_workflow(request).await
+    }
+
+    async fn get_workflow_run(
+        &self,
+        run_id: &str,
+    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
+        (**self).get_workflow_run(run_id).await
     }
 }

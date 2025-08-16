@@ -34,3 +34,4 @@ tonic-build = { version = "0.13.1", features = ["prost"] }
 
 [dev-dependencies]
 dotenvy = "0.15.7"
+mockall = "0.13"
