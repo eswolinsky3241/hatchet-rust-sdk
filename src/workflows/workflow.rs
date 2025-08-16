@@ -237,5 +237,36 @@ impl DefaultFilter {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use crate::EmptyModel;
+    use crate::config::HatchetConfig;
+
+    #[test]
+    fn test_duplicate_task_names_raises_error() {
+        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
+        let token = format!("header.{}.sig", payload.to_string());
+        let config = HatchetConfig::new(&token, "tls").unwrap();
+        let client = HatchetClient::new(config).unwrap();
+        let workflow =
+            Workflow::<EmptyModel, EmptyModel>::new("test-workflow", &client, vec![], vec![]);
+
+        let task1: Task<_, _> = Task::<EmptyModel, EmptyModel>::new(
+            "test-task",
+            |_input: EmptyModel, _ctx: crate::Context| async move { Ok(EmptyModel {}) },
+        );
+
+        let task2: Task<_, _> = Task::<EmptyModel, EmptyModel>::new(
+            "test-task",
+            |_input: EmptyModel, _ctx: crate::Context| async move { Ok(EmptyModel {}) },
+        );
+
+        assert!(matches!(
+            workflow.add_task(task1).unwrap().add_task(task2),
+            Err(HatchetError::DuplicateTask {
+                task_name: _task_name,
+                workflow_name: _workflow_name
+            })
+        ));
+    }
 }
