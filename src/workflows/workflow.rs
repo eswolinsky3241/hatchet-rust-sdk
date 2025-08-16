@@ -2,12 +2,10 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use tonic::Request;
 
-use crate::client::HatchetClient;
+use crate::client::{HatchetClient, HatchetClientTrait};
 use crate::error::HatchetError;
 use crate::grpc::v0::workflows::TriggerWorkflowRequest;
-use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::grpc::v1::workflows::{
     CreateTaskOpts,
     CreateWorkflowVersionRequest,
@@ -18,9 +16,12 @@ use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::workflows::task::{ErasedTask, Task};
 
 #[derive(Clone)]
-pub struct Workflow<I, O> {
+pub struct Workflow<I, O, C = HatchetClient>
+where
+    C: HatchetClientTrait,
+{
     pub(crate) name: String,
-    client: Arc<HatchetClient>,
+    client: C,
     pub(crate) erased_tasks: Vec<ErasedTask>,
     tasks: Vec<CreateTaskOpts>,
     on_events: Vec<String>,
@@ -28,20 +29,21 @@ pub struct Workflow<I, O> {
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 
-impl<I, O> Workflow<I, O>
+impl<I, O, C> Workflow<I, O, C>
 where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
+    C: HatchetClientTrait + Clone,
 {
     pub fn new(
         name: impl Into<String>,
-        client: &HatchetClient,
+        client: C,
         on_events: Vec<String>,
         default_filters: Vec<DefaultFilter>,
     ) -> Self {
         Self {
             name: name.into(),
-            client: Arc::new(client.clone()),
+            client: client.clone(),
             erased_tasks: vec![],
             tasks: vec![],
             on_events,
@@ -165,24 +167,16 @@ where
 
         Self::update_task_execution_context(&mut request);
 
-        let response = self
-            .client
-            .grpc_unary(Request::new(request), |channel, request| async move {
-                let mut client = WorkflowServiceClient::new(channel);
-                client.trigger_workflow(request).await
-            })
-            .await?;
+        let response = self.client.trigger_workflow(request).await?;
 
-        Ok(response.into_inner().workflow_run_id)
+        Ok(response.workflow_run_id)
     }
 
     async fn get_run(
         &self,
         run_id: &str,
     ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
-        self.client
-            .api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
-            .await
+        self.client.get_workflow_run(run_id).await
     }
 
     fn update_task_execution_context(request: &mut TriggerWorkflowRequest) {
@@ -249,7 +243,7 @@ mod tests {
         let config = HatchetConfig::new(&token, "tls").unwrap();
         let client = HatchetClient::new(config).unwrap();
         let workflow =
-            Workflow::<EmptyModel, EmptyModel>::new("test-workflow", &client, vec![], vec![]);
+            Workflow::<EmptyModel, EmptyModel>::new("test-workflow", client, vec![], vec![]);
 
         let task1: Task<_, _> = Task::<EmptyModel, EmptyModel>::new(
             "test-task",
@@ -264,9 +258,41 @@ mod tests {
         assert!(matches!(
             workflow.add_task(task1).unwrap().add_task(task2),
             Err(HatchetError::DuplicateTask {
-                task_name: _task_name,
-                workflow_name: _workflow_name
+                task_name: _,
+                workflow_name: _
             })
         ));
+    }
+
+    #[tokio::test]
+    async fn test_run_no_wait_returns_run_id() {
+        use std::sync::Arc;
+
+        use crate::client::MockHatchetClientTrait;
+        use crate::grpc::v0::workflows::TriggerWorkflowResponse;
+
+        let mut mock_client = MockHatchetClientTrait::new();
+        let expected_run_id = "test-run-id-12345";
+
+        mock_client
+            .expect_trigger_workflow()
+            .times(1)
+            .returning(move |_request| {
+                Ok(TriggerWorkflowResponse {
+                    workflow_run_id: expected_run_id.to_string(),
+                })
+            });
+
+        let mock_client = Arc::new(mock_client);
+
+        let workflow = Workflow::<EmptyModel, EmptyModel, _>::new(
+            "test-workflow",
+            mock_client,
+            vec![],
+            vec![],
+        );
+
+        let run_id = workflow.run_no_wait(EmptyModel {}, None).await.unwrap();
+        assert_eq!(run_id, expected_run_id);
     }
 }
