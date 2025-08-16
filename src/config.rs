@@ -47,12 +47,34 @@ impl HatchetConfig {
     fn parse_token(payload_json: serde_json::Value) -> Result<(String, String), HatchetError> {
         let grpc_address = payload_json
             .get("grpc_broadcast_address")
+            .and_then(|v| v.as_str())
             .ok_or(HatchetError::MissingTokenField("grpc_broadcast_address"))?;
 
         let server_url = payload_json
             .get("server_url")
+            .and_then(|v| v.as_str())
             .ok_or(HatchetError::MissingTokenField("server_url"))?;
 
         Ok((grpc_address.to_string(), server_url.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_token_without_three_parts_raises_error() {
+        let config = HatchetConfig::new(String::from("part0.part1.part2.part3"));
+        assert!(matches!(config, Err(HatchetError::InvalidTokenFormat)));
+        let config = HatchetConfig::new(String::from("part0.part1"));
+        assert!(matches!(config, Err(HatchetError::InvalidTokenFormat)));
+    }
+
+    #[test]
+    fn test_token_decoded_into_config() {
+        let config = HatchetConfig::new(format!("header.{}.sig", "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ".to_string())).unwrap();
+        assert_eq!(config.server_url, "https://hatchet.com");
+        assert_eq!(config.grpc_address, "engine.hatchet.com");
     }
 }
