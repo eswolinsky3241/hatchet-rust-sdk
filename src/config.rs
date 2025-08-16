@@ -72,6 +72,12 @@ mod tests {
     }
 
     #[test]
+    fn test_invalid_base64_raises_error() {
+        let config = HatchetConfig::new(String::from("part0.part1.part2"));
+        assert!(matches!(config, Err(HatchetError::Base64DecodeError(_))));
+    }
+
+    #[test]
     fn test_token_decoded_into_config() {
         let config = HatchetConfig::new(format!("header.{}.sig", "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ".to_string())).unwrap();
         assert_eq!(config.server_url, "https://hatchet.com");
