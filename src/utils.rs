@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use prost_types::Timestamp;
+use tonic::Request;
+use tonic::metadata::MetadataValue;
 
 use crate::HatchetError;
 
@@ -12,6 +14,15 @@ pub(crate) fn proto_timestamp_now() -> Result<Timestamp, HatchetError> {
         seconds: now.as_secs() as i64,
         nanos: now.subsec_nanos() as i32,
     })
+}
+
+pub(crate) fn add_auth_header<T>(
+    request: &mut Request<T>,
+    token: &str,
+) -> Result<(), HatchetError> {
+    let token_header: MetadataValue<_> = format!("Bearer {}", token).parse()?;
+    request.metadata_mut().insert("authorization", token_header);
+    Ok(())
 }
 
 #[derive(Clone, Debug)]
@@ -56,8 +67,9 @@ impl<'de> serde::Deserialize<'de> for EmptyModel {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{self, MapAccess, Visitor};
         use std::fmt;
+
+        use serde::de::{self, MapAccess, Visitor};
 
         struct EmptyModelVisitor;
 

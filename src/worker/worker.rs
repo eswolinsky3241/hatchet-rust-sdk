@@ -4,34 +4,29 @@ use std::sync::{Arc, Mutex};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
-use tonic::Request;
 
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
-use crate::grpc::v0::dispatcher::dispatcher_client::DispatcherClient;
-use crate::grpc::v0::dispatcher::{HeartbeatRequest, WorkerRegisterRequest};
-use crate::grpc::v1::workflows::admin_service_client::AdminServiceClient;
+use crate::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::worker::action_listener::ActionListener;
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::Context;
 
 pub struct Worker {
     pub name: String,
-    worker_id: Option<Arc<String>>,
     max_runs: i32,
-    pub client: Arc<HatchetClient>,
+    pub client: Arc<tokio::sync::Mutex<HatchetClient>>,
     tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
     workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
 impl Worker {
-    pub fn new(name: &str, client: &HatchetClient, max_runs: i32) -> Result<Self, HatchetError> {
+    pub fn new(name: &str, client: HatchetClient, max_runs: i32) -> Result<Self, HatchetError> {
         Ok(Self {
             name: name.to_string(),
-            worker_id: None,
             max_runs,
-            client: Arc::new(client.clone()),
+            client: Arc::new(tokio::sync::Mutex::new(client.clone())),
             tasks: Arc::new(Mutex::new(HashMap::new())),
             workflows: vec![],
         })
@@ -63,7 +58,7 @@ impl Worker {
 
     pub async fn register_workflows(&self) {
         for workflow in &self.workflows {
-            let request = Request::new(crate::grpc::v1::workflows::CreateWorkflowVersionRequest {
+            let workflow = crate::grpc::v1::workflows::CreateWorkflowVersionRequest {
                 name: workflow.name.clone(),
                 description: workflow.description.clone(),
                 version: workflow.version.clone(),
@@ -77,12 +72,12 @@ impl Worker {
                 default_priority: None,
                 concurrency_arr: vec![],
                 default_filters: workflow.default_filters.clone(),
-            });
+            };
             self.client
-                .grpc_unary(request, |channel, request| async move {
-                    let mut client = AdminServiceClient::new(channel);
-                    client.put_workflow(request).await
-                })
+                .lock()
+                .await
+                .admin_client
+                .put_workflow(workflow)
                 .await
                 .unwrap();
         }
@@ -95,9 +90,9 @@ impl Worker {
                 actions.push(task.action.clone());
             }
         }
-        self.worker_id = Some(Arc::new(
-            Self::register_worker(&self.client, &self.name, actions, self.max_runs).await?,
-        ));
+        let worker_id = Arc::new(
+            Self::register_worker(self.client.clone(), &self.name, actions, self.max_runs).await?,
+        );
         self.register_workflows().await;
 
         let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(100);
@@ -108,23 +103,18 @@ impl Worker {
             task_runs: Arc::new(Mutex::new(HashMap::new())),
         });
 
-        let action_listener = Arc::new(ActionListener {
-            client: self.client.clone(),
-        });
+        let action_listener = Arc::new(ActionListener::new(self.client.clone()));
 
-        let worker_id = self.worker_id.clone();
+        let worker_id_clone = worker_id.clone();
         tokio::spawn(async move {
-            action_listener
-                .listen(worker_id.unwrap(), tx)
-                .await
-                .unwrap();
+            action_listener.listen(worker_id_clone, tx).await.unwrap();
         });
 
+        let worker_id_clone = worker_id.clone();
         tokio::try_join!(
             async {
                 loop {
-                    let worker_id = self.worker_id.clone();
-                    self.heartbeat(worker_id.unwrap().to_string()).await?;
+                    self.heartbeat(worker_id_clone.clone()).await?;
                     tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
                 }
                 #[allow(unreachable_code)]
@@ -132,10 +122,7 @@ impl Worker {
             },
             async {
                 while let Some(task) = rx.recv().await {
-                    let worker_id = self.worker_id.clone();
-                    dispatcher
-                        .dispatch(worker_id.unwrap().to_string(), task)
-                        .await?
+                    dispatcher.dispatch(worker_id.clone(), task).await?
                 }
                 Ok(())
             }
@@ -144,29 +131,24 @@ impl Worker {
         Ok(())
     }
 
-    async fn heartbeat(&self, worker_id: String) -> Result<(), HatchetError> {
-        let request = Request::new(HeartbeatRequest {
-            worker_id: worker_id.to_string(),
-            heartbeat_at: Some(crate::utils::proto_timestamp_now()?),
-        });
-
+    async fn heartbeat(&self, worker_id: Arc<String>) -> Result<(), HatchetError> {
         self.client
-            .grpc_unary(request, |channel, request| async move {
-                let mut client = DispatcherClient::new(channel);
-                client.heartbeat(request).await
-            })
+            .lock()
+            .await
+            .dispatcher_client
+            .heartbeat(&worker_id)
             .await?;
 
         Ok(())
     }
 
     async fn register_worker(
-        client: &HatchetClient,
+        client: Arc<tokio::sync::Mutex<HatchetClient>>,
         name: &str,
         actions: Vec<String>,
         max_runs: i32,
     ) -> Result<String, HatchetError> {
-        let request = Request::new(WorkerRegisterRequest {
+        let registration = WorkerRegisterRequest {
             worker_name: name.to_string(),
             actions: actions,
             services: vec![],
@@ -174,15 +156,15 @@ impl Worker {
             labels: HashMap::new(),
             webhook_id: None,
             runtime_info: None,
-        });
+        };
 
         let response = client
-            .grpc_unary(request, |channel, request| async move {
-                let mut client = DispatcherClient::new(channel);
-                client.register(request).await
-            })
+            .lock()
+            .await
+            .dispatcher_client
+            .register_worker(registration)
             .await?;
 
-        Ok(response.into_inner().worker_id)
+        Ok(response.worker_id)
     }
 }

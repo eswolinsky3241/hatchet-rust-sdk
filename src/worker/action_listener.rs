@@ -1,33 +1,31 @@
 use std::sync::Arc;
 
-use tonic::Request;
-
 use crate::client::HatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 
 pub(crate) struct ActionListener {
-    pub(crate) client: Arc<HatchetClient>,
+    pub(crate) client: Arc<tokio::sync::Mutex<HatchetClient>>,
 }
 
 impl ActionListener {
+    pub(crate) fn new(client: Arc<tokio::sync::Mutex<HatchetClient>>) -> Self {
+        Self { client }
+    }
+
     pub(crate) async fn listen(
         &self,
         worker_id: Arc<String>,
         tx: tokio::sync::mpsc::Sender<dispatcher::AssignedAction>,
     ) -> Result<(), HatchetError> {
-        let request = Request::new(dispatcher::WorkerListenRequest {
-            worker_id: worker_id.to_string(),
-        });
-
-        let response = self
+        let mut response = self
             .client
-            .grpc_stream(request, |channel, request| async move {
-                let mut client = dispatcher::dispatcher_client::DispatcherClient::new(channel);
-                client.listen_v2(request).await
-            })
+            .lock()
+            .await
+            .dispatcher_client
+            .listen(&worker_id)
             .await?;
-        let mut response = response.into_inner();
+
         loop {
             match response.message().await {
                 Ok(message) => match message {

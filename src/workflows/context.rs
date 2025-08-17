@@ -1,25 +1,22 @@
-use std::sync::Arc;
-
 use tokio::sync::mpsc;
 
-use crate::clients::EventClient;
 use crate::rest::models::GetWorkflowRunResponse;
-use crate::{HatchetClient, HatchetError};
+use crate::{HatchetError, SafeHatchetClient};
 
 pub struct Context {
     logger_tx: mpsc::Sender<String>,
-    pub client: Arc<HatchetClient>,
+    pub client: SafeHatchetClient,
     workflow_run_id: String,
     step_run_id: String,
 }
 
 impl Context {
-    pub(crate) fn new(
-        client: Arc<HatchetClient>,
+    pub(crate) async fn new(
+        client: SafeHatchetClient,
         workflow_run_id: &str,
         step_run_id: &str,
     ) -> Self {
-        let event_client = Arc::new(EventClient::new(client.clone()));
+        let mut event_client = client.lock().await.event_client.clone();
         let (tx, mut rx) = mpsc::channel::<String>(100);
         let step_run_id = step_run_id.to_string();
         let workflow_run_id = workflow_run_id.to_string();
@@ -43,6 +40,8 @@ impl Context {
 
     async fn get_current_workflow(&self) -> Result<GetWorkflowRunResponse, HatchetError> {
         self.client
+            .lock()
+            .await
             .api_get(&format!(
                 "/api/v1/stable/workflow-runs/{}",
                 self.workflow_run_id

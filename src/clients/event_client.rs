@@ -1,24 +1,23 @@
-use std::sync::Arc;
-
-use crate::HatchetClient;
-use crate::grpc::v0::events;
-use crate::grpc::v0::events::PutLogRequest;
+use crate::grpc::v0::events::{PutLogRequest, events_service_client};
 use crate::utils::proto_timestamp_now;
 
+#[derive(Debug, Clone)]
 pub(crate) struct EventClient {
-    client: Arc<HatchetClient>,
+    client: events_service_client::EventsServiceClient<tonic::transport::Channel>,
+    api_token: String,
 }
 
 impl EventClient {
-    pub(crate) fn new(client: Arc<HatchetClient>) -> Self {
-        Self { client: client }
+    pub(crate) fn new(channel: tonic::transport::Channel, api_token: String) -> Self {
+        let client = events_service_client::EventsServiceClient::new(channel);
+        Self { client, api_token }
     }
     pub(crate) async fn put_log(
-        &self,
+        &mut self,
         step_run_id: &str,
         message: String,
     ) -> Result<(), crate::HatchetError> {
-        let request = tonic::Request::new(PutLogRequest {
+        let mut request = tonic::Request::new(PutLogRequest {
             step_run_id: step_run_id.to_string(),
             created_at: Some(proto_timestamp_now()?),
             message: message,
@@ -27,12 +26,9 @@ impl EventClient {
             task_retry_count: None,
         });
 
-        self.client
-            .grpc_unary(request, |channel, request| async move {
-                let mut client = events::events_service_client::EventsServiceClient::new(channel);
-                client.put_log(request).await
-            })
-            .await?;
+        crate::utils::add_auth_header(&mut request, &self.api_token)?;
+
+        self.client.put_log(request).await?;
         Ok(())
     }
 }

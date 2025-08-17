@@ -6,27 +6,28 @@ use futures::FutureExt;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
+use crate::SafeHatchetClient;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::Context;
+
 pub(crate) struct TaskDispatcher {
     pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
-    pub(crate) client: Arc<crate::client::HatchetClient>,
-    pub(crate) task_runs: Arc<Mutex<HashMap<String, (JoinHandle<()>, CancellationToken)>>>,
+    pub(crate) client: SafeHatchetClient,
+    pub(crate) task_runs:
+        Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,
 }
 
 impl TaskDispatcher {
     pub(crate) async fn dispatch(
         &self,
-        worker_id: String,
+        worker_id: Arc<String>,
         message: dispatcher::AssignedAction,
     ) -> Result<(), crate::HatchetError> {
         match message.action_type().as_str_name() {
-            "START_STEP_RUN" => Ok(self
-                .handle_start_step_run(Arc::new(worker_id), message)
-                .await?),
+            "START_STEP_RUN" => Ok(self.handle_start_step_run(worker_id, message).await?),
             "CANCEL_STEP_RUN" => Ok(self.handle_cancel_step_run(message).await?),
             _ => Err(HatchetError::UnrecognizedAction {
                 action: message.action_type().as_str_name().to_string(),
@@ -75,7 +76,8 @@ impl TaskDispatcher {
                         client.clone(),
                         &message.workflow_run_id,
                         &message.step_run_id,
-                    );
+                    )
+                    .await;
 
                     let result: Result<
                         Result<serde_json::Value, HatchetError>,
@@ -115,14 +117,13 @@ impl TaskDispatcher {
                         should_not_retry: None,
                     };
 
-                    let request = tonic::Request::new(event);
-                    let _ = client
-                        .grpc_unary(request, |channel, request| async move {
-                            let mut client =
-                                dispatcher::dispatcher_client::DispatcherClient::new(channel);
-                            client.send_step_action_event(request).await
-                        })
-                        .await;
+                    client
+                        .lock()
+                        .await
+                        .dispatcher_client
+                        .send_step_action_event(event)
+                        .await?;
+                    Ok(())
                 })
                 .await
         });
@@ -168,12 +169,11 @@ impl TaskDispatcher {
             should_not_retry: None,
         };
 
-        let request = tonic::Request::new(event);
         self.client
-            .grpc_unary(request, |channel, request| async move {
-                let mut client = dispatcher::dispatcher_client::DispatcherClient::new(channel);
-                client.send_step_action_event(request).await
-            })
+            .lock()
+            .await
+            .dispatcher_client
+            .send_step_action_event(event)
             .await?;
         Ok(())
     }
