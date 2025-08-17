@@ -19,7 +19,7 @@ impl AdminClient {
         workflow: CreateWorkflowVersionRequest,
     ) -> Result<(), HatchetError> {
         let mut request = tonic::Request::new(workflow);
-        crate::utils::add_auth_header(&mut request, &self.api_token)?;
+        crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
         self.client.put_workflow(request).await?;
         Ok(())
     }

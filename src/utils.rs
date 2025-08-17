@@ -16,7 +16,7 @@ pub(crate) fn proto_timestamp_now() -> Result<Timestamp, HatchetError> {
     })
 }
 
-pub(crate) fn add_auth_header<T>(
+pub(crate) fn add_grpc_auth_header<T>(
     request: &mut Request<T>,
     token: &str,
 ) -> Result<(), HatchetError> {

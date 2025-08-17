@@ -19,7 +19,7 @@ impl WorkflowClient {
         trigger_workflow_request: TriggerWorkflowRequest,
     ) -> Result<TriggerWorkflowResponse, HatchetError> {
         let mut request = tonic::Request::new(trigger_workflow_request);
-        crate::utils::add_auth_header(&mut request, &self.api_token)?;
+        crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
         let response = self.client.trigger_workflow(request).await.unwrap();
         Ok(response.into_inner())
     }

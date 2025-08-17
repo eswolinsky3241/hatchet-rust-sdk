@@ -95,7 +95,7 @@ impl Worker {
         );
         self.register_workflows().await;
 
-        let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(100);
+        let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(self.max_runs as usize);
 
         let dispatcher = Arc::new(crate::worker::task_dispatcher::TaskDispatcher {
             registry: self.tasks.clone(),

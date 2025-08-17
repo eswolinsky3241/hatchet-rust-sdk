@@ -26,7 +26,7 @@ impl EventClient {
             task_retry_count: None,
         });
 
-        crate::utils::add_auth_header(&mut request, &self.api_token)?;
+        crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
 
         self.client.put_log(request).await?;
         Ok(())

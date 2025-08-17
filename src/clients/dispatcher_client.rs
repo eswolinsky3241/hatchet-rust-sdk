@@ -28,7 +28,7 @@ impl DispatcherClient {
         event: StepActionEvent,
     ) -> Result<(), HatchetError> {
         let mut request = Request::new(event);
-        crate::utils::add_auth_header(&mut request, &self.api_token)?;
+        crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
         self.client.send_step_action_event(request).await?;
         Ok(())
     }
@@ -38,7 +38,7 @@ impl DispatcherClient {
         registration: WorkerRegisterRequest,
     ) -> Result<WorkerRegisterResponse, HatchetError> {
         let mut request = Request::new(registration);
-        crate::utils::add_auth_header(&mut request, &self.api_token)?;
+        crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
         Ok(self.client.register(request).await?.into_inner())
     }
 
@@ -48,7 +48,7 @@ impl DispatcherClient {
             heartbeat_at: Some(crate::utils::proto_timestamp_now()?),
         };
         let mut request = Request::new(heartbeat);
-        crate::utils::add_auth_header(&mut request, &self.api_token)?;
+        crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
         self.client.heartbeat(request).await?;
         Ok(())
     }
@@ -60,7 +60,7 @@ impl DispatcherClient {
         let mut request = Request::new(WorkerListenRequest {
             worker_id: worker_id.to_string(),
         });
-        crate::utils::add_auth_header(&mut request, &self.api_token)?;
+        crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
         Ok(self.client.listen_v2(request).await?.into_inner())
     }
 }
