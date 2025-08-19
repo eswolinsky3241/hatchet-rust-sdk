@@ -5,9 +5,8 @@ use std::sync::Arc;
 use crate::HatchetError;
 use crate::client::HatchetClientTrait;
 use crate::grpc::v1::workflows::CreateTaskOpts;
-use crate::worker::types::TaskFn;
+use crate::worker::types::{self, HatchetTaskResult, TaskFn};
 use crate::workflows::context::Context;
-
 pub struct Task<I, O, C> {
     pub(crate) name: String,
     pub(crate) function: Arc<TaskFn<I, O, C>>,
@@ -28,7 +27,12 @@ where
         &self,
         input: serde_json::Value,
         ctx: Context<C>,
-    ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, HatchetError>> + Send>>;
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<serde_json::Value, Box<dyn std::error::Error + Send>>>
+                + Send,
+        >,
+    >;
 }
 
 // Implementation of ErasedTaskFn for TaskFn
@@ -42,13 +46,18 @@ where
         &self,
         input: serde_json::Value,
         ctx: Context<C>,
-    ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, HatchetError>> + Send>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<serde_json::Value, Box<dyn std::error::Error + Send>>>
+                + Send,
+        >,
+    > {
         let typed_input: I =
             serde_json::from_value(input).expect("could not deserialize input to expected type");
         let fut = self(typed_input, ctx);
         Box::pin(async move {
             let result = fut.await?;
-            let output_json = serde_json::to_value(result)?;
+            let output_json = serde_json::to_value(result).unwrap();
             Ok(output_json)
         })
     }
@@ -61,11 +70,11 @@ where
     pub fn new<F, Fut>(name: &str, f: F) -> Self
     where
         F: Fn(I, Context<C>) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<O, HatchetError>> + Send + 'static,
+        Fut: Future<Output = HatchetTaskResult<O>> + Send + 'static,
     {
         let function = Arc::new(Box::new(move |input: I, ctx: Context<C>| {
             let fut = f(input, ctx);
-            Box::pin(fut) as Pin<Box<dyn Future<Output = Result<O, HatchetError>> + Send>>
+            Box::pin(fut) as types::HatchetTaskFuture<O>
         }) as TaskFn<I, O, C>);
         Self {
             name: name.to_string(),

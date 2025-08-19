@@ -84,7 +84,7 @@ where
                         .expect("missing `input` field");
 
                     let result: Result<
-                        Result<serde_json::Value, HatchetError>,
+                        Result<serde_json::Value, Box<dyn std::error::Error + Send>>,
                         Box<dyn std::any::Any + Send>,
                     > = AssertUnwindSafe(handler(input_value, context))
                         .catch_unwind()
