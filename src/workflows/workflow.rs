@@ -9,26 +9,24 @@ use crate::grpc::v1::workflows::{
 };
 use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::workflows::context::HatchetContextTrait;
 use crate::workflows::task::{ErasedTask, Task};
 
 #[derive(Clone)]
-pub struct Workflow<I, O, C, X> {
+pub struct Workflow<I, O, C> {
     pub(crate) name: String,
     client: C,
-    pub(crate) erased_tasks: Vec<ErasedTask<X>>,
+    pub(crate) erased_tasks: Vec<ErasedTask<C>>,
     tasks: Vec<CreateTaskOpts>,
     on_events: Vec<String>,
     default_filters: Vec<DefaultFilter>,
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 
-impl<I, O, C, X> Workflow<I, O, C, X>
+impl<I, O, C> Workflow<I, O, C>
 where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
     C: HatchetClientTrait,
-    X: HatchetContextTrait,
 {
     pub fn new(
         name: impl Into<String>,
@@ -47,7 +45,7 @@ where
         }
     }
 
-    pub fn add_task<P>(mut self, task: Task<I, P, X>) -> Result<Self, HatchetError>
+    pub fn add_task<P>(mut self, task: Task<I, P, C>) -> Result<Self, HatchetError>
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         P: serde::Serialize + Send + 'static,

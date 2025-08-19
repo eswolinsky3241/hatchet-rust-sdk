@@ -2,15 +2,18 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crate::HatchetError;
+use crate::workflows::context::Context;
 
-pub(crate) type TaskFn<I, O, X> = Box<
-    dyn Fn(I, X) -> Pin<Box<dyn Future<Output = Result<O, HatchetError>> + Send>> + Send + Sync,
+pub(crate) type TaskFn<I, O, C> = Box<
+    dyn Fn(I, Context<C>) -> Pin<Box<dyn Future<Output = Result<O, HatchetError>> + Send>>
+        + Send
+        + Sync,
 >;
 
-pub(crate) type ErasedTaskFn<X> = Box<
+pub(crate) type ErasedTaskFn<C> = Box<
     dyn Fn(
             serde_json::Value,
-            X,
+            Context<C>,
         ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, HatchetError>> + Send>>
         + Send
         + Sync,

@@ -11,31 +11,27 @@ use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::worker::types::ErasedTaskFn;
-use crate::workflows::context::HatchetContextTrait;
+use crate::workflows::context::Context;
 
 #[derive(Clone)]
-pub(crate) struct TaskDispatcher<C, X> {
-    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn<X>>>>>,
+pub(crate) struct TaskDispatcher<C> {
+    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn<C>>>>>,
     pub(crate) client: C,
     pub(crate) task_runs:
         Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,
 }
 
-impl<C, X> TaskDispatcher<C, X>
+impl<C> TaskDispatcher<C>
 where
     C: HatchetClientTrait,
-    X: HatchetContextTrait,
 {
     pub(crate) async fn dispatch(
         &mut self,
         worker_id: Arc<String>,
         message: dispatcher::AssignedAction,
-        context: X,
     ) -> Result<(), crate::HatchetError> {
         match message.action_type().as_str_name() {
-            "START_STEP_RUN" => Ok(self
-                .handle_start_step_run(worker_id, message, context)
-                .await?),
+            "START_STEP_RUN" => Ok(self.handle_start_step_run(worker_id, message).await?),
             "CANCEL_STEP_RUN" => Ok(self.handle_cancel_step_run(message).await?),
             _ => Err(HatchetError::UnrecognizedAction {
                 action: message.action_type().as_str_name().to_string(),
@@ -47,7 +43,6 @@ where
         &mut self,
         worker_id: Arc<String>,
         message: dispatcher::AssignedAction,
-        context: X,
     ) -> Result<(), crate::HatchetError> {
         let step_run_id = message.step_run_id.clone();
 
@@ -70,6 +65,13 @@ where
             step_run_id: message.step_run_id.clone(),
             child_index: 0,
         };
+
+        let context = Context::new(
+            self.client.clone(),
+            &message.workflow_run_id,
+            &message.step_run_id,
+        )
+        .await;
 
         let handle = tokio::spawn(async move {
             EXECUTION_CONTEXT

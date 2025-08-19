@@ -11,20 +11,19 @@ use crate::grpc::v0::dispatcher;
 use crate::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::worker::action_listener::ActionListener;
 use crate::worker::types::ErasedTaskFn;
-use crate::workflows::context::HatchetContextTrait;
+use crate::workflows::context::Context;
 
-pub struct Worker<C, X> {
+pub struct Worker<C> {
     pub name: String,
     max_runs: i32,
     pub client: C,
-    tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn<X>>>>>,
+    tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn<C>>>>>,
     workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
-impl<C, X> Worker<C, X>
+impl<C> Worker<C>
 where
     C: HatchetClientTrait,
-    X: HatchetContextTrait,
 {
     pub fn new(name: &str, client: C, max_runs: i32) -> Result<Self, HatchetError> {
         Ok(Self {
@@ -38,7 +37,7 @@ where
 
     pub fn add_workflow<I, O>(
         mut self,
-        workflow: crate::workflows::workflow::Workflow<I, O, C, X>,
+        workflow: crate::workflows::workflow::Workflow<I, O, C>,
     ) -> Self
     where
         I: Serialize + Send + Sync,
@@ -49,9 +48,9 @@ where
         for task in &workflow.erased_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
             let task_function = task.function.clone();
-            let task_fn = Arc::new(Box::new(move |input: serde_json::Value, ctx: X| {
+            let task_fn = Arc::new(Box::new(move |input: serde_json::Value, ctx: Context<C>| {
                 task_function.call(input, ctx)
-            }) as ErasedTaskFn<X>);
+            }) as ErasedTaskFn<C>);
             self.tasks
                 .lock()
                 .unwrap()
@@ -81,7 +80,7 @@ where
         }
     }
 
-    pub async fn start(&mut self, context: X) -> Result<(), HatchetError> {
+    pub async fn start(&mut self) -> Result<(), HatchetError> {
         let mut actions = vec![];
         for workflow in &self.workflows {
             for task in &workflow.tasks {
@@ -129,11 +128,10 @@ where
             },
             async {
                 while let Some(task) = action_rx.recv().await {
-                    let context_clone = context.clone();
                     dispatcher
                         .lock()
                         .await
-                        .dispatch(worker_id.clone(), task, context_clone)
+                        .dispatch(worker_id.clone(), task)
                         .await?
                 }
                 Ok(())

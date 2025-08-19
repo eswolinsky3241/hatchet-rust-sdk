@@ -4,17 +4,6 @@ use crate::HatchetError;
 use crate::client::HatchetClientTrait;
 use crate::rest::models::GetWorkflowRunResponse;
 
-pub trait HatchetContextTrait: Clone + Send + Sync + 'static {
-    async fn parent_output(
-        &self,
-        parent_step_name: &str,
-    ) -> Result<serde_json::Value, HatchetError>;
-
-    async fn filter_payload(&self) -> Result<serde_json::Value, HatchetError>;
-
-    async fn log(&self, message: String) -> Result<(), HatchetError>;
-}
-
 #[derive(Clone, Debug)]
 pub struct Context<C> {
     logger_tx: mpsc::Sender<String>,
@@ -50,21 +39,7 @@ where
         }
     }
 
-    async fn get_current_workflow(&self) -> Result<GetWorkflowRunResponse, HatchetError> {
-        self.client
-            .api_get(&format!(
-                "/api/v1/stable/workflow-runs/{}",
-                self.workflow_run_id
-            ))
-            .await
-    }
-}
-
-impl<C> HatchetContextTrait for Context<C>
-where
-    C: HatchetClientTrait,
-{
-    async fn parent_output(
+    pub async fn parent_output(
         &self,
         parent_step_name: &str,
     ) -> Result<serde_json::Value, HatchetError> {
@@ -87,7 +62,7 @@ where
         Ok(parent.0.clone())
     }
 
-    async fn filter_payload(&self) -> Result<serde_json::Value, HatchetError> {
+    pub async fn filter_payload(&self) -> Result<serde_json::Value, HatchetError> {
         let workflow_run = self.get_current_workflow().await?;
 
         let current_task = workflow_run
@@ -99,9 +74,18 @@ where
         Ok(current_task.input.triggers.filter_payload.clone())
     }
 
-    async fn log(&self, message: String) -> Result<(), HatchetError> {
+    pub async fn log(&self, message: String) -> Result<(), HatchetError> {
         self.logger_tx.send(message).await.unwrap();
 
         Ok(())
+    }
+
+    async fn get_current_workflow(&self) -> Result<GetWorkflowRunResponse, HatchetError> {
+        self.client
+            .api_get(&format!(
+                "/api/v1/stable/workflow-runs/{}",
+                self.workflow_run_id
+            ))
+            .await
     }
 }

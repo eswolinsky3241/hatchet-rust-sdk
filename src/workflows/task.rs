@@ -3,44 +3,45 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::HatchetError;
+use crate::client::HatchetClientTrait;
 use crate::grpc::v1::workflows::CreateTaskOpts;
 use crate::worker::types::TaskFn;
-use crate::workflows::context::HatchetContextTrait;
+use crate::workflows::context::Context;
 
-pub struct Task<I, O, X> {
+pub struct Task<I, O, C> {
     pub(crate) name: String,
-    pub(crate) function: Arc<TaskFn<I, O, X>>,
+    pub(crate) function: Arc<TaskFn<I, O, C>>,
     pub(crate) parents: Vec<String>,
 }
 
 #[derive(Clone)]
-pub(crate) struct ErasedTask<X> {
+pub(crate) struct ErasedTask<C> {
     pub(crate) name: String,
-    pub(crate) function: Arc<dyn ErasedTaskFn<X> + Send + Sync>,
+    pub(crate) function: Arc<dyn ErasedTaskFn<C> + Send + Sync>,
 }
 
-pub trait ErasedTaskFn<X>
+pub(crate) trait ErasedTaskFn<C>
 where
-    X: HatchetContextTrait,
+    C: HatchetClientTrait,
 {
     fn call(
         &self,
         input: serde_json::Value,
-        ctx: X,
+        ctx: Context<C>,
     ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, HatchetError>> + Send>>;
 }
 
 // Implementation of ErasedTaskFn for TaskFn
-impl<I, O, X> ErasedTaskFn<X> for TaskFn<I, O, X>
+impl<I, O, C> ErasedTaskFn<C> for TaskFn<I, O, C>
 where
     I: serde::de::DeserializeOwned + Send + 'static,
     O: serde::Serialize + Send + 'static,
-    X: HatchetContextTrait,
+    C: HatchetClientTrait,
 {
     fn call(
         &self,
         input: serde_json::Value,
-        ctx: X,
+        ctx: Context<C>,
     ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, HatchetError>> + Send>> {
         let typed_input: I =
             serde_json::from_value(input).expect("could not deserialize input to expected type");
@@ -53,19 +54,19 @@ where
     }
 }
 
-impl<I, O, X> Task<I, O, X>
+impl<I, O, C> Task<I, O, C>
 where
-    X: HatchetContextTrait,
+    C: HatchetClientTrait,
 {
     pub fn new<F, Fut>(name: &str, f: F) -> Self
     where
-        F: Fn(I, X) -> Fut + Send + Sync + 'static,
+        F: Fn(I, Context<C>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<O, HatchetError>> + Send + 'static,
     {
-        let function = Arc::new(Box::new(move |input: I, ctx: X| {
+        let function = Arc::new(Box::new(move |input: I, ctx: Context<C>| {
             let fut = f(input, ctx);
             Box::pin(fut) as Pin<Box<dyn Future<Output = Result<O, HatchetError>> + Send>>
-        }) as TaskFn<I, O, X>);
+        }) as TaskFn<I, O, C>);
         Self {
             name: name.to_string(),
             function,
@@ -73,12 +74,12 @@ where
         }
     }
 
-    pub fn add_parent<J, P>(mut self, parent: &Task<J, P, X>) -> Self {
+    pub fn add_parent<J, P>(mut self, parent: &Task<J, P, C>) -> Self {
         self.parents.push(parent.name.clone());
         self
     }
 
-    pub(crate) fn into_erased(self) -> ErasedTask<X>
+    pub(crate) fn into_erased(self) -> ErasedTask<C>
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         O: serde::Serialize + Send + 'static,
