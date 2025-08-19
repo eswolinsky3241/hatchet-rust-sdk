@@ -47,9 +47,9 @@ where
 
         for task in workflow.erased_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
-            let task_fn = Arc::new(Box::new(move |input: serde_json::Value, ctx: Context<C>| {
-                task.function.call(input, ctx)
-            }) as ErasedTaskFn<C>);
+            let task_fn: Arc<ErasedTaskFn<C>> = Arc::new(Box::new(
+                move |input: serde_json::Value, ctx: Context<C>| task.function.call(input, ctx),
+            ));
             self.tasks
                 .lock()
                 .unwrap()
