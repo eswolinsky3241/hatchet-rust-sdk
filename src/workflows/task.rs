@@ -72,10 +72,11 @@ where
         F: Fn(I, Context<C>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = HatchetTaskResult<O>> + Send + 'static,
     {
-        let function = Arc::new(Box::new(move |input: I, ctx: Context<C>| {
-            let fut = f(input, ctx);
-            Box::pin(fut) as types::HatchetTaskFuture<O>
-        }) as TaskFn<I, O, C>);
+        let function: Arc<TaskFn<I, O, C>> =
+            Arc::new(Box::new(move |input: I, ctx: Context<C>| {
+                let fut = f(input, ctx);
+                Box::pin(fut) as types::HatchetTaskFuture<O>
+            }));
         Self {
             name: name.to_string(),
             function,

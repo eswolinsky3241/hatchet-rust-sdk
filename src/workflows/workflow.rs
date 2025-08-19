@@ -5,7 +5,9 @@ use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::workflows::TriggerWorkflowRequest;
 use crate::grpc::v1::workflows::{
-    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
+    CreateTaskOpts,
+    CreateWorkflowVersionRequest,
+    DefaultFilter as DefaultFilterProto,
 };
 use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
@@ -62,8 +64,7 @@ where
         }
 
         self.tasks.push(task.to_proto(&self.name));
-        let erased_task = task.into_erased();
-        self.erased_tasks.push(erased_task);
+        self.erased_tasks.push(task.into_erased());
         Ok(self)
     }
 

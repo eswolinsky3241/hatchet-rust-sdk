@@ -1,7 +1,6 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::HatchetError;
 use crate::workflows::context::Context;
 
 pub(crate) type HatchetTaskResult<O> = Result<O, Box<dyn std::error::Error + Send>>;
