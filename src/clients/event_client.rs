@@ -1,5 +1,16 @@
+use std::fmt::Debug;
+
 use crate::grpc::v0::events::{PutLogRequest, events_service_client};
 use crate::utils::proto_timestamp_now;
+
+#[async_trait::async_trait]
+pub trait EventClientTrait: Clone + Debug + Send + Sync {
+    async fn put_log(
+        &mut self,
+        step_run_id: &str,
+        message: String,
+    ) -> Result<(), crate::HatchetError>;
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct EventClient {
@@ -12,7 +23,11 @@ impl EventClient {
         let client = events_service_client::EventsServiceClient::new(channel);
         Self { client, api_token }
     }
-    pub(crate) async fn put_log(
+}
+
+#[async_trait::async_trait]
+impl EventClientTrait for EventClient {
+    async fn put_log(
         &mut self,
         step_run_id: &str,
         message: String,

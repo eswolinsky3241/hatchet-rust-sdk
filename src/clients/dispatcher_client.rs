@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use tonic::Request;
 
 use crate::error::HatchetError;
@@ -11,6 +12,26 @@ use crate::grpc::v0::dispatcher::{
     WorkerRegisterResponse,
 };
 
+#[async_trait::async_trait]
+pub trait DispatcherClientTrait: Clone + Debug + Send + Sync {
+    async fn send_step_action_event(
+        &mut self,
+        event: StepActionEvent,
+    ) -> Result<(), HatchetError>;
+
+    async fn register_worker(
+        &mut self,
+        registration: WorkerRegisterRequest,
+    ) -> Result<WorkerRegisterResponse, HatchetError>;
+
+    async fn heartbeat(&mut self, worker_id: &str) -> Result<(), HatchetError>;
+
+    async fn listen(
+        &mut self,
+        worker_id: &str,
+    ) -> Result<tonic::Streaming<AssignedAction>, HatchetError>;
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct DispatcherClient {
     client: DispatcherGrpcClient<tonic::transport::Channel>,
@@ -22,8 +43,11 @@ impl DispatcherClient {
         let client = DispatcherGrpcClient::new(channel);
         Self { client, api_token }
     }
+}
 
-    pub(crate) async fn send_step_action_event(
+#[async_trait::async_trait]
+impl DispatcherClientTrait for DispatcherClient {
+    async fn send_step_action_event(
         &mut self,
         event: StepActionEvent,
     ) -> Result<(), HatchetError> {
@@ -33,7 +57,7 @@ impl DispatcherClient {
         Ok(())
     }
 
-    pub(crate) async fn register_worker(
+    async fn register_worker(
         &mut self,
         registration: WorkerRegisterRequest,
     ) -> Result<WorkerRegisterResponse, HatchetError> {
@@ -42,7 +66,7 @@ impl DispatcherClient {
         Ok(self.client.register(request).await?.into_inner())
     }
 
-    pub(crate) async fn heartbeat(&mut self, worker_id: &str) -> Result<(), HatchetError> {
+    async fn heartbeat(&mut self, worker_id: &str) -> Result<(), HatchetError> {
         let heartbeat = HeartbeatRequest {
             worker_id: worker_id.to_string(),
             heartbeat_at: Some(crate::utils::proto_timestamp_now()?),
@@ -53,7 +77,7 @@ impl DispatcherClient {
         Ok(())
     }
 
-    pub(crate) async fn listen(
+    async fn listen(
         &mut self,
         worker_id: &str,
     ) -> Result<tonic::Streaming<AssignedAction>, HatchetError> {

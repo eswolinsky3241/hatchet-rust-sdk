@@ -4,7 +4,9 @@ use crate::clients::{
     AdminClient,
     AdminClientTrait,
     DispatcherClient,
+    DispatcherClientTrait,
     EventClient,
+    EventClientTrait,
     WorkflowClient,
     WorkflowClientTrait,
 };
@@ -32,32 +34,32 @@ pub(crate) trait HatchetClientTrait: Send + Sync {
     ) -> Result<TriggerWorkflowResponse, HatchetError>;
 }
 
-pub(crate) type SafeHatchetClient<A, W> = std::sync::Arc<tokio::sync::Mutex<HatchetClient<A, W>>>;
+pub(crate) type SafeHatchetClient<A, W, D, E> =
+    std::sync::Arc<tokio::sync::Mutex<HatchetClient<A, W, D, E>>>;
 
 #[derive(Clone, Debug)]
-pub struct HatchetClient<A, W> {
+pub struct HatchetClient<A, W, D, E> {
     config: HatchetConfig,
     pub(crate) workflow_client: W,
-    pub(crate) dispatcher_client: DispatcherClient,
-    pub(crate) event_client: EventClient,
+    pub(crate) dispatcher_client: D,
+    pub(crate) event_client: E,
     pub(crate) admin_client: A,
 }
 
-impl<A, W> HatchetClient<A, W>
+impl<A, W, D, E> HatchetClient<A, W, D, E>
 where
     A: AdminClientTrait,
     W: WorkflowClientTrait,
+    D: DispatcherClientTrait,
+    E: EventClientTrait,
 {
     pub async fn new(
         config: HatchetConfig,
         admin_client: A,
         workflow_client: W,
+        dispatcher_client: D,
+        event_client: E,
     ) -> Result<Self, HatchetError> {
-        let channel = Self::create_channel(&config.grpc_address, &config.tls_strategy).await?;
-
-        let dispatcher_client = DispatcherClient::new(channel.clone(), config.api_token.clone());
-        let event_client = EventClient::new(channel.clone(), config.api_token.clone());
-
         Ok(Self {
             config,
             workflow_client,
@@ -119,20 +121,31 @@ where
 }
 
 // Implement from_env with concrete types
-impl HatchetClient<AdminClient, WorkflowClient> {
+impl HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient> {
     pub async fn from_env() -> Result<Self, HatchetError> {
         let config = HatchetConfig::from_env()?;
         let channel = Self::create_channel(&config.grpc_address, &config.tls_strategy).await?;
 
         let admin_client = AdminClient::new(channel.clone(), config.api_token.clone());
         let workflow_client = WorkflowClient::new(channel.clone(), config.api_token.clone());
-        Self::new(config, admin_client, workflow_client).await
+        let dispatcher_client = DispatcherClient::new(channel.clone(), config.api_token.clone());
+        let event_client = EventClient::new(channel.clone(), config.api_token.clone());
+        Self::new(
+            config,
+            admin_client,
+            workflow_client,
+            dispatcher_client,
+            event_client,
+        )
+        .await
     }
 }
 
 // Concrete implementation of trait
 #[async_trait::async_trait]
-impl HatchetClientTrait for HatchetClient<AdminClient, WorkflowClient> {
+impl HatchetClientTrait
+    for HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient>
+{
     async fn get_workflow_run(
         &self,
         run_id: &str,
