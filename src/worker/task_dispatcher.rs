@@ -6,21 +6,25 @@ use futures::FutureExt;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use crate::SafeHatchetClient;
+use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::Context;
 
-pub(crate) struct TaskDispatcher {
+#[derive(Clone)]
+pub(crate) struct TaskDispatcher<C> {
     pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
-    pub(crate) client: SafeHatchetClient,
+    pub(crate) client: C,
     pub(crate) task_runs:
         Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,
 }
 
-impl TaskDispatcher {
+impl<C> TaskDispatcher<C>
+where
+    C: HatchetClientTrait,
+{
     pub(crate) async fn dispatch(
         &self,
         worker_id: Arc<String>,
@@ -117,12 +121,7 @@ impl TaskDispatcher {
                         should_not_retry: None,
                     };
 
-                    client
-                        .lock()
-                        .await
-                        .dispatcher_client
-                        .send_step_action_event(event)
-                        .await?;
+                    client.send_step_action_event(event).await?;
                     Ok(())
                 })
                 .await
@@ -149,7 +148,7 @@ impl TaskDispatcher {
     }
 
     async fn send_step_action_event(
-        &self,
+        &mut self,
         worker_id: &Arc<String>,
         message: &dispatcher::AssignedAction,
         event_type: i32,
@@ -169,12 +168,7 @@ impl TaskDispatcher {
             should_not_retry: None,
         };
 
-        self.client
-            .lock()
-            .await
-            .dispatcher_client
-            .send_step_action_event(event)
-            .await?;
+        self.client.send_step_action_event(event).await?;
         Ok(())
     }
 }

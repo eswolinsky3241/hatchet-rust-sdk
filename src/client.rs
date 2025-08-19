@@ -12,12 +12,17 @@ use crate::clients::{
 };
 use crate::config::{HatchetConfig, TlsStrategy};
 use crate::error::HatchetError;
+use crate::grpc::v0::dispatcher::{
+    AssignedAction,
+    StepActionEvent,
+    WorkerRegisterRequest,
+    WorkerRegisterResponse,
+};
 use crate::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
 use crate::grpc::v1::workflows::CreateWorkflowVersionRequest;
 
-#[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
-pub(crate) trait HatchetClientTrait: Send + Sync {
+pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
     async fn get_workflow_run(
         &self,
         run_id: &str,
@@ -32,6 +37,30 @@ pub(crate) trait HatchetClientTrait: Send + Sync {
         &mut self,
         trigger_workflow_request: TriggerWorkflowRequest,
     ) -> Result<TriggerWorkflowResponse, HatchetError>;
+
+    async fn put_log(
+        &mut self,
+        step_run_id: &str,
+        message: String,
+    ) -> Result<(), crate::HatchetError>;
+
+    async fn send_step_action_event(&mut self, event: StepActionEvent) -> Result<(), HatchetError>;
+
+    async fn register_worker(
+        &mut self,
+        registration: WorkerRegisterRequest,
+    ) -> Result<WorkerRegisterResponse, HatchetError>;
+
+    async fn heartbeat(&mut self, worker_id: &str) -> Result<(), HatchetError>;
+
+    async fn listen(
+        &mut self,
+        worker_id: &str,
+    ) -> Result<tonic::Streaming<AssignedAction>, HatchetError>;
+
+    async fn api_get<T>(&self, path: &str) -> Result<T, HatchetError>
+    where
+        T: serde::de::DeserializeOwned;
 }
 
 pub(crate) type SafeHatchetClient<A, W, D, E> =
@@ -67,18 +96,6 @@ where
             event_client,
             admin_client,
         })
-    }
-
-    pub(crate) async fn api_get<T>(&self, path: &str) -> Result<T, HatchetError>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        let api_client = crate::rest::ApiClient::new(
-            self.config.server_url.clone(),
-            self.config.api_token.clone(),
-        );
-
-        api_client.get::<T>(path).await
     }
 
     async fn create_channel(
@@ -169,5 +186,47 @@ impl HatchetClientTrait
         self.workflow_client
             .trigger_workflow(trigger_workflow_request)
             .await
+    }
+
+    async fn put_log(
+        &mut self,
+        step_run_id: &str,
+        message: String,
+    ) -> Result<(), crate::HatchetError> {
+        self.event_client.put_log(step_run_id, message).await
+    }
+
+    async fn send_step_action_event(&mut self, event: StepActionEvent) -> Result<(), HatchetError> {
+        self.dispatcher_client.send_step_action_event(event).await
+    }
+
+    async fn register_worker(
+        &mut self,
+        registration: WorkerRegisterRequest,
+    ) -> Result<WorkerRegisterResponse, HatchetError> {
+        self.dispatcher_client.register_worker(registration).await
+    }
+
+    async fn heartbeat(&mut self, worker_id: &str) -> Result<(), HatchetError> {
+        self.dispatcher_client.heartbeat(worker_id).await
+    }
+
+    async fn listen(
+        &mut self,
+        worker_id: &str,
+    ) -> Result<tonic::Streaming<AssignedAction>, HatchetError> {
+        self.dispatcher_client.listen(worker_id).await
+    }
+
+    async fn api_get<T>(&self, path: &str) -> Result<T, HatchetError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let api_client = crate::rest::ApiClient::new(
+            self.config.server_url.clone(),
+            self.config.api_token.clone(),
+        );
+
+        api_client.get::<T>(path).await
     }
 }

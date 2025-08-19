@@ -1,15 +1,18 @@
 use std::sync::Arc;
 
-use crate::client::HatchetClient;
+use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 
-pub(crate) struct ActionListener {
-    pub(crate) client: Arc<tokio::sync::Mutex<HatchetClient>>,
+pub(crate) struct ActionListener<C> {
+    pub(crate) client: Arc<tokio::sync::Mutex<C>>,
 }
 
-impl ActionListener {
-    pub(crate) fn new(client: Arc<tokio::sync::Mutex<HatchetClient>>) -> Self {
+impl<C> ActionListener<C>
+where
+    C: HatchetClientTrait,
+{
+    pub(crate) fn new(client: Arc<tokio::sync::Mutex<C>>) -> Self {
         Self { client }
     }
 
@@ -18,13 +21,7 @@ impl ActionListener {
         worker_id: Arc<String>,
         tx: tokio::sync::mpsc::Sender<dispatcher::AssignedAction>,
     ) -> Result<(), HatchetError> {
-        let mut response = self
-            .client
-            .lock()
-            .await
-            .dispatcher_client
-            .listen(&worker_id)
-            .await?;
+        let mut response = self.client.lock().await.listen(&worker_id).await?;
 
         loop {
             match response.message().await {

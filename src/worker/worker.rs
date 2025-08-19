@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 
-use crate::client::HatchetClient;
+use crate::client::{HatchetClient, HatchetClientTrait};
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::grpc::v0::dispatcher::WorkerRegisterRequest;
@@ -13,16 +13,19 @@ use crate::worker::action_listener::ActionListener;
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::Context;
 
-pub struct Worker {
+pub struct Worker<C> {
     pub name: String,
     max_runs: i32,
-    pub client: Arc<tokio::sync::Mutex<HatchetClient>>,
+    pub client: Arc<tokio::sync::Mutex<C>>,
     tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
     workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
-impl Worker {
-    pub fn new(name: &str, client: HatchetClient, max_runs: i32) -> Result<Self, HatchetError> {
+impl<C> Worker<C>
+where
+    C: HatchetClientTrait,
+{
+    pub fn new(name: &str, client: C, max_runs: i32) -> Result<Self, HatchetError> {
         Ok(Self {
             name: name.to_string(),
             max_runs,
@@ -34,7 +37,7 @@ impl Worker {
 
     pub fn add_workflow<I, O>(
         mut self,
-        workflow: crate::workflows::workflow::Workflow<I, O>,
+        workflow: crate::workflows::workflow::Workflow<I, O, C>,
     ) -> Self
     where
         I: Serialize + Send + Sync,
@@ -76,7 +79,6 @@ impl Worker {
             self.client
                 .lock()
                 .await
-                .admin_client
                 .put_workflow(workflow)
                 .await
                 .unwrap();
@@ -132,18 +134,13 @@ impl Worker {
     }
 
     async fn heartbeat(&self, worker_id: Arc<String>) -> Result<(), HatchetError> {
-        self.client
-            .lock()
-            .await
-            .dispatcher_client
-            .heartbeat(&worker_id)
-            .await?;
+        self.client.lock().await.heartbeat(&worker_id).await?;
 
         Ok(())
     }
 
     async fn register_worker(
-        client: Arc<tokio::sync::Mutex<HatchetClient>>,
+        client: Arc<tokio::sync::Mutex<C>>,
         name: &str,
         actions: Vec<String>,
         max_runs: i32,
@@ -158,12 +155,7 @@ impl Worker {
             runtime_info: None,
         };
 
-        let response = client
-            .lock()
-            .await
-            .dispatcher_client
-            .register_worker(registration)
-            .await?;
+        let response = client.lock().await.register_worker(registration).await?;
 
         Ok(response.worker_id)
     }
