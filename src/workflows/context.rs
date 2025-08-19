@@ -4,6 +4,18 @@ use crate::HatchetError;
 use crate::client::HatchetClientTrait;
 use crate::rest::models::GetWorkflowRunResponse;
 
+pub trait HatchetContextTrait: Clone + Send + Sync + 'static {
+    async fn parent_output(
+        &self,
+        parent_step_name: &str,
+    ) -> Result<serde_json::Value, HatchetError>;
+
+    async fn filter_payload(&self) -> Result<serde_json::Value, HatchetError>;
+
+    async fn log(&self, message: String) -> Result<(), HatchetError>;
+}
+
+#[derive(Clone, Debug)]
 pub struct Context<C> {
     logger_tx: mpsc::Sender<String>,
     pub client: C,
@@ -46,8 +58,13 @@ where
             ))
             .await
     }
+}
 
-    pub async fn parent_output(
+impl<C> HatchetContextTrait for Context<C>
+where
+    C: HatchetClientTrait,
+{
+    async fn parent_output(
         &self,
         parent_step_name: &str,
     ) -> Result<serde_json::Value, HatchetError> {
@@ -70,7 +87,7 @@ where
         Ok(parent.0.clone())
     }
 
-    pub async fn filter_payload(&self) -> Result<serde_json::Value, HatchetError> {
+    async fn filter_payload(&self) -> Result<serde_json::Value, HatchetError> {
         let workflow_run = self.get_current_workflow().await?;
 
         let current_task = workflow_run
@@ -82,7 +99,7 @@ where
         Ok(current_task.input.triggers.filter_payload.clone())
     }
 
-    pub async fn log(&self, message: String) -> Result<(), HatchetError> {
+    async fn log(&self, message: String) -> Result<(), HatchetError> {
         self.logger_tx.send(message).await.unwrap();
 
         Ok(())

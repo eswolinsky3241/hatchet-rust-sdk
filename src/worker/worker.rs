@@ -5,31 +5,32 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 
-use crate::client::{HatchetClient, HatchetClientTrait};
+use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::worker::action_listener::ActionListener;
 use crate::worker::types::ErasedTaskFn;
-use crate::workflows::Context;
+use crate::workflows::context::HatchetContextTrait;
 
-pub struct Worker<C> {
+pub struct Worker<C, X> {
     pub name: String,
     max_runs: i32,
-    pub client: Arc<tokio::sync::Mutex<C>>,
-    tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
+    pub client: C,
+    tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn<X>>>>>,
     workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
-impl<C> Worker<C>
+impl<C, X> Worker<C, X>
 where
     C: HatchetClientTrait,
+    X: HatchetContextTrait,
 {
     pub fn new(name: &str, client: C, max_runs: i32) -> Result<Self, HatchetError> {
         Ok(Self {
             name: name.to_string(),
             max_runs,
-            client: Arc::new(tokio::sync::Mutex::new(client.clone())),
+            client: client.clone(),
             tasks: Arc::new(Mutex::new(HashMap::new())),
             workflows: vec![],
         })
@@ -37,7 +38,7 @@ where
 
     pub fn add_workflow<I, O>(
         mut self,
-        workflow: crate::workflows::workflow::Workflow<I, O, C>,
+        workflow: crate::workflows::workflow::Workflow<I, O, C, X>,
     ) -> Self
     where
         I: Serialize + Send + Sync,
@@ -48,9 +49,9 @@ where
         for task in &workflow.erased_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
             let task_function = task.function.clone();
-            let task_fn = Arc::new(Box::new(move |input: serde_json::Value, ctx: Context| {
+            let task_fn = Arc::new(Box::new(move |input: serde_json::Value, ctx: X| {
                 task_function.call(input, ctx)
-            }) as ErasedTaskFn);
+            }) as ErasedTaskFn<X>);
             self.tasks
                 .lock()
                 .unwrap()
@@ -59,7 +60,7 @@ where
         self
     }
 
-    pub async fn register_workflows(&self) {
+    pub async fn register_workflows(&mut self) {
         for workflow in &self.workflows {
             let workflow = crate::grpc::v1::workflows::CreateWorkflowVersionRequest {
                 name: workflow.name.clone(),
@@ -76,16 +77,11 @@ where
                 concurrency_arr: vec![],
                 default_filters: workflow.default_filters.clone(),
             };
-            self.client
-                .lock()
-                .await
-                .put_workflow(workflow)
-                .await
-                .unwrap();
+            self.client.put_workflow(workflow).await.unwrap();
         }
     }
 
-    pub async fn start(&mut self) -> Result<(), HatchetError> {
+    pub async fn start(&mut self, context: X) -> Result<(), HatchetError> {
         let mut actions = vec![];
         for workflow in &self.workflows {
             for task in &workflow.tasks {
@@ -99,17 +95,26 @@ where
 
         let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(self.max_runs as usize);
 
-        let dispatcher = Arc::new(crate::worker::task_dispatcher::TaskDispatcher {
-            registry: self.tasks.clone(),
-            client: self.client.clone(),
-            task_runs: Arc::new(Mutex::new(HashMap::new())),
-        });
+        let dispatcher = Arc::new(tokio::sync::Mutex::new(
+            crate::worker::task_dispatcher::TaskDispatcher {
+                registry: self.tasks.clone(),
+                client: self.client.clone(),
+                task_runs: Arc::new(Mutex::new(HashMap::new())),
+            },
+        ));
 
-        let action_listener = Arc::new(ActionListener::new(self.client.clone()));
+        let action_listener = Arc::new(tokio::sync::Mutex::new(ActionListener::new(
+            self.client.clone(),
+        )));
 
         let worker_id_clone = worker_id.clone();
         tokio::spawn(async move {
-            action_listener.listen(worker_id_clone, tx).await.unwrap();
+            action_listener
+                .lock()
+                .await
+                .listen(worker_id_clone, tx)
+                .await
+                .unwrap();
         });
 
         let worker_id_clone = worker_id.clone();
@@ -124,7 +129,12 @@ where
             },
             async {
                 while let Some(task) = rx.recv().await {
-                    dispatcher.dispatch(worker_id.clone(), task).await?
+                    let context_clone = context.clone();
+                    dispatcher
+                        .lock()
+                        .await
+                        .dispatch(worker_id.clone(), task, context_clone)
+                        .await?
                 }
                 Ok(())
             }
@@ -133,14 +143,14 @@ where
         Ok(())
     }
 
-    async fn heartbeat(&self, worker_id: Arc<String>) -> Result<(), HatchetError> {
-        self.client.lock().await.heartbeat(&worker_id).await?;
+    async fn heartbeat(&mut self, worker_id: Arc<String>) -> Result<(), HatchetError> {
+        self.client.heartbeat(&worker_id).await?;
 
         Ok(())
     }
 
     async fn register_worker(
-        client: Arc<tokio::sync::Mutex<C>>,
+        mut client: C,
         name: &str,
         actions: Vec<String>,
         max_runs: i32,
@@ -155,7 +165,7 @@ where
             runtime_info: None,
         };
 
-        let response = client.lock().await.register_worker(registration).await?;
+        let response = client.register_worker(registration).await?;
 
         Ok(response.worker_id)
     }

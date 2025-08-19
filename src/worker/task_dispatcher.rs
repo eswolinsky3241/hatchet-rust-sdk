@@ -11,27 +11,31 @@ use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::worker::types::ErasedTaskFn;
-use crate::workflows::Context;
+use crate::workflows::context::HatchetContextTrait;
 
 #[derive(Clone)]
-pub(crate) struct TaskDispatcher<C> {
-    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
+pub(crate) struct TaskDispatcher<C, X> {
+    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn<X>>>>>,
     pub(crate) client: C,
     pub(crate) task_runs:
         Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,
 }
 
-impl<C> TaskDispatcher<C>
+impl<C, X> TaskDispatcher<C, X>
 where
     C: HatchetClientTrait,
+    X: HatchetContextTrait,
 {
     pub(crate) async fn dispatch(
-        &self,
+        &mut self,
         worker_id: Arc<String>,
         message: dispatcher::AssignedAction,
+        context: X,
     ) -> Result<(), crate::HatchetError> {
         match message.action_type().as_str_name() {
-            "START_STEP_RUN" => Ok(self.handle_start_step_run(worker_id, message).await?),
+            "START_STEP_RUN" => Ok(self
+                .handle_start_step_run(worker_id, message, context)
+                .await?),
             "CANCEL_STEP_RUN" => Ok(self.handle_cancel_step_run(message).await?),
             _ => Err(HatchetError::UnrecognizedAction {
                 action: message.action_type().as_str_name().to_string(),
@@ -40,9 +44,10 @@ where
     }
 
     async fn handle_start_step_run(
-        &self,
+        &mut self,
         worker_id: Arc<String>,
         message: dispatcher::AssignedAction,
+        context: X,
     ) -> Result<(), crate::HatchetError> {
         let step_run_id = message.step_run_id.clone();
 
@@ -58,7 +63,7 @@ where
             .clone();
 
         let token = CancellationToken::new();
-        let client = self.client.clone();
+        let mut client = self.client.clone();
 
         let execution_context = ExecutionContext {
             workflow_run_id: message.workflow_run_id.clone(),
@@ -75,13 +80,6 @@ where
                         .get("input")
                         .cloned()
                         .expect("missing `input` field");
-
-                    let context = Context::new(
-                        client.clone(),
-                        &message.workflow_run_id,
-                        &message.step_run_id,
-                    )
-                    .await;
 
                     let result: Result<
                         Result<serde_json::Value, HatchetError>,
