@@ -1,8 +1,8 @@
 use tokio::sync::mpsc;
 
+use crate::HatchetError;
 use crate::client::HatchetClientTrait;
 use crate::rest::models::GetWorkflowRunResponse;
-use crate::{HatchetError, SafeHatchetClient};
 
 pub struct Context<C> {
     logger_tx: mpsc::Sender<String>,

@@ -9,7 +9,6 @@ pub mod worker;
 pub mod workflows;
 
 pub use client::HatchetClient;
-pub(crate) use client::SafeHatchetClient;
 pub use error::HatchetError;
 pub use utils::EmptyModel;
 pub use worker::Worker;

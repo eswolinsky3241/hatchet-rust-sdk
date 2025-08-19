@@ -63,9 +63,6 @@ pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
         T: serde::de::DeserializeOwned;
 }
 
-pub(crate) type SafeHatchetClient<A, W, D, E> =
-    std::sync::Arc<tokio::sync::Mutex<HatchetClient<A, W, D, E>>>;
-
 #[derive(Clone, Debug)]
 pub struct HatchetClient<A, W, D, E> {
     config: HatchetConfig,
