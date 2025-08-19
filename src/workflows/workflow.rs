@@ -14,9 +14,9 @@ use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::workflows::task::{ErasedTask, Task};
 
 #[derive(Clone)]
-pub struct Workflow<I, O> {
+pub struct Workflow<I, O, C> {
     pub(crate) name: String,
-    client: HatchetClient,
+    client: C,
     pub(crate) erased_tasks: Vec<ErasedTask>,
     tasks: Vec<CreateTaskOpts>,
     on_events: Vec<String>,
@@ -24,14 +24,15 @@ pub struct Workflow<I, O> {
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 
-impl<I, O> Workflow<I, O>
+impl<I, O, C> Workflow<I, O, C>
 where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
+    C: HatchetClientTrait + Send + Sync + Clone,
 {
     pub fn new(
         name: impl Into<String>,
-        client: HatchetClient,
+        client: C,
         on_events: Vec<String>,
         default_filters: Vec<DefaultFilter>,
     ) -> Self {
@@ -161,11 +162,7 @@ where
 
         Self::update_task_execution_context(&mut request);
 
-        let response = self
-            .client
-            .workflow_client
-            .trigger_workflow(request)
-            .await?;
+        let response = self.client.trigger_workflow(request).await?;
 
         Ok(response.workflow_run_id)
     }

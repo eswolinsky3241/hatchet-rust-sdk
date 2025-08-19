@@ -1,8 +1,15 @@
 use tonic::transport::{Channel, ClientTlsConfig};
 
-use crate::clients::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
+use crate::clients::{
+    AdminClient,
+    AdminClientTrait,
+    DispatcherClient,
+    EventClient,
+    WorkflowClient,
+};
 use crate::config::{HatchetConfig, TlsStrategy};
 use crate::error::HatchetError;
+use crate::grpc::v1::workflows::CreateWorkflowVersionRequest;
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
@@ -11,27 +18,31 @@ pub(crate) trait HatchetClientTrait: Send + Sync {
         &self,
         run_id: &str,
     ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError>;
+
+    async fn put_workflow(
+        &mut self,
+        workflow: CreateWorkflowVersionRequest,
+    ) -> Result<(), HatchetError>;
 }
 
-pub(crate) type SafeHatchetClient = std::sync::Arc<tokio::sync::Mutex<HatchetClient>>;
+pub(crate) type SafeHatchetClient<A> = std::sync::Arc<tokio::sync::Mutex<HatchetClient<A>>>;
 
 #[derive(Clone, Debug)]
-pub struct HatchetClient {
+pub struct HatchetClient<A> {
     config: HatchetConfig,
     pub(crate) workflow_client: WorkflowClient,
     pub(crate) dispatcher_client: DispatcherClient,
     pub(crate) event_client: EventClient,
-    pub(crate) admin_client: AdminClient,
+    pub(crate) admin_client: A,
 }
 
-impl HatchetClient {
-    pub async fn new(config: HatchetConfig) -> Result<Self, HatchetError> {
+impl<A> HatchetClient<A> {
+    pub async fn new(config: HatchetConfig, admin_client: A) -> Result<Self, HatchetError> {
         let channel = Self::create_channel(&config.grpc_address, &config.tls_strategy).await?;
 
         let workflow_client = WorkflowClient::new(channel.clone(), config.api_token.clone());
         let dispatcher_client = DispatcherClient::new(channel.clone(), config.api_token.clone());
         let event_client = EventClient::new(channel.clone(), config.api_token.clone());
-        let admin_client = AdminClient::new(channel.clone(), config.api_token.clone());
 
         Ok(Self {
             config,
@@ -40,11 +51,6 @@ impl HatchetClient {
             event_client,
             admin_client,
         })
-    }
-
-    pub async fn from_env() -> Result<Self, HatchetError> {
-        let config = HatchetConfig::from_env()?;
-        Self::new(config).await
     }
 
     pub(crate) async fn api_get<T>(&self, path: &str) -> Result<T, HatchetError>
@@ -98,8 +104,20 @@ impl HatchetClient {
     }
 }
 
+// Implement from_env with concrete types
+impl HatchetClient<AdminClient> {
+    pub async fn from_env() -> Result<Self, HatchetError> {
+        let config = HatchetConfig::from_env()?;
+        let channel = Self::create_channel(&config.grpc_address, &config.tls_strategy).await?;
+
+        let admin_client = AdminClient::new(channel.clone(), config.api_token.clone());
+        Self::new(config, admin_client).await
+    }
+}
+
+// Concrete implementation of trait
 #[async_trait::async_trait]
-impl HatchetClientTrait for HatchetClient {
+impl HatchetClientTrait for HatchetClient<AdminClient> {
     async fn get_workflow_run(
         &self,
         run_id: &str,
@@ -107,17 +125,14 @@ impl HatchetClientTrait for HatchetClient {
         self.api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
             .await
     }
-}
 
-#[async_trait::async_trait]
-impl<T> HatchetClientTrait for std::sync::Arc<T>
-where
-    T: HatchetClientTrait + ?Sized,
-{
-    async fn get_workflow_run(
-        &self,
-        run_id: &str,
-    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
-        (**self).get_workflow_run(run_id).await
+    async fn put_workflow(
+        &mut self,
+        workflow: CreateWorkflowVersionRequest,
+    ) -> Result<(), HatchetError> {
+        self.admin_client.put_workflow(workflow).await?;
+        Ok(())
     }
+
+    async fn trigger_workflow(&mut self, )
 }
