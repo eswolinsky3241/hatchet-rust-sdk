@@ -5,9 +5,7 @@ use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::workflows::TriggerWorkflowRequest;
 use crate::grpc::v1::workflows::{
-    CreateTaskOpts,
-    CreateWorkflowVersionRequest,
-    DefaultFilter as DefaultFilterProto,
+    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
 use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
@@ -40,7 +38,7 @@ where
     ) -> Self {
         Self {
             name: name.into(),
-            client: client.clone(),
+            client,
             erased_tasks: vec![],
             tasks: vec![],
             on_events,

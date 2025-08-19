@@ -30,7 +30,7 @@ where
         Ok(Self {
             name: name.to_string(),
             max_runs,
-            client: client.clone(),
+            client,
             tasks: Arc::new(Mutex::new(HashMap::new())),
             workflows: vec![],
         })
