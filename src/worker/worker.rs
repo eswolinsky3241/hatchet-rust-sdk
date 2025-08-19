@@ -89,7 +89,7 @@ where
             }
         }
         let worker_id = Arc::new(
-            Self::register_worker(self.client.clone(), &self.name, actions, self.max_runs).await?,
+            Self::register_worker(&mut self.client, &self.name, actions, self.max_runs).await?,
         );
         self.register_workflows().await;
 
@@ -150,7 +150,7 @@ where
     }
 
     async fn register_worker(
-        mut client: C,
+        client: &mut C,
         name: &str,
         actions: Vec<String>,
         max_runs: i32,

@@ -1,22 +1,13 @@
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::clients::{
-    AdminClient,
-    AdminClientTrait,
-    DispatcherClient,
-    DispatcherClientTrait,
-    EventClient,
-    EventClientTrait,
-    WorkflowClient,
-    WorkflowClientTrait,
+    AdminClient, AdminClientTrait, DispatcherClient, DispatcherClientTrait, EventClient,
+    EventClientTrait, WorkflowClient, WorkflowClientTrait,
 };
 use crate::config::{HatchetConfig, TlsStrategy};
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher::{
-    AssignedAction,
-    StepActionEvent,
-    WorkerRegisterRequest,
-    WorkerRegisterResponse,
+    AssignedAction, StepActionEvent, WorkerRegisterRequest, WorkerRegisterResponse,
 };
 use crate::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
 use crate::grpc::v1::workflows::CreateWorkflowVersionRequest;
