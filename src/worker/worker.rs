@@ -45,11 +45,10 @@ where
     {
         self.workflows.push(workflow.to_proto());
 
-        for task in &workflow.erased_tasks {
+        for task in workflow.erased_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
-            let task_function = task.function.clone();
             let task_fn = Arc::new(Box::new(move |input: serde_json::Value, ctx: Context<C>| {
-                task_function.call(input, ctx)
+                task.function.call(input, ctx)
             }) as ErasedTaskFn<C>);
             self.tasks
                 .lock()
