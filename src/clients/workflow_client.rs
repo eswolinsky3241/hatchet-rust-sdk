@@ -1,6 +1,16 @@
+use std::fmt::Debug;
+
 use crate::error::HatchetError;
 use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
+
+#[async_trait::async_trait]
+pub trait WorkflowClientTrait: Clone + Debug + Send + Sync {
+    async fn trigger_workflow(
+        &mut self,
+        trigger_workflow_request: TriggerWorkflowRequest,
+    ) -> Result<TriggerWorkflowResponse, HatchetError>;
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct WorkflowClient {
@@ -13,8 +23,11 @@ impl WorkflowClient {
         let client = WorkflowServiceClient::new(channel);
         Self { client, api_token }
     }
+}
 
-    pub(crate) async fn trigger_workflow(
+#[async_trait::async_trait]
+impl WorkflowClientTrait for WorkflowClient {
+    async fn trigger_workflow(
         &mut self,
         trigger_workflow_request: TriggerWorkflowRequest,
     ) -> Result<TriggerWorkflowResponse, HatchetError> {
