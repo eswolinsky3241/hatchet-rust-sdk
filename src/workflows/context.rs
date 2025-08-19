@@ -18,7 +18,7 @@ pub trait HatchetContextTrait: Clone + Send + Sync + 'static {
 #[derive(Clone, Debug)]
 pub struct Context<C> {
     logger_tx: mpsc::Sender<String>,
-    pub client: C,
+    client: C,
     workflow_run_id: String,
     step_run_id: String,
 }
