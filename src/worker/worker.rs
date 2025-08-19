@@ -93,7 +93,8 @@ where
         );
         self.register_workflows().await;
 
-        let (tx, mut rx) = mpsc::channel::<dispatcher::AssignedAction>(self.max_runs as usize);
+        let (action_tx, mut action_rx) =
+            mpsc::channel::<dispatcher::AssignedAction>(self.max_runs as usize);
 
         let dispatcher = Arc::new(tokio::sync::Mutex::new(
             crate::worker::task_dispatcher::TaskDispatcher {
@@ -112,7 +113,7 @@ where
             action_listener
                 .lock()
                 .await
-                .listen(worker_id_clone, tx)
+                .listen(worker_id_clone, action_tx)
                 .await
                 .unwrap();
         });
@@ -128,7 +129,7 @@ where
                 Ok::<(), HatchetError>(())
             },
             async {
-                while let Some(task) = rx.recv().await {
+                while let Some(task) = action_rx.recv().await {
                     let context_clone = context.clone();
                     dispatcher
                         .lock()
