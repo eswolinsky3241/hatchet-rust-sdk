@@ -118,11 +118,10 @@ where
                 .unwrap();
         });
 
-        let worker_id_clone = worker_id.clone();
         tokio::try_join!(
             async {
                 loop {
-                    self.heartbeat(worker_id_clone.clone()).await?;
+                    self.client.heartbeat(&worker_id).await?;
                     tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
                 }
                 #[allow(unreachable_code)]
@@ -140,12 +139,6 @@ where
                 Ok(())
             }
         )?;
-
-        Ok(())
-    }
-
-    async fn heartbeat(&mut self, worker_id: Arc<String>) -> Result<(), HatchetError> {
-        self.client.heartbeat(&worker_id).await?;
 
         Ok(())
     }
