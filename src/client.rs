@@ -10,7 +10,7 @@ use crate::grpc::v0::dispatcher::{
     AssignedAction, StepActionEvent, WorkerRegisterRequest, WorkerRegisterResponse,
 };
 use crate::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
-use crate::grpc::v1::workflows::CreateWorkflowVersionRequest;
+use crate::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
 
 #[async_trait::async_trait]
 pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
@@ -21,7 +21,9 @@ pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
 
     async fn put_workflow(
         &mut self,
-        workflow: CreateWorkflowVersionRequest,
+        name: &str,
+        tasks: Vec<CreateTaskOpts>,
+        event_triggers: Vec<String>,
     ) -> Result<(), HatchetError>;
 
     async fn trigger_workflow(
@@ -128,7 +130,6 @@ where
     }
 }
 
-// Implement from_env with concrete types
 impl HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient> {
     pub async fn from_env() -> Result<Self, HatchetError> {
         let config = HatchetConfig::from_env()?;
@@ -150,7 +151,6 @@ impl HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient> {
     }
 }
 
-// Concrete implementation of trait
 #[async_trait::async_trait]
 impl<A, W, D, E> HatchetClientTrait for HatchetClient<A, W, D, E>
 where
@@ -169,8 +169,25 @@ where
 
     async fn put_workflow(
         &mut self,
-        workflow: CreateWorkflowVersionRequest,
+        name: &str,
+        tasks: Vec<CreateTaskOpts>,
+        event_triggers: Vec<String>,
     ) -> Result<(), HatchetError> {
+        let workflow = CreateWorkflowVersionRequest {
+            name: name.to_string(),
+            tasks,
+            event_triggers,
+            cron_triggers: vec![],
+            description: String::from(""),
+            version: String::from(""),
+            concurrency: None,
+            cron_input: None,
+            on_failure_task: None,
+            sticky: None,
+            default_priority: None,
+            concurrency_arr: vec![],
+            default_filters: vec![],
+        };
         self.admin_client.put_workflow(workflow).await?;
         Ok(())
     }
@@ -228,6 +245,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mockall::predicate::*;
     use mockall::*;
 
     mock! {
@@ -279,16 +297,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_hatchet_client() {
+    async fn test_put_workflow() {
         let mut admin_client = MockAdminClient::new();
         let workflow_client = MockWorkflowClient::new();
         let dispatcher_client = MockDispatcherClient::new();
         let event_client = MockEventClient::new();
 
-        admin_client.expect_put_workflow().returning(|_| Ok(()));
         admin_client
-            .expect_clone()
-            .returning(|| MockAdminClient::new());
+            .expect_put_workflow()
+            .with(eq(CreateWorkflowVersionRequest {
+                name: "test-workflow".to_string(),
+                description: "".to_string(),
+                version: "".to_string(),
+                event_triggers: vec!["test-event".to_string()],
+                cron_triggers: vec![],
+                tasks: vec![],
+                concurrency: None,
+                cron_input: None,
+                on_failure_task: None,
+                sticky: None,
+                default_priority: None,
+                concurrency_arr: vec![],
+                default_filters: vec![],
+            }))
+            .returning(|_| Ok(()));
 
         let mut client = HatchetClient::new(
             String::from("https://hatchet.com"),
@@ -302,21 +334,7 @@ mod tests {
         .unwrap();
 
         let workflow_run = client
-            .put_workflow(CreateWorkflowVersionRequest {
-                name: "test".to_string(),
-                description: "test".to_string(),
-                version: "1.0.0".to_string(),
-                event_triggers: vec![],
-                cron_triggers: vec![],
-                tasks: vec![],
-                concurrency: None,
-                cron_input: None,
-                on_failure_task: None,
-                sticky: None,
-                default_priority: None,
-                concurrency_arr: vec![],
-                default_filters: vec![],
-            })
+            .put_workflow("test-workflow", vec![], vec!["test-event".to_string()])
             .await
             .unwrap();
 

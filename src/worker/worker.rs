@@ -60,22 +60,14 @@ where
 
     pub async fn register_workflows(&mut self) {
         for workflow in &self.workflows {
-            let workflow = crate::grpc::v1::workflows::CreateWorkflowVersionRequest {
-                name: workflow.name.clone(),
-                description: workflow.description.clone(),
-                version: workflow.version.clone(),
-                event_triggers: workflow.event_triggers.clone(),
-                cron_triggers: workflow.cron_triggers.clone(),
-                tasks: workflow.tasks.clone(),
-                concurrency: None,
-                cron_input: None,
-                on_failure_task: None,
-                sticky: None,
-                default_priority: None,
-                concurrency_arr: vec![],
-                default_filters: workflow.default_filters.clone(),
-            };
-            self.client.put_workflow(workflow).await.unwrap();
+            self.client
+                .put_workflow(
+                    &workflow.name,
+                    workflow.tasks.clone(),
+                    workflow.event_triggers.clone(),
+                )
+                .await
+                .unwrap();
         }
     }
 
