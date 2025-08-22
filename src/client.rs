@@ -56,7 +56,8 @@ pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
 
 #[derive(Clone, Debug)]
 pub struct HatchetClient<A, W, D, E> {
-    config: HatchetConfig,
+    server_url: String,
+    api_token: String,
     pub(crate) workflow_client: W,
     pub(crate) dispatcher_client: D,
     pub(crate) event_client: E,
@@ -71,14 +72,16 @@ where
     E: EventClientTrait,
 {
     pub async fn new(
-        config: HatchetConfig,
+        server_url: String,
+        api_token: String,
         admin_client: A,
         workflow_client: W,
         dispatcher_client: D,
         event_client: E,
     ) -> Result<Self, HatchetError> {
         Ok(Self {
-            config,
+            server_url,
+            api_token,
             workflow_client,
             dispatcher_client,
             event_client,
@@ -136,7 +139,8 @@ impl HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient> {
         let dispatcher_client = DispatcherClient::new(channel.clone(), config.api_token.clone());
         let event_client = EventClient::new(channel.clone(), config.api_token.clone());
         Self::new(
-            config,
+            config.server_url,
+            config.api_token,
             admin_client,
             workflow_client,
             dispatcher_client,
@@ -148,8 +152,12 @@ impl HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient> {
 
 // Concrete implementation of trait
 #[async_trait::async_trait]
-impl HatchetClientTrait
-    for HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient>
+impl<A, W, D, E> HatchetClientTrait for HatchetClient<A, W, D, E>
+where
+    A: AdminClientTrait,
+    W: WorkflowClientTrait,
+    D: DispatcherClientTrait,
+    E: EventClientTrait,
 {
     async fn get_workflow_run(
         &self,
@@ -210,11 +218,108 @@ impl HatchetClientTrait
     where
         T: serde::de::DeserializeOwned,
     {
-        let api_client = crate::rest::ApiClient::new(
-            self.config.server_url.clone(),
-            self.config.api_token.clone(),
-        );
+        let api_client =
+            crate::rest::ApiClient::new(self.server_url.clone(), self.api_token.clone());
 
         api_client.get::<T>(path).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mockall::*;
+
+    mock! {
+        #[derive(Clone, Debug)]
+        AdminClient { }
+        #[async_trait::async_trait]
+        impl AdminClientTrait for AdminClient {
+            async fn put_workflow(&mut self, workflow: CreateWorkflowVersionRequest) -> Result<(), HatchetError>;
+        }
+        impl Clone for AdminClient {
+            fn clone(&self) -> Self;
+        }
+    }
+    mock! {
+        #[derive(Debug)]
+        EventClient { }
+        #[async_trait::async_trait]
+        impl EventClientTrait for EventClient {
+            async fn put_log(&mut self, step_run_id: &str, message: String) -> Result<(), HatchetError>;
+        }
+        impl Clone for EventClient {
+            fn clone(&self) -> Self;
+        }
+    }
+    mock! {
+        #[derive(Debug)]
+        WorkflowClient { }
+        #[async_trait::async_trait]
+        impl WorkflowClientTrait for WorkflowClient {
+            async fn trigger_workflow(&mut self, trigger_workflow_request: TriggerWorkflowRequest) -> Result<TriggerWorkflowResponse, HatchetError>;
+        }
+        impl Clone for WorkflowClient {
+            fn clone(&self) -> Self;
+        }
+    }
+    mock! {
+        #[derive(Debug)]
+        DispatcherClient { }
+        #[async_trait::async_trait]
+        impl DispatcherClientTrait for DispatcherClient {
+            async fn send_step_action_event(&mut self, event: StepActionEvent) -> Result<(), HatchetError>;
+            async fn register_worker(&mut self, registration: WorkerRegisterRequest) -> Result<WorkerRegisterResponse, HatchetError>;
+            async fn heartbeat(&mut self, worker_id: &str) -> Result<(), HatchetError>;
+            async fn listen(&mut self, worker_id: &str) -> Result<tonic::Streaming<AssignedAction>, HatchetError>;
+        }
+        impl Clone for DispatcherClient {
+            fn clone(&self) -> Self;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_hatchet_client() {
+        let mut admin_client = MockAdminClient::new();
+        let workflow_client = MockWorkflowClient::new();
+        let dispatcher_client = MockDispatcherClient::new();
+        let event_client = MockEventClient::new();
+
+        admin_client.expect_put_workflow().returning(|_| Ok(()));
+        admin_client
+            .expect_clone()
+            .returning(|| MockAdminClient::new());
+
+        let mut client = HatchetClient::new(
+            String::from("https://hatchet.com"),
+            String::from("part0.part1.part2"),
+            admin_client,
+            workflow_client,
+            dispatcher_client,
+            event_client,
+        )
+        .await
+        .unwrap();
+
+        let workflow_run = client
+            .put_workflow(CreateWorkflowVersionRequest {
+                name: "test".to_string(),
+                description: "test".to_string(),
+                version: "1.0.0".to_string(),
+                event_triggers: vec![],
+                cron_triggers: vec![],
+                tasks: vec![],
+                concurrency: None,
+                cron_input: None,
+                on_failure_task: None,
+                sticky: None,
+                default_priority: None,
+                concurrency_arr: vec![],
+                default_filters: vec![],
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(workflow_run, ());
     }
 }

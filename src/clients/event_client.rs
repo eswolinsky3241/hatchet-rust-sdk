@@ -4,7 +4,7 @@ use crate::grpc::v0::events::{PutLogRequest, events_service_client};
 use crate::utils::proto_timestamp_now;
 
 #[async_trait::async_trait]
-pub trait EventClientTrait: Clone + Debug + Send + Sync {
+pub trait EventClientTrait: Clone + Debug + Send + Sync + 'static {
     async fn put_log(
         &mut self,
         step_run_id: &str,

@@ -4,20 +4,13 @@ use tonic::Request;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher::dispatcher_client::DispatcherClient as DispatcherGrpcClient;
 use crate::grpc::v0::dispatcher::{
-    AssignedAction,
-    HeartbeatRequest,
-    StepActionEvent,
-    WorkerListenRequest,
-    WorkerRegisterRequest,
+    AssignedAction, HeartbeatRequest, StepActionEvent, WorkerListenRequest, WorkerRegisterRequest,
     WorkerRegisterResponse,
 };
 
 #[async_trait::async_trait]
-pub trait DispatcherClientTrait: Clone + Debug + Send + Sync {
-    async fn send_step_action_event(
-        &mut self,
-        event: StepActionEvent,
-    ) -> Result<(), HatchetError>;
+pub trait DispatcherClientTrait: Clone + Debug + Send + Sync + 'static {
+    async fn send_step_action_event(&mut self, event: StepActionEvent) -> Result<(), HatchetError>;
 
     async fn register_worker(
         &mut self,
@@ -47,10 +40,7 @@ impl DispatcherClient {
 
 #[async_trait::async_trait]
 impl DispatcherClientTrait for DispatcherClient {
-    async fn send_step_action_event(
-        &mut self,
-        event: StepActionEvent,
-    ) -> Result<(), HatchetError> {
+    async fn send_step_action_event(&mut self, event: StepActionEvent) -> Result<(), HatchetError> {
         let mut request = Request::new(event);
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
         self.client.send_step_action_event(request).await?;

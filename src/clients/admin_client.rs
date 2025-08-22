@@ -5,7 +5,7 @@ use crate::grpc::v1::workflows::CreateWorkflowVersionRequest;
 use crate::grpc::v1::workflows::admin_service_client::AdminServiceClient;
 
 #[async_trait::async_trait]
-pub trait AdminClientTrait: Clone + Debug + Send + Sync {
+pub trait AdminClientTrait: Clone + Debug + Send + Sync + 'static {
     async fn put_workflow(
         &mut self,
         workflow: CreateWorkflowVersionRequest,

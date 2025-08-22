@@ -5,7 +5,7 @@ use crate::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
 use crate::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
 
 #[async_trait::async_trait]
-pub trait WorkflowClientTrait: Clone + Debug + Send + Sync {
+pub trait WorkflowClientTrait: Clone + Debug + Send + Sync + 'static {
     async fn trigger_workflow(
         &mut self,
         trigger_workflow_request: TriggerWorkflowRequest,
