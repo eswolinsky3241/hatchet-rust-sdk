@@ -2,15 +2,18 @@ use std::fmt::Debug;
 
 use crate::grpc::v0::events::{PutLogRequest, events_service_client};
 use crate::utils::proto_timestamp_now;
+use dyn_clone::DynClone;
 
 #[async_trait::async_trait]
-pub trait EventClientTrait: Clone + Debug + Send + Sync + 'static {
+pub trait EventClientTrait: Debug + Send + Sync + DynClone + 'static {
     async fn put_log(
         &mut self,
         step_run_id: &str,
         message: String,
     ) -> Result<(), crate::HatchetError>;
 }
+
+dyn_clone::clone_trait_object!(EventClientTrait);
 
 #[derive(Debug, Clone)]
 pub(crate) struct EventClient {

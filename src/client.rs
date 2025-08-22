@@ -11,8 +11,10 @@ use crate::grpc::v0::dispatcher::{
 };
 use crate::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
 use crate::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
+use crate::rest::models::GetWorkflowRunResponse;
+
 #[async_trait::async_trait]
-pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
+pub(crate) trait HatchetClientTrait: Send + Sync + 'static {
     async fn get_workflow_run(
         &self,
         run_id: &str,
@@ -50,35 +52,27 @@ pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
         worker_id: &str,
     ) -> Result<tonic::Streaming<AssignedAction>, HatchetError>;
 
-    async fn api_get<T>(&self, path: &str) -> Result<T, HatchetError>
-    where
-        T: serde::de::DeserializeOwned;
+    async fn api_get(&self, path: &str) -> Result<GetWorkflowRunResponse, HatchetError>;
 }
 
 #[derive(Clone, Debug)]
-pub struct HatchetClient<A, W, D, E> {
+pub struct HatchetClient {
     server_url: String,
     api_token: String,
-    pub(crate) workflow_client: W,
-    pub(crate) dispatcher_client: D,
-    pub(crate) event_client: E,
-    pub(crate) admin_client: A,
+    workflow_client: Box<dyn WorkflowClientTrait + Send + Sync>,
+    dispatcher_client: Box<dyn DispatcherClientTrait + Send + Sync>,
+    event_client: Box<dyn EventClientTrait + Send + Sync>,
+    admin_client: Box<dyn AdminClientTrait + Send + Sync>,
 }
 
-impl<A, W, D, E> HatchetClient<A, W, D, E>
-where
-    A: AdminClientTrait,
-    W: WorkflowClientTrait,
-    D: DispatcherClientTrait,
-    E: EventClientTrait,
-{
+impl HatchetClient {
     pub async fn new(
         server_url: String,
         api_token: String,
-        admin_client: A,
-        workflow_client: W,
-        dispatcher_client: D,
-        event_client: E,
+        admin_client: Box<dyn AdminClientTrait + Send + Sync>,
+        workflow_client: Box<dyn WorkflowClientTrait + Send + Sync>,
+        dispatcher_client: Box<dyn DispatcherClientTrait + Send + Sync>,
+        event_client: Box<dyn EventClientTrait + Send + Sync>,
     ) -> Result<Self, HatchetError> {
         Ok(Self {
             server_url,
@@ -129,7 +123,7 @@ where
     }
 }
 
-impl HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient> {
+impl HatchetClient {
     pub async fn from_env() -> Result<Self, HatchetError> {
         let config = HatchetConfig::from_env()?;
         let channel = Self::create_channel(&config.grpc_address, &config.tls_strategy).await?;
@@ -141,31 +135,30 @@ impl HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient> {
         Self::new(
             config.server_url,
             config.api_token,
-            admin_client,
-            workflow_client,
-            dispatcher_client,
-            event_client,
+            Box::new(admin_client),
+            Box::new(workflow_client),
+            Box::new(dispatcher_client),
+            Box::new(event_client),
         )
         .await
     }
 
-    pub fn new_workflow<I, O>(&self, workflow_name: &str) -> crate::workflows::Workflow<I, O, Self>
+    pub fn new_workflow<I, O>(&self, workflow_name: &str) -> crate::workflows::Workflow<I, O>
     where
         I: serde::Serialize + Send + Sync,
         O: serde::de::DeserializeOwned + Send + Sync,
     {
-        crate::workflows::Workflow::<I, O, Self>::new(workflow_name, self.clone(), vec![], vec![])
+        crate::workflows::Workflow::<I, O>::new(
+            workflow_name,
+            Box::new(self.clone()),
+            vec![],
+            vec![],
+        )
     }
 }
 
 #[async_trait::async_trait]
-impl<A, W, D, E> HatchetClientTrait for HatchetClient<A, W, D, E>
-where
-    A: AdminClientTrait,
-    W: WorkflowClientTrait,
-    D: DispatcherClientTrait,
-    E: EventClientTrait,
-{
+impl HatchetClientTrait for HatchetClient {
     async fn get_workflow_run(
         &self,
         run_id: &str,
@@ -238,14 +231,11 @@ where
         self.dispatcher_client.listen(worker_id).await
     }
 
-    async fn api_get<T>(&self, path: &str) -> Result<T, HatchetError>
-    where
-        T: serde::de::DeserializeOwned,
-    {
+    async fn api_get(&self, path: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
         let api_client =
             crate::rest::ApiClient::new(self.server_url.clone(), self.api_token.clone());
 
-        api_client.get::<T>(path).await
+        api_client.get(path).await
     }
 }
 
@@ -333,10 +323,10 @@ mod tests {
         let mut client = HatchetClient::new(
             String::from("https://hatchet.com"),
             String::from("part0.part1.part2"),
-            admin_client,
-            workflow_client,
-            dispatcher_client,
-            event_client,
+            Box::new(admin_client),
+            Box::new(workflow_client),
+            Box::new(dispatcher_client),
+            Box::new(event_client),
         )
         .await
         .unwrap();

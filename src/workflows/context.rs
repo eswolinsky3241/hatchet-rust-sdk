@@ -4,19 +4,19 @@ use crate::HatchetError;
 use crate::client::HatchetClientTrait;
 use crate::rest::models::GetWorkflowRunResponse;
 
-#[derive(Clone, Debug)]
-pub struct Context<C> {
+pub struct Context {
     logger_tx: mpsc::Sender<String>,
-    client: C,
+    client: Box<dyn HatchetClientTrait>,
     workflow_run_id: String,
     step_run_id: String,
 }
 
-impl<C> Context<C>
-where
-    C: HatchetClientTrait,
-{
-    pub(crate) async fn new(client: C, workflow_run_id: &str, step_run_id: &str) -> Self {
+impl Context {
+    pub(crate) async fn new(
+        client: Box<dyn HatchetClientTrait>,
+        workflow_run_id: &str,
+        step_run_id: &str,
+    ) -> Self {
         let mut client_clone = client.clone();
         let (tx, mut rx) = mpsc::channel::<String>(100);
         let step_run_id = step_run_id.to_string();

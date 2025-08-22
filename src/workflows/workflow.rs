@@ -13,26 +13,24 @@ use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::workflows::task::{ErasedTask, Task};
 
-#[derive(Clone)]
-pub struct Workflow<I, O, C> {
+pub struct Workflow<I, O> {
     pub(crate) name: String,
-    client: C,
-    pub(crate) erased_tasks: Vec<ErasedTask<C>>,
+    client: Box<dyn HatchetClientTrait>,
+    pub(crate) erased_tasks: Vec<ErasedTask>,
     tasks: Vec<CreateTaskOpts>,
     on_events: Vec<String>,
     default_filters: Vec<DefaultFilter>,
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 
-impl<I, O, C> Workflow<I, O, C>
+impl<I, O> Workflow<I, O>
 where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
-    C: HatchetClientTrait,
 {
     pub fn new(
         name: impl Into<String>,
-        client: C,
+        client: Box<dyn HatchetClientTrait>,
         on_events: Vec<String>,
         default_filters: Vec<DefaultFilter>,
     ) -> Self {
@@ -47,7 +45,7 @@ where
         }
     }
 
-    pub fn add_task<P>(mut self, task: Task<I, P, C>) -> Result<Self, HatchetError>
+    pub fn add_task<P>(mut self, task: Task<I, P>) -> Result<Self, HatchetError>
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         P: serde::Serialize + Send + 'static,

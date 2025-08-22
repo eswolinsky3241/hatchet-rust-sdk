@@ -13,19 +13,20 @@ use crate::worker::action_listener::ActionListener;
 use crate::worker::types::ErasedTaskFn;
 use crate::workflows::context::Context;
 
-pub struct Worker<C> {
+pub struct Worker {
     pub name: String,
     max_runs: i32,
-    pub client: C,
-    tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn<C>>>>>,
+    pub client: Box<dyn HatchetClientTrait>,
+    tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
     workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
-impl<C> Worker<C>
-where
-    C: HatchetClientTrait,
-{
-    pub fn new(name: &str, client: C, max_runs: i32) -> Result<Self, HatchetError> {
+impl Worker {
+    pub fn new(
+        name: &str,
+        client: Box<dyn HatchetClientTrait>,
+        max_runs: i32,
+    ) -> Result<Self, HatchetError> {
         Ok(Self {
             name: name.to_string(),
             max_runs,
@@ -37,7 +38,7 @@ where
 
     pub fn add_workflow<I, O>(
         mut self,
-        workflow: crate::workflows::workflow::Workflow<I, O, C>,
+        workflow: crate::workflows::workflow::Workflow<I, O>,
     ) -> Self
     where
         I: Serialize + Send + Sync,
@@ -47,9 +48,10 @@ where
 
         for task in workflow.erased_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
-            let task_fn: Arc<ErasedTaskFn<C>> = Arc::new(Box::new(
-                move |input: serde_json::Value, ctx: Context<C>| task.function.call(input, ctx),
-            ));
+            let task_fn: Arc<ErasedTaskFn> =
+                Arc::new(Box::new(move |input: serde_json::Value, ctx: Context| {
+                    task.function.call(input, ctx)
+                }));
             self.tasks
                 .lock()
                 .unwrap()
@@ -133,7 +135,7 @@ where
     }
 
     async fn register_worker(
-        client: &mut C,
+        client: &mut Box<dyn HatchetClientTrait>,
         name: &str,
         actions: Vec<String>,
         max_runs: i32,

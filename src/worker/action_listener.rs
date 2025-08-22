@@ -4,15 +4,12 @@ use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 
-pub(crate) struct ActionListener<C> {
-    pub(crate) client: C,
+pub(crate) struct ActionListener {
+    pub(crate) client: Box<dyn HatchetClientTrait>,
 }
 
-impl<C> ActionListener<C>
-where
-    C: HatchetClientTrait,
-{
-    pub(crate) fn new(client: C) -> Self {
+impl ActionListener {
+    pub(crate) fn new(client: Box<dyn HatchetClientTrait>) -> Self {
         Self { client }
     }
 

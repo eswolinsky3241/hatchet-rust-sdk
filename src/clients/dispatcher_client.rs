@@ -1,4 +1,6 @@
 use std::fmt::Debug;
+
+use dyn_clone::DynClone;
 use tonic::Request;
 
 use crate::error::HatchetError;
@@ -9,7 +11,7 @@ use crate::grpc::v0::dispatcher::{
 };
 
 #[async_trait::async_trait]
-pub trait DispatcherClientTrait: Clone + Debug + Send + Sync + 'static {
+pub trait DispatcherClientTrait: Debug + Send + Sync + DynClone + 'static {
     async fn send_step_action_event(&mut self, event: StepActionEvent) -> Result<(), HatchetError>;
 
     async fn register_worker(
@@ -24,6 +26,8 @@ pub trait DispatcherClientTrait: Clone + Debug + Send + Sync + 'static {
         worker_id: &str,
     ) -> Result<tonic::Streaming<AssignedAction>, HatchetError>;
 }
+
+dyn_clone::clone_trait_object!(DispatcherClientTrait);
 
 #[derive(Clone, Debug)]
 pub(crate) struct DispatcherClient {

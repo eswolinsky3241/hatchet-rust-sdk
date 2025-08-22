@@ -14,17 +14,14 @@ use crate::worker::types::ErasedTaskFn;
 use crate::workflows::context::Context;
 
 #[derive(Clone)]
-pub(crate) struct TaskDispatcher<C> {
-    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn<C>>>>>,
-    pub(crate) client: C,
+pub(crate) struct TaskDispatcher {
+    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
+    pub(crate) client: Box<dyn HatchetClientTrait>,
     pub(crate) task_runs:
         Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,
 }
 
-impl<C> TaskDispatcher<C>
-where
-    C: HatchetClientTrait,
-{
+impl TaskDispatcher {
     pub(crate) async fn dispatch(
         &mut self,
         worker_id: Arc<String>,
