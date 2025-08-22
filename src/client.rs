@@ -23,7 +23,7 @@ pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
         &mut self,
         name: &str,
         tasks: Vec<CreateTaskOpts>,
-        event_triggers: Vec<String>,
+        event_triggers: Option<Vec<String>>,
     ) -> Result<(), HatchetError>;
 
     async fn trigger_workflow(
@@ -171,12 +171,12 @@ where
         &mut self,
         name: &str,
         tasks: Vec<CreateTaskOpts>,
-        event_triggers: Vec<String>,
+        event_triggers: Option<Vec<String>>,
     ) -> Result<(), HatchetError> {
         let workflow = CreateWorkflowVersionRequest {
             name: name.to_string(),
             tasks,
-            event_triggers,
+            event_triggers: event_triggers.unwrap_or(vec![]),
             cron_triggers: vec![],
             description: String::from(""),
             version: String::from(""),
@@ -334,7 +334,11 @@ mod tests {
         .unwrap();
 
         let workflow_run = client
-            .put_workflow("test-workflow", vec![], vec!["test-event".to_string()])
+            .put_workflow(
+                "test-workflow",
+                vec![],
+                Some(vec!["test-event".to_string()]),
+            )
             .await
             .unwrap();
 

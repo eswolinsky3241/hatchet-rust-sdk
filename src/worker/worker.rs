@@ -64,7 +64,7 @@ where
                 .put_workflow(
                     &workflow.name,
                     workflow.tasks.clone(),
-                    workflow.event_triggers.clone(),
+                    Some(workflow.event_triggers.clone()),
                 )
                 .await
                 .unwrap();
