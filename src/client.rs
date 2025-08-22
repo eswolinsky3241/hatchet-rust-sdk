@@ -11,7 +11,6 @@ use crate::grpc::v0::dispatcher::{
 };
 use crate::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
 use crate::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
-
 #[async_trait::async_trait]
 pub(crate) trait HatchetClientTrait: Clone + Send + Sync + 'static {
     async fn get_workflow_run(
@@ -149,6 +148,14 @@ impl HatchetClient<AdminClient, WorkflowClient, DispatcherClient, EventClient> {
         )
         .await
     }
+
+    pub fn new_workflow<I, O>(&self, workflow_name: &str) -> crate::workflows::Workflow<I, O, Self>
+    where
+        I: serde::Serialize + Send + Sync,
+        O: serde::de::DeserializeOwned + Send + Sync,
+    {
+        crate::workflows::Workflow::<I, O, Self>::new(workflow_name, self.clone(), vec![], vec![])
+    }
 }
 
 #[async_trait::async_trait]
@@ -244,9 +251,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use mockall::predicate::*;
     use mockall::*;
+
+    use super::*;
 
     mock! {
         #[derive(Clone, Debug)]
