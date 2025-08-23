@@ -163,14 +163,11 @@ impl HatchetClient {
     where
         I: serde::de::DeserializeOwned + Send + Sync + 'static,
         O: serde::Serialize + Send + Sync + 'static,
-        E: std::error::Error + Send + Sync + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
         F: Fn(I, crate::workflows::context::Context) -> Fut + Send + Sync + 'static,
         Fut: std::future::Future<Output = Result<O, E>> + Send + 'static,
     {
-        crate::workflows::Task::<I, O, E>::new(name, move |input, ctx| {
-            let fut = f(input, ctx);
-            Box::pin(fut) as crate::worker::types::HatchetTaskFuture<O, E>
-        })
+        crate::workflows::Task::<I, O, E>::new(name, f)
     }
 }
 

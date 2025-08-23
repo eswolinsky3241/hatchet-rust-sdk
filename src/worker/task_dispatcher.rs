@@ -10,12 +10,12 @@ use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::worker::types::ErasedHatchetTaskFunction;
+use crate::workflows::task::ExecutableTask;
 use crate::workflows::context::Context;
 
 #[derive(Clone)]
 pub(crate) struct TaskDispatcher {
-    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedHatchetTaskFunction>>>>,
+    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     pub(crate) client: Box<dyn HatchetClientTrait>,
     pub(crate) task_runs:
         Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,
@@ -46,7 +46,7 @@ impl TaskDispatcher {
         self.send_step_action_event(&worker_id, &message, 1, String::from(""))
             .await?;
 
-        let handler = self
+        let task = self
             .registry
             .lock()
             .unwrap()
@@ -81,9 +81,9 @@ impl TaskDispatcher {
                         .expect("missing `input` field");
 
                     let result: Result<
-                        Result<serde_json::Value, Box<dyn std::error::Error + Send>>,
+                        Result<serde_json::Value, crate::workflows::task::TaskError>,
                         Box<dyn std::any::Any + Send>,
-                    > = AssertUnwindSafe(handler(input_value, context))
+                    > = AssertUnwindSafe(task.execute(input_value, context))
                         .catch_unwind()
                         .await;
 

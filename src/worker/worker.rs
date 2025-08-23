@@ -10,15 +10,13 @@ use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::worker::action_listener::ActionListener;
-use crate::worker::types::ErasedHatchetTaskFunction;
-use crate::workflows::context::Context;
-use crate::workflows::task::Call;
+use crate::workflows::task::ExecutableTask;
 
 pub struct Worker {
     pub name: String,
     max_runs: i32,
     pub client: Box<dyn HatchetClientTrait>,
-    tasks: Arc<Mutex<HashMap<String, Arc<ErasedHatchetTaskFunction>>>>,
+    tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
@@ -49,14 +47,10 @@ impl Worker {
 
         for task in workflow.erased_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
-            let task_fn: Arc<crate::worker::types::ErasedHatchetTaskFunction> =
-                Arc::new(Box::new(move |input: serde_json::Value, ctx: Context| {
-                    task.function.call_task(input, ctx)
-                }));
             self.tasks
                 .lock()
                 .unwrap()
-                .insert(fully_qualified_name, task_fn);
+                .insert(fully_qualified_name, Arc::from(task.executable));
         }
         self
     }

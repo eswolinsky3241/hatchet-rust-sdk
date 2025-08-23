@@ -43,12 +43,11 @@ where
         }
     }
 
-    pub fn add_task<P, E>(mut self, task: Task<P, O, E>) -> Result<Self, HatchetError>
+    pub fn add_task<P, E>(mut self, task: Task<I, P, E>) -> Result<Self, HatchetError>
     where
-        P: serde::de::DeserializeOwned + Send + 'static,
-        O: serde::Serialize + Send + 'static,
-        E: std::error::Error + Send + Sync + 'static,
-        E: Into<Box<dyn std::error::Error + Send>> + Send + 'static,
+        I: serde::de::DeserializeOwned + Send + 'static,
+        P: serde::Serialize + Send + 'static,
+        E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
     {
         if self
             .tasks
