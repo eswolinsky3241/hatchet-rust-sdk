@@ -124,9 +124,7 @@ impl HatchetClient {
 
         Ok(channel)
     }
-}
 
-impl HatchetClient {
     pub async fn from_env() -> Result<Self, HatchetError> {
         let config = HatchetConfig::from_env()?;
         let channel = Self::create_channel(&config.grpc_address, &config.tls_strategy).await?;

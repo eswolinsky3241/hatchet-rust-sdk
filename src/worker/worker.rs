@@ -15,7 +15,7 @@ use crate::workflows::task::ExecutableTask;
 pub struct Worker {
     pub name: String,
     max_runs: i32,
-    pub client: Box<dyn HatchetClientTrait>,
+    client: Box<dyn HatchetClientTrait>,
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
