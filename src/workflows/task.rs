@@ -5,49 +5,44 @@ use std::sync::Arc;
 use crate::HatchetError;
 use crate::client::HatchetClientTrait;
 use crate::grpc::v1::workflows::CreateTaskOpts;
-use crate::worker::types::{self, HatchetTaskResult, TaskFn};
+use crate::worker::types::{
+    self, ErasedHatchetTaskFunction, HatchetTaskFunction, HatchetTaskResult,
+};
 use crate::workflows::context::Context;
-pub struct Task<I, O> {
+
+pub struct Task<I, O, E> {
     pub(crate) name: String,
-    pub(crate) function: Arc<TaskFn<I, O>>,
+    pub(crate) function: Arc<HatchetTaskFunction<I, O, E>>,
     pub(crate) parents: Vec<String>,
 }
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub(crate) struct ErasedTask {
     pub(crate) name: String,
-    pub(crate) function: Arc<dyn ErasedTaskFn + Send + Sync>,
+    pub(crate) function: ErasedHatchetTaskFunction,
 }
 
-pub(crate) trait ErasedTaskFn {
+#[async_trait::async_trait]
+pub(crate) trait Call<I, O, E> {
     fn call(
         &self,
         input: serde_json::Value,
         ctx: Context,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<serde_json::Value, Box<dyn std::error::Error + Send>>>
-                + Send,
-        >,
-    >;
+    ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, E>> + Send>>;
 }
 
-// Implementation of ErasedTaskFn for TaskFn
-impl<I, O> ErasedTaskFn for TaskFn<I, O>
+#[async_trait::async_trait]
+impl<I, O, E> Call<I, O, E> for HatchetTaskFunction<I, O, E>
 where
     I: serde::de::DeserializeOwned + Send + 'static,
     O: serde::Serialize + Send + 'static,
+    E: std::error::Error + Send + 'static,
 {
     fn call(
         &self,
         input: serde_json::Value,
         ctx: Context,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<serde_json::Value, Box<dyn std::error::Error + Send>>>
-                + Send,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, E>> + Send>> {
         let typed_input: I =
             serde_json::from_value(input).expect("could not deserialize input to expected type");
         let fut = self(typed_input, ctx);
@@ -59,26 +54,27 @@ where
     }
 }
 
-impl<I, O> Task<I, O> {
+impl<I, O, E> Task<I, O, E>
+where
+    I: serde::de::DeserializeOwned + Send + 'static,
+    O: serde::Serialize + Send + 'static,
+    E: std::error::Error + Send + Sync + 'static,
+{
     pub fn new<F, Fut>(name: &str, f: F) -> Self
     where
         F: Fn(I, Context) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = HatchetTaskResult<O>> + Send + 'static,
+        Fut: Future<Output = HatchetTaskResult<O, E>> + Send + 'static,
     {
-        let function: Arc<TaskFn<I, O>> = Arc::new(Box::new(move |input: I, ctx: Context| {
-            let fut = f(input, ctx);
-            Box::pin(fut) as types::HatchetTaskFuture<O>
-        }));
+        let function: Arc<HatchetTaskFunction<I, O, E>> =
+            Arc::new(Box::new(move |input: I, ctx: Context| {
+                let fut = f(input, ctx);
+                Box::pin(fut) as types::HatchetTaskFuture<O, E>
+            }));
         Self {
             name: name.to_string(),
             function,
             parents: vec![],
         }
-    }
-
-    pub fn add_parent<J, P>(mut self, parent: &Task<J, P>) -> Self {
-        self.parents.push(parent.name.clone());
-        self
     }
 
     pub(crate) fn into_erased(self) -> ErasedTask
@@ -90,6 +86,11 @@ impl<I, O> Task<I, O> {
             name: self.name,
             function: self.function,
         }
+    }
+
+    pub fn add_parent<J, P>(mut self, parent: &Task<J, P, E>) -> Self {
+        self.parents.push(parent.name.clone());
+        self
     }
 
     pub(crate) fn to_proto(&self, workflow_name: &str) -> CreateTaskOpts {
