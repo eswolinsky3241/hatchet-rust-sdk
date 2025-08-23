@@ -10,12 +10,12 @@ use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::worker::types::ErasedTaskFn;
+use crate::worker::types::ErasedHatchetTaskFunction;
 use crate::workflows::context::Context;
 
 #[derive(Clone)]
 pub(crate) struct TaskDispatcher {
-    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
+    pub(crate) registry: Arc<Mutex<HashMap<String, Arc<ErasedHatchetTaskFunction>>>>,
     pub(crate) client: Box<dyn HatchetClientTrait>,
     pub(crate) task_runs:
         Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,

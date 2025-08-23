@@ -6,7 +6,8 @@ use crate::HatchetError;
 use crate::client::HatchetClientTrait;
 use crate::grpc::v1::workflows::CreateTaskOpts;
 use crate::worker::types::{
-    self, ErasedHatchetTaskFunction, HatchetTaskFunction, HatchetTaskResult,
+    self, ErasedHatchetTaskFunction, ErasedHatchetTaskResult, HatchetTaskFunction,
+    HatchetTaskResult,
 };
 use crate::workflows::context::Context;
 
@@ -19,35 +20,45 @@ pub struct Task<I, O, E> {
 // #[derive(Clone)]
 pub(crate) struct ErasedTask {
     pub(crate) name: String,
-    pub(crate) function: ErasedHatchetTaskFunction,
+    pub(crate) function: Arc<ErasedHatchetTaskFunction>,
 }
 
 #[async_trait::async_trait]
-pub(crate) trait Call<I, O, E> {
-    fn call(
+pub(crate) trait Call {
+    fn call_task(
         &self,
         input: serde_json::Value,
         ctx: Context,
-    ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, E>> + Send>>;
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<serde_json::Value, Box<dyn std::error::Error + Send>>>
+                + Send,
+        >,
+    >;
 }
 
 #[async_trait::async_trait]
-impl<I, O, E> Call<I, O, E> for HatchetTaskFunction<I, O, E>
+impl<I, O, E> Call for HatchetTaskFunction<I, O, E>
 where
     I: serde::de::DeserializeOwned + Send + 'static,
     O: serde::Serialize + Send + 'static,
-    E: std::error::Error + Send + 'static,
+    E: Into<Box<dyn std::error::Error + Send>> + Send + 'static,
 {
-    fn call(
+    fn call_task(
         &self,
         input: serde_json::Value,
         ctx: Context,
-    ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, E>> + Send>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<serde_json::Value, Box<dyn std::error::Error + Send>>>
+                + Send,
+        >,
+    > {
         let typed_input: I =
             serde_json::from_value(input).expect("could not deserialize input to expected type");
         let fut = self(typed_input, ctx);
         Box::pin(async move {
-            let result = fut.await?;
+            let result = fut.await.map_err(|e| e.into())?;
             let output_json = serde_json::to_value(result).unwrap();
             Ok(output_json)
         })
@@ -63,13 +74,12 @@ where
     pub fn new<F, Fut>(name: &str, f: F) -> Self
     where
         F: Fn(I, Context) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = HatchetTaskResult<O, E>> + Send + 'static,
+        Fut: Future<Output = Result<O, E>> + Send + 'static,
     {
-        let function: Arc<HatchetTaskFunction<I, O, E>> =
-            Arc::new(Box::new(move |input: I, ctx: Context| {
-                let fut = f(input, ctx);
-                Box::pin(fut) as types::HatchetTaskFuture<O, E>
-            }));
+        let function = Arc::new(Box::new(move |input: I, ctx: Context| {
+            let fut = f(input, ctx);
+            Box::pin(fut) as Pin<Box<dyn Future<Output = Result<O, E>> + Send>>
+        }) as HatchetTaskFunction<I, O, E>);
         Self {
             name: name.to_string(),
             function,
@@ -81,10 +91,31 @@ where
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         O: serde::Serialize + Send + 'static,
+        E: Into<Box<dyn std::error::Error + Send>> + Send + 'static,
     {
+        let original_function = self.function;
+        let erased_function: ErasedHatchetTaskFunction = Box::new(
+            move |input: serde_json::Value, ctx: Context| -> ErasedHatchetTaskResult {
+                let typed_input: I =
+                    serde_json::from_value(input).expect("Failed to deserialize input");
+
+                let fut = original_function(typed_input, ctx);
+                Box::pin(async move {
+                    match fut.await {
+                        Ok(output) => {
+                            let json_output = serde_json::to_value(output)
+                                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+                            Ok(json_output)
+                        }
+                        Err(e) => Err(e.into()),
+                    }
+                })
+            },
+        );
+
         ErasedTask {
             name: self.name,
-            function: self.function,
+            function: Arc::new(erased_function),
         }
     }
 

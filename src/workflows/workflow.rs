@@ -5,9 +5,7 @@ use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
 use crate::grpc::v0::workflows::TriggerWorkflowRequest;
 use crate::grpc::v1::workflows::{
-    CreateTaskOpts,
-    CreateWorkflowVersionRequest,
-    DefaultFilter as DefaultFilterProto,
+    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
 use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
@@ -45,10 +43,12 @@ where
         }
     }
 
-    pub fn add_task<P>(mut self, task: Task<I, P>) -> Result<Self, HatchetError>
+    pub fn add_task<P, E>(mut self, task: Task<P, O, E>) -> Result<Self, HatchetError>
     where
-        I: serde::de::DeserializeOwned + Send + 'static,
-        P: serde::Serialize + Send + 'static,
+        P: serde::de::DeserializeOwned + Send + 'static,
+        O: serde::Serialize + Send + 'static,
+        E: std::error::Error + Send + Sync + 'static,
+        E: Into<Box<dyn std::error::Error + Send>> + Send + 'static,
     {
         if self
             .tasks

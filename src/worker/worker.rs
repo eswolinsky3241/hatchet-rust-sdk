@@ -10,27 +10,28 @@ use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher;
 use crate::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::worker::action_listener::ActionListener;
-use crate::worker::types::ErasedTaskFn;
+use crate::worker::types::ErasedHatchetTaskFunction;
 use crate::workflows::context::Context;
+use crate::workflows::task::Call;
 
 pub struct Worker {
     pub name: String,
     max_runs: i32,
     pub client: Box<dyn HatchetClientTrait>,
-    tasks: Arc<Mutex<HashMap<String, Arc<ErasedTaskFn>>>>,
+    tasks: Arc<Mutex<HashMap<String, Arc<ErasedHatchetTaskFunction>>>>,
     workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
 impl Worker {
     pub fn new(
         name: &str,
-        client: Box<dyn HatchetClientTrait>,
+        client: impl HatchetClientTrait,
         max_runs: i32,
     ) -> Result<Self, HatchetError> {
         Ok(Self {
             name: name.to_string(),
             max_runs,
-            client,
+            client: Box::new(client),
             tasks: Arc::new(Mutex::new(HashMap::new())),
             workflows: vec![],
         })
@@ -48,9 +49,9 @@ impl Worker {
 
         for task in workflow.erased_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
-            let task_fn: Arc<ErasedTaskFn> =
+            let task_fn: Arc<crate::worker::types::ErasedHatchetTaskFunction> =
                 Arc::new(Box::new(move |input: serde_json::Value, ctx: Context| {
-                    task.function.call(input, ctx)
+                    task.function.call_task(input, ctx)
                 }));
             self.tasks
                 .lock()

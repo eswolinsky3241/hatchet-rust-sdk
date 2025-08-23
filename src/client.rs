@@ -1,3 +1,4 @@
+use dyn_clone::DynClone;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::clients::{
@@ -14,7 +15,7 @@ use crate::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
 use crate::rest::models::GetWorkflowRunResponse;
 
 #[async_trait::async_trait]
-pub(crate) trait HatchetClientTrait: Send + Sync + 'static {
+pub(crate) trait HatchetClientTrait: Send + Sync + DynClone + 'static {
     async fn get_workflow_run(
         &self,
         run_id: &str,
@@ -54,6 +55,8 @@ pub(crate) trait HatchetClientTrait: Send + Sync + 'static {
 
     async fn api_get(&self, path: &str) -> Result<GetWorkflowRunResponse, HatchetError>;
 }
+
+dyn_clone::clone_trait_object!(HatchetClientTrait);
 
 #[derive(Clone, Debug)]
 pub struct HatchetClient {
@@ -154,6 +157,20 @@ impl HatchetClient {
             vec![],
             vec![],
         )
+    }
+
+    pub fn new_task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::workflows::Task<I, O, E>
+    where
+        I: serde::de::DeserializeOwned + Send + Sync + 'static,
+        O: serde::Serialize + Send + Sync + 'static,
+        E: std::error::Error + Send + Sync + 'static,
+        F: Fn(I, crate::workflows::context::Context) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<O, E>> + Send + 'static,
+    {
+        crate::workflows::Task::<I, O, E>::new(name, move |input, ctx| {
+            let fut = f(input, ctx);
+            Box::pin(fut) as crate::worker::types::HatchetTaskFuture<O, E>
+        })
     }
 }
 
