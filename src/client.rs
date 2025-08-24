@@ -323,24 +323,21 @@ mod tests {
     }
 
     #[fixture]
-    fn admin_client() -> MockAdminClient {
-        MockAdminClient::new()
-    }
-    #[fixture]
-    fn workflow_client() -> MockWorkflowClient {
-        MockWorkflowClient::new()
-    }
-    #[fixture]
-    fn dispatcher_client() -> MockDispatcherClient {
-        MockDispatcherClient::new()
-    }
-    #[fixture]
-    fn event_client() -> MockEventClient {
-        MockEventClient::new()
+    fn mock_clients() -> (
+        MockAdminClient,
+        MockWorkflowClient,
+        MockDispatcherClient,
+        MockEventClient,
+    ) {
+        (
+            MockAdminClient::new(),
+            MockWorkflowClient::new(),
+            MockDispatcherClient::new(),
+            MockEventClient::new(),
+        )
     }
 
-    #[fixture]
-    async fn client(
+    async fn create_test_client(
         admin_client: MockAdminClient,
         workflow_client: MockWorkflowClient,
         dispatcher_client: MockDispatcherClient,
@@ -361,9 +358,15 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn test_trigger_workflow(
-        #[future] mut client: HatchetClient,
-        mut workflow_client: MockWorkflowClient,
+        mock_clients: (
+            MockAdminClient,
+            MockWorkflowClient,
+            MockDispatcherClient,
+            MockEventClient,
+        ),
     ) {
+        let (admin_client, mut workflow_client, dispatcher_client, event_client) = mock_clients;
+
         workflow_client
             .expect_trigger_workflow()
             .with(eq(TriggerWorkflowRequest {
@@ -383,8 +386,15 @@ mod tests {
                 })
             });
 
+        let mut client = create_test_client(
+            admin_client,
+            workflow_client,
+            dispatcher_client,
+            event_client,
+        )
+        .await;
+
         let workflow_run_id = client
-            .await
             .trigger_workflow(
                 "test-workflow",
                 json!({"key": "value"}),
@@ -398,10 +408,47 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_put_workflow(
-        #[future] mut client: HatchetClient,
-        mut admin_client: MockAdminClient,
+    async fn test_log(
+        mock_clients: (
+            MockAdminClient,
+            MockWorkflowClient,
+            MockDispatcherClient,
+            MockEventClient,
+        ),
     ) {
+        let (admin_client, workflow_client, dispatcher_client, mut event_client) = mock_clients;
+
+        event_client
+            .expect_put_log()
+            .with(eq("test-step-run"), eq(String::from("test-message")))
+            .returning(|_, _| Ok(()));
+
+        let mut client = create_test_client(
+            admin_client,
+            workflow_client,
+            dispatcher_client,
+            event_client,
+        )
+        .await;
+
+        client
+            .put_log("test-step-run", String::from("test-message"))
+            .await
+            .unwrap();
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_put_workflow(
+        mock_clients: (
+            MockAdminClient,
+            MockWorkflowClient,
+            MockDispatcherClient,
+            MockEventClient,
+        ),
+    ) {
+        let (mut admin_client, workflow_client, dispatcher_client, event_client) = mock_clients;
+
         admin_client
             .expect_put_workflow()
             .with(eq(CreateWorkflowVersionRequest {
@@ -421,8 +468,15 @@ mod tests {
             }))
             .returning(|_| Ok(()));
 
+        let mut client = create_test_client(
+            admin_client,
+            workflow_client,
+            dispatcher_client,
+            event_client,
+        )
+        .await;
+
         let workflow_run = client
-            .await
             .put_workflow(
                 "test-workflow",
                 vec![],
