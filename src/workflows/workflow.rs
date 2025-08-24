@@ -9,13 +9,13 @@ use crate::grpc::v1::workflows::{
 };
 use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::workflows::task::{ErasedTask, Task};
+use crate::workflows::task::{ExecutableTask, Task};
 
 #[derive(Clone)]
 pub struct Workflow<I, O> {
     pub(crate) name: String,
     client: Box<dyn HatchetClientTrait>,
-    pub(crate) erased_tasks: Vec<ErasedTask>,
+    pub(crate) executable_tasks: Vec<Box<dyn ExecutableTask>>,
     tasks: Vec<CreateTaskOpts>,
     on_events: Vec<String>,
     default_filters: Vec<DefaultFilter>,
@@ -36,7 +36,7 @@ where
         Self {
             name: name.into(),
             client,
-            erased_tasks: vec![],
+            executable_tasks: vec![],
             tasks: vec![],
             on_events,
             default_filters,
@@ -62,7 +62,7 @@ where
         }
 
         self.tasks.push(task.to_proto(&self.name));
-        self.erased_tasks.push(task.into_erased());
+        self.executable_tasks.push(task.into_executable());
         Ok(self)
     }
 

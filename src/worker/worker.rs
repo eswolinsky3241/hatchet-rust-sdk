@@ -45,12 +45,12 @@ impl Worker {
     {
         self.workflows.push(workflow.to_proto());
 
-        for task in workflow.erased_tasks {
-            let fully_qualified_name = format!("{}:{}", workflow.name, task.name);
+        for task in workflow.executable_tasks {
+            let fully_qualified_name = format!("{}:{}", workflow.name, task.name());
             self.tasks
                 .lock()
                 .unwrap()
-                .insert(fully_qualified_name, Arc::from(task.executable));
+                .insert(fully_qualified_name, Arc::from(task));
         }
         self
     }

@@ -5,17 +5,12 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-/// The result type for all erased tasks
 pub type TaskResult = Pin<Box<dyn Future<Output = Result<serde_json::Value, TaskError>> + Send>>;
 
-/// Unified error type for task execution
 #[derive(Debug)]
 pub enum TaskError {
-    /// Failed to deserialize input JSON to expected type
     InputDeserialization(serde_json::Error),
-    /// Failed to serialize output to JSON
     OutputSerialization(serde_json::Error),
-    /// Task execution failed
     Execution(Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -39,17 +34,13 @@ impl std::error::Error for TaskError {
     }
 }
 
-/// A type-erased task that can be executed with JSON input/output
 pub trait ExecutableTask: Send + Sync + dyn_clone::DynClone {
-    /// Execute the task with JSON input and return JSON output
     fn execute(&self, input: serde_json::Value, ctx: Context) -> TaskResult;
-    /// Get the task name
     fn name(&self) -> &str;
 }
 
 dyn_clone::clone_trait_object!(ExecutableTask);
 
-/// A typed task that users create
 pub struct Task<I, O, E> {
     pub(crate) name: String,
     handler:
@@ -63,7 +54,6 @@ where
     O: Serialize + Send + 'static,
     E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
 {
-    /// Create a new task with the given name and handler function
     pub fn new<F, Fut>(name: impl Into<String>, handler: F) -> Self
     where
         F: FnOnce(I, Context) -> Fut + Send + Sync + Clone + 'static,
@@ -98,16 +88,13 @@ where
                 move |input: serde_json::Value, ctx: Context| -> TaskResult {
                     let handler = handler.clone();
                     Box::pin(async move {
-                        // Deserialize input with proper error handling
                         let typed_input: I = serde_json::from_value(input)
                             .map_err(TaskError::InputDeserialization)?;
 
-                        // Execute task with proper error handling
                         let result = handler(typed_input, ctx)
                             .await
                             .map_err(|e| TaskError::Execution(e.into()))?;
 
-                        // Serialize output with proper error handling
                         serde_json::to_value(result).map_err(TaskError::OutputSerialization)
                     }) as TaskResult
                 },
@@ -147,33 +134,6 @@ impl ExecutableTask for TypeErasedTask {
 
     fn name(&self) -> &str {
         &self.name
-    }
-}
-
-// Backward compatibility types - these will be removed in the next step
-#[derive(Clone)]
-pub(crate) struct ErasedTask {
-    pub(crate) name: String,
-    pub(crate) executable: Box<dyn ExecutableTask>,
-}
-
-impl ErasedTask {
-    pub fn from_executable(executable: Box<dyn ExecutableTask>) -> Self {
-        let name = executable.name().to_string();
-        Self { name, executable }
-    }
-}
-
-// Temporary compatibility - will be removed
-impl<I, O, E> Task<I, O, E>
-where
-    I: for<'de> Deserialize<'de> + Send + 'static,
-    O: Serialize + Send + 'static,
-    E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
-{
-    pub(crate) fn into_erased(self) -> ErasedTask {
-        let executable = self.into_executable();
-        ErasedTask::from_executable(executable)
     }
 }
 

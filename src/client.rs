@@ -15,7 +15,9 @@ use crate::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
 use crate::rest::models::GetWorkflowRunResponse;
 
 #[async_trait::async_trait]
-pub(crate) trait HatchetClientTrait: std::fmt::Debug + Send + Sync + DynClone + 'static {
+pub(crate) trait HatchetClientTrait:
+    std::fmt::Debug + Send + Sync + DynClone + 'static
+{
     async fn get_workflow_run(
         &self,
         run_id: &str,
