@@ -3,12 +3,11 @@ use serde::de::DeserializeOwned;
 
 use crate::client::HatchetClientTrait;
 use crate::error::HatchetError;
-use crate::grpc::v0::workflows::TriggerWorkflowRequest;
 use crate::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
 use crate::rest::models::WorkflowStatus;
-use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
+
 use crate::workflows::task::{ExecutableTask, Task};
 
 #[derive(Clone)]
@@ -143,23 +142,12 @@ where
     where
         T: Serialize,
     {
-        let input_json = serde_json::to_string(&input).map_err(HatchetError::JsonEncode)?;
+        let input_json = serde_json::to_value(&input).map_err(HatchetError::JsonEncode)?;
 
-        let mut request = TriggerWorkflowRequest {
-            input: input_json,
-            name: self.name.clone(),
-            parent_id: None,
-            parent_step_run_id: None,
-            child_index: None,
-            child_key: None,
-            additional_metadata: options.additional_metadata.map(|v| v.to_string()),
-            desired_worker_id: options.desired_worker_id,
-            priority: None,
-        };
-
-        Self::update_task_execution_context(&mut request);
-
-        let response = self.client.trigger_workflow(request).await?;
+        let response = self
+            .client
+            .trigger_workflow(&self.name, input_json, options.additional_metadata)
+            .await?;
 
         Ok(response.workflow_run_id)
     }
@@ -169,19 +157,6 @@ where
         run_id: &str,
     ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
         self.client.get_workflow_run(run_id).await
-    }
-
-    fn update_task_execution_context(request: &mut TriggerWorkflowRequest) {
-        if let Ok(ctx) = EXECUTION_CONTEXT.try_with(|c| c.clone()) {
-            let ctx_inner: ExecutionContext = ctx.into_inner();
-            request.child_index = Some(ctx_inner.child_index.clone());
-            request.parent_id = Some(ctx_inner.workflow_run_id.clone());
-            request.parent_step_run_id = Some(ctx_inner.step_run_id.clone());
-            EXECUTION_CONTEXT.with(|ctx| {
-                let mut ctx = ctx.borrow_mut();
-                ctx.child_index += 1;
-            });
-        }
     }
 }
 

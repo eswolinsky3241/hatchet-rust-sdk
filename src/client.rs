@@ -1,4 +1,5 @@
 use dyn_clone::DynClone;
+use serde_json::Value;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::clients::{
@@ -30,7 +31,9 @@ pub trait HatchetClientTrait: std::fmt::Debug + Send + Sync + DynClone + 'static
 
     async fn trigger_workflow(
         &mut self,
-        trigger_workflow_request: TriggerWorkflowRequest,
+        workflow_name: &str,
+        input: serde_json::Value,
+        additional_metadata: Option<Value>,
     ) -> Result<TriggerWorkflowResponse, HatchetError>;
 
     async fn put_log(
@@ -206,11 +209,22 @@ impl HatchetClientTrait for HatchetClient {
 
     async fn trigger_workflow(
         &mut self,
-        trigger_workflow_request: TriggerWorkflowRequest,
+        workflow_name: &str,
+        input: serde_json::Value,
+        additional_metadata: Option<Value>,
     ) -> Result<TriggerWorkflowResponse, HatchetError> {
-        self.workflow_client
-            .trigger_workflow(trigger_workflow_request)
-            .await
+        let request = TriggerWorkflowRequest {
+            name: workflow_name.to_string(),
+            input: input.to_string(),
+            parent_id: None,
+            parent_step_run_id: None,
+            child_index: None,
+            child_key: None,
+            additional_metadata: additional_metadata.map(|v| v.to_string()),
+            desired_worker_id: None,
+            priority: None,
+        };
+        self.workflow_client.trigger_workflow(request).await
     }
 
     async fn put_log(
@@ -255,6 +269,7 @@ impl HatchetClientTrait for HatchetClient {
 mod tests {
     use mockall::predicate::*;
     use mockall::*;
+    use serde_json::json;
 
     use super::*;
 
@@ -304,6 +319,55 @@ mod tests {
         impl Clone for DispatcherClient {
             fn clone(&self) -> Self;
         }
+    }
+
+    #[tokio::test]
+    async fn test_trigger_workflow() {
+        let admin_client = MockAdminClient::new();
+        let mut workflow_client = MockWorkflowClient::new();
+        let dispatcher_client = MockDispatcherClient::new();
+        let event_client = MockEventClient::new();
+
+        workflow_client
+            .expect_trigger_workflow()
+            .with(eq(TriggerWorkflowRequest {
+                name: String::from("test-workflow"),
+                input: String::from("{\"key\":\"value\"}"),
+                parent_id: None,
+                parent_step_run_id: None,
+                child_index: None,
+                child_key: None,
+                additional_metadata: Some(String::from("{\"label\":\"value\"}")),
+                desired_worker_id: None,
+                priority: None,
+            }))
+            .returning(|_| {
+                Ok(TriggerWorkflowResponse {
+                    workflow_run_id: String::from("123"),
+                })
+            });
+
+        let mut client = HatchetClient::new(
+            String::from("https://hatchet.com"),
+            String::from("part0.part1.part2"),
+            Box::new(admin_client),
+            Box::new(workflow_client),
+            Box::new(dispatcher_client),
+            Box::new(event_client),
+        )
+        .await
+        .unwrap();
+
+        let workflow_run_id = client
+            .trigger_workflow(
+                "test-workflow",
+                json!({"key": "value"}),
+                Some(json!({"label": "value"})),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(workflow_run_id.workflow_run_id, "123")
     }
 
     #[tokio::test]
