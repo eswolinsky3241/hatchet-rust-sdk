@@ -11,6 +11,7 @@ use crate::rest::models::WorkflowStatus;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 use crate::workflows::task::{ErasedTask, Task};
 
+#[derive(Clone)]
 pub struct Workflow<I, O> {
     pub(crate) name: String,
     client: Box<dyn HatchetClientTrait>,

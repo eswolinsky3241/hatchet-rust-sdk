@@ -4,6 +4,7 @@ use crate::HatchetError;
 use crate::client::HatchetClientTrait;
 use crate::rest::models::GetWorkflowRunResponse;
 
+#[derive(Debug)]
 pub struct Context {
     logger_tx: mpsc::Sender<String>,
     client: Box<dyn HatchetClientTrait>,
