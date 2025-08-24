@@ -269,6 +269,7 @@ impl HatchetClientTrait for HatchetClient {
 mod tests {
     use mockall::predicate::*;
     use mockall::*;
+    use rstest::*;
     use serde_json::json;
 
     use super::*;
@@ -321,13 +322,48 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_trigger_workflow() {
-        let admin_client = MockAdminClient::new();
-        let mut workflow_client = MockWorkflowClient::new();
-        let dispatcher_client = MockDispatcherClient::new();
-        let event_client = MockEventClient::new();
+    #[fixture]
+    fn admin_client() -> MockAdminClient {
+        MockAdminClient::new()
+    }
+    #[fixture]
+    fn workflow_client() -> MockWorkflowClient {
+        MockWorkflowClient::new()
+    }
+    #[fixture]
+    fn dispatcher_client() -> MockDispatcherClient {
+        MockDispatcherClient::new()
+    }
+    #[fixture]
+    fn event_client() -> MockEventClient {
+        MockEventClient::new()
+    }
 
+    #[fixture]
+    async fn client(
+        admin_client: MockAdminClient,
+        workflow_client: MockWorkflowClient,
+        dispatcher_client: MockDispatcherClient,
+        event_client: MockEventClient,
+    ) -> HatchetClient {
+        HatchetClient::new(
+            String::from("https://hatchet.com"),
+            String::from("part0.part1.part2"),
+            Box::new(admin_client),
+            Box::new(workflow_client),
+            Box::new(dispatcher_client),
+            Box::new(event_client),
+        )
+        .await
+        .unwrap()
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_trigger_workflow(
+        #[future] mut client: HatchetClient,
+        mut workflow_client: MockWorkflowClient,
+    ) {
         workflow_client
             .expect_trigger_workflow()
             .with(eq(TriggerWorkflowRequest {
@@ -347,18 +383,8 @@ mod tests {
                 })
             });
 
-        let mut client = HatchetClient::new(
-            String::from("https://hatchet.com"),
-            String::from("part0.part1.part2"),
-            Box::new(admin_client),
-            Box::new(workflow_client),
-            Box::new(dispatcher_client),
-            Box::new(event_client),
-        )
-        .await
-        .unwrap();
-
         let workflow_run_id = client
+            .await
             .trigger_workflow(
                 "test-workflow",
                 json!({"key": "value"}),
@@ -370,13 +396,12 @@ mod tests {
         assert_eq!(workflow_run_id.workflow_run_id, "123")
     }
 
+    #[rstest]
     #[tokio::test]
-    async fn test_put_workflow() {
-        let mut admin_client = MockAdminClient::new();
-        let workflow_client = MockWorkflowClient::new();
-        let dispatcher_client = MockDispatcherClient::new();
-        let event_client = MockEventClient::new();
-
+    async fn test_put_workflow(
+        #[future] mut client: HatchetClient,
+        mut admin_client: MockAdminClient,
+    ) {
         admin_client
             .expect_put_workflow()
             .with(eq(CreateWorkflowVersionRequest {
@@ -396,18 +421,8 @@ mod tests {
             }))
             .returning(|_| Ok(()));
 
-        let mut client = HatchetClient::new(
-            String::from("https://hatchet.com"),
-            String::from("part0.part1.part2"),
-            Box::new(admin_client),
-            Box::new(workflow_client),
-            Box::new(dispatcher_client),
-            Box::new(event_client),
-        )
-        .await
-        .unwrap();
-
         let workflow_run = client
+            .await
             .put_workflow(
                 "test-workflow",
                 vec![],
