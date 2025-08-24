@@ -1,5 +1,4 @@
 pub mod client;
-pub(crate) mod clients;
 pub mod config;
 pub mod error;
 pub(crate) mod grpc;

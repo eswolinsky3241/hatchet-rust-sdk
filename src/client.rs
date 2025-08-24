@@ -2,10 +2,6 @@ use dyn_clone::DynClone;
 use serde_json::Value;
 use tonic::transport::{Channel, ClientTlsConfig};
 
-use crate::clients::{
-    AdminClient, AdminClientTrait, DispatcherClient, DispatcherClientTrait, EventClient,
-    EventClientTrait, WorkflowClient, WorkflowClientTrait,
-};
 use crate::config::{HatchetConfig, TlsStrategy};
 use crate::error::HatchetError;
 use crate::grpc::v0::dispatcher::{
@@ -13,6 +9,10 @@ use crate::grpc::v0::dispatcher::{
 };
 use crate::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
 use crate::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
+use crate::grpc::{
+    AdminClient, AdminClientTrait, DispatcherClient, DispatcherClientTrait, EventClient,
+    EventClientTrait, WorkflowClient, WorkflowClientTrait,
+};
 use crate::rest::models::GetWorkflowRunResponse;
 
 #[async_trait::async_trait]
