@@ -102,9 +102,8 @@ impl Worker {
                 .lock()
                 .await
                 .listen(worker_id_clone, action_tx)
-                .await
-                .unwrap();
-        });
+                .await as Result<(), HatchetError>
+        } );
 
         tokio::try_join!(
             async {

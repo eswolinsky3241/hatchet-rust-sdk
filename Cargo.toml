@@ -11,24 +11,27 @@ client = []
 worker = []
 
 [dependencies]
+
+async-trait = "0.1.88"
+base64 = "0.22"
+dyn-clone = "1.0.20"
+futures = "0.3.31"
+prost = "0.13"
+prost-types = "0.13"
+reqwest = { version = "0.12.22", features = ["json"] }
+rustls = { version = "*", features = ["ring"] }
+rustls-native-certs = "0.8.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = "1.46.1"
+tokio-stream = "0.1.17"
+tokio-util = "0.7.15"
 tonic = { version = "0.13", features = [
     "channel",
     "_tls-any",
     "tls-native-roots",
 ] }
-base64 = "0.22"
-prost = "0.13"
-prost-types = "0.13"
-reqwest = { version = "0.12.22", features = ["json"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tokio = "1.46.1"
-thiserror = "2"
-tokio-stream = "0.1.17"
-tokio-util = "0.7.15"
-async-trait = "0.1.88"
-futures = "0.3.31"
-dyn-clone = "1.0.20"
 
 [build-dependencies]
 tonic-build = { version = "0.13.1", features = ["prost"] }

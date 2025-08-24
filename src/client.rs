@@ -112,6 +112,10 @@ impl HatchetClient {
     }
 
     async fn create_secure_channel(grpc_address: &str) -> Result<Channel, HatchetError> {
+        rustls::crypto::ring::default_provider()
+            .install_default()
+            .map_err(|_| return HatchetError::CryptoProvider)?;
+
         let domain_name = grpc_address
             .split(':')
             .next()

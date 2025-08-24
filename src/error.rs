@@ -56,4 +56,6 @@ pub enum HatchetError {
     InvalidTlsStrategy(String),
     #[error("gRPC request returned error with status {0}")]
     GrpcErrorStatus(#[from] tonic::Status),
+    #[error("Error installing default crypto provider")]
+    CryptoProvider,
 }
