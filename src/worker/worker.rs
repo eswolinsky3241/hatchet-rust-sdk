@@ -62,6 +62,7 @@ impl Worker {
                     &workflow.name,
                     workflow.tasks.clone(),
                     Some(workflow.event_triggers.clone()),
+                    workflow.cron_triggers.clone(),
                 )
                 .await
                 .unwrap();

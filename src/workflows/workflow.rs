@@ -17,6 +17,7 @@ pub struct Workflow<I, O> {
     pub(crate) executable_tasks: Vec<Box<dyn ExecutableTask>>,
     tasks: Vec<CreateTaskOpts>,
     on_events: Vec<String>,
+    cron_triggers: Vec<String>,
     default_filters: Vec<DefaultFilter>,
     _phantom: std::marker::PhantomData<(I, O)>,
 }
@@ -30,6 +31,7 @@ where
         name: impl Into<String>,
         client: Box<dyn HatchetClientTrait>,
         on_events: Vec<String>,
+        cron_triggers: Vec<String>,
         default_filters: Vec<DefaultFilter>,
     ) -> Self {
         Self {
@@ -38,6 +40,7 @@ where
             executable_tasks: vec![],
             tasks: vec![],
             on_events,
+            cron_triggers: cron_triggers,
             default_filters,
             _phantom: std::marker::PhantomData,
         }
@@ -71,7 +74,7 @@ where
             description: String::from(""),
             version: String::from(""),
             event_triggers: self.on_events.clone(),
-            cron_triggers: vec![],
+            cron_triggers: self.cron_triggers.clone(),
             tasks: self.tasks.clone(),
             concurrency: None,
             cron_input: None,

@@ -1,3 +1,5 @@
+use std::default;
+
 use dyn_clone::DynClone;
 use serde_json::Value;
 use tonic::transport::{Channel, ClientTlsConfig};
@@ -14,6 +16,7 @@ use crate::grpc::{
     EventClientTrait, WorkflowClient, WorkflowClientTrait,
 };
 use crate::rest::models::GetWorkflowRunResponse;
+use crate::workflows::DefaultFilter;
 
 #[async_trait::async_trait]
 pub trait HatchetClientTrait: std::fmt::Debug + Send + Sync + DynClone + 'static {
@@ -27,6 +30,7 @@ pub trait HatchetClientTrait: std::fmt::Debug + Send + Sync + DynClone + 'static
         name: &str,
         tasks: Vec<CreateTaskOpts>,
         event_triggers: Option<Vec<String>>,
+        cron_triggers: Vec<String>,
     ) -> Result<(), HatchetError>;
 
     async fn trigger_workflow(
@@ -147,7 +151,13 @@ impl HatchetClient {
         .await
     }
 
-    pub fn new_workflow<I, O>(&self, workflow_name: &str) -> crate::workflows::Workflow<I, O>
+    pub fn new_workflow<I, O>(
+        &self,
+        workflow_name: &str,
+        on_events: Vec<String>,
+        cron_triggers: Vec<String>,
+        default_filters: Vec<DefaultFilter>,
+    ) -> crate::workflows::Workflow<I, O>
     where
         I: serde::Serialize + Send + Sync,
         O: serde::de::DeserializeOwned + Send + Sync,
@@ -155,8 +165,9 @@ impl HatchetClient {
         crate::workflows::Workflow::<I, O>::new(
             workflow_name,
             Box::new(self.clone()),
-            vec![],
-            vec![],
+            on_events,
+            cron_triggers,
+            default_filters,
         )
     }
 
@@ -187,12 +198,13 @@ impl HatchetClientTrait for HatchetClient {
         name: &str,
         tasks: Vec<CreateTaskOpts>,
         event_triggers: Option<Vec<String>>,
+        cron_triggers: Vec<String>,
     ) -> Result<(), HatchetError> {
         let workflow = CreateWorkflowVersionRequest {
             name: name.to_string(),
             tasks,
             event_triggers: event_triggers.unwrap_or(vec![]),
-            cron_triggers: vec![],
+            cron_triggers: cron_triggers,
             description: String::from(""),
             version: String::from(""),
             concurrency: None,
@@ -456,7 +468,7 @@ mod tests {
                 description: "".to_string(),
                 version: "".to_string(),
                 event_triggers: vec!["test-event".to_string()],
-                cron_triggers: vec![],
+                cron_triggers: vec!["* * * * *".to_string()],
                 tasks: vec![],
                 concurrency: None,
                 cron_input: None,
@@ -481,6 +493,7 @@ mod tests {
                 "test-workflow",
                 vec![],
                 Some(vec!["test-event".to_string()]),
+                vec![String::from("* * * * *")],
             )
             .await
             .unwrap();
