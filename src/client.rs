@@ -153,6 +153,26 @@ impl HatchetClient {
         .await
     }
 
+    pub async fn from_token(token: &str, tls_strategy: &str) -> Result<Self, HatchetError> {
+        println!("{}", token);
+        let config = HatchetConfig::new(token, tls_strategy)?;
+        let channel = Self::create_channel(&config.grpc_address, &config.tls_strategy).await?;
+
+        let admin_client = AdminClient::new(channel.clone(), config.api_token.clone());
+        let workflow_client = WorkflowClient::new(channel.clone(), config.api_token.clone());
+        let dispatcher_client = DispatcherClient::new(channel.clone(), config.api_token.clone());
+        let event_client = EventClient::new(channel.clone(), config.api_token.clone());
+        Self::new(
+            config.server_url,
+            config.api_token,
+            Box::new(admin_client),
+            Box::new(workflow_client),
+            Box::new(dispatcher_client),
+            Box::new(event_client),
+        )
+        .await
+    }
+
     pub fn new_workflow<I, O>(
         &self,
         workflow_name: &str,
