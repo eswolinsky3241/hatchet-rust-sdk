@@ -1,5 +1,6 @@
 use dyn_clone::DynClone;
 use serde_json::Value;
+use testcontainers::bollard::grpc;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use crate::config::{HatchetConfig, TlsStrategy};
@@ -66,6 +67,7 @@ dyn_clone::clone_trait_object!(HatchetClientTrait);
 #[derive(Clone, Debug)]
 pub struct HatchetClient {
     server_url: String,
+    grpc_broadcast_address: String,
     api_token: String,
     workflow_client: Box<dyn WorkflowClientTrait + Send + Sync>,
     dispatcher_client: Box<dyn DispatcherClientTrait + Send + Sync>,
@@ -76,6 +78,7 @@ pub struct HatchetClient {
 impl HatchetClient {
     pub async fn new(
         server_url: String,
+        grpc_broadcast_address: String,
         api_token: String,
         admin_client: Box<dyn AdminClientTrait + Send + Sync>,
         workflow_client: Box<dyn WorkflowClientTrait + Send + Sync>,
@@ -84,6 +87,7 @@ impl HatchetClient {
     ) -> Result<Self, HatchetError> {
         Ok(Self {
             server_url,
+            grpc_broadcast_address,
             api_token,
             workflow_client,
             dispatcher_client,
@@ -144,6 +148,7 @@ impl HatchetClient {
         let event_client = EventClient::new(channel.clone(), config.api_token.clone());
         Self::new(
             config.server_url,
+            config.grpc_address,
             config.api_token,
             Box::new(admin_client),
             Box::new(workflow_client),
@@ -153,17 +158,23 @@ impl HatchetClient {
         .await
     }
 
-    pub async fn from_token(token: &str, tls_strategy: &str) -> Result<Self, HatchetError> {
+    pub async fn from_token(
+        server_url: &str,
+        grpc_broadcast_address: &str,
+        token: &str,
+        tls_strategy: &str,
+    ) -> Result<Self, HatchetError> {
         println!("{}", token);
         let config = HatchetConfig::new(token, tls_strategy)?;
-        let channel = Self::create_channel(&config.grpc_address, &config.tls_strategy).await?;
+        let channel = Self::create_channel(&grpc_broadcast_address, &config.tls_strategy).await?;
 
         let admin_client = AdminClient::new(channel.clone(), config.api_token.clone());
         let workflow_client = WorkflowClient::new(channel.clone(), config.api_token.clone());
         let dispatcher_client = DispatcherClient::new(channel.clone(), config.api_token.clone());
         let event_client = EventClient::new(channel.clone(), config.api_token.clone());
         Self::new(
-            config.server_url,
+            server_url.to_string(),
+            grpc_broadcast_address.to_string(),
             config.api_token,
             Box::new(admin_client),
             Box::new(workflow_client),
@@ -380,6 +391,7 @@ mod tests {
         HatchetClient::new(
             String::from("https://hatchet.com"),
             String::from("part0.part1.part2"),
+            String::from("http://engine.hatchet.com"),
             Box::new(admin_client),
             Box::new(workflow_client),
             Box::new(dispatcher_client),
