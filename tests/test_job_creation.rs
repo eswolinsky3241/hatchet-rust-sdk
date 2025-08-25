@@ -31,7 +31,7 @@ async fn test_hatchet() {
     use thiserror::Error;
     #[derive(Debug, Error)]
     pub enum MyError {
-        #[error("This shit failed.")]
+        #[error("Test failed.")]
         Failure(#[from] HatchetError),
     }
 
@@ -45,16 +45,16 @@ async fn test_hatchet() {
             })
         },
     );
-    let mut workflow1 = hatchet
+    let mut workflow = hatchet
         .new_workflow::<SimpleInput, SimpleOutput>("rust-workflow3", vec![], vec![], vec![])
         .add_task(my_task)
         .unwrap();
 
-    let workflow1_clone = workflow1.clone();
+    let workflow_clone = workflow.clone();
     let worker_handle = tokio::spawn(async move {
         Worker::new("rust-worker", hatchet.clone(), 5)
             .unwrap()
-            .add_workflow(workflow1_clone)
+            .add_workflow(workflow_clone)
             .start()
             .await
             .unwrap()
@@ -65,7 +65,7 @@ async fn test_hatchet() {
 
     assert_eq!(
         "uppercase",
-        workflow1
+        workflow
             .run(
                 SimpleInput {
                     message: "UPPERCASE".to_string()
