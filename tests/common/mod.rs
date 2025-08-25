@@ -7,7 +7,6 @@ use testcontainers::{
     runners::AsyncRunner,
 };
 use tokio::io::AsyncReadExt;
-use tokio::sync::OnceCell;
 
 pub(crate) async fn start_containers_and_get_token() -> (
     ContainerAsync<GenericImage>,
@@ -32,27 +31,23 @@ pub(crate) async fn start_containers_and_get_token() -> (
         .unwrap();
 
     let hatchet = GenericImage::new("ghcr.io/hatchet-dev/hatchet/hatchet-lite", "latest")
-        // .with_wait_for(WaitFor::message_on_either_std(
-        //     "created tenant 707d0855-80ab-4e1f-a156-f1c4546cbf52",
-        // ))
         .with_exposed_port(8888.tcp())
         .with_exposed_port(7077.tcp())
-        .with_wait_for(WaitFor::Duration {
-            length: std::time::Duration::from_secs(10),
-        })
-        // .with_wait_for(WaitFor::Healthcheck(HealthWaitStrategy::new()))
-        // .with_health_check(
-        //     Healthcheck::cmd(vec!["nc", "-z", "localhost", "7077"])
-        //         .with_interval(Some(std::time::Duration::from_secs(5)))
-        //         .with_timeout(Some(std::time::Duration::from_secs(5)))
-        //         .with_retries(Some(5)),
-        // )
+        .with_wait_for(WaitFor::message_on_either_std(
+            "created tenant 707d0855-80ab-4e1f-a156-f1c4546cbf52",
+        ))
+        .with_wait_for(WaitFor::Healthcheck(HealthWaitStrategy::new()))
+        .with_health_check(
+            Healthcheck::cmd(vec!["nc", "-z", "localhost", "7077"])
+                .with_interval(Some(std::time::Duration::from_secs(5)))
+                .with_timeout(Some(std::time::Duration::from_secs(5)))
+                .with_retries(Some(5)),
+        )
         .with_env_var(
             "DATABASE_URL",
             format!(
-                "postgresql://hatchet:hatchet@{}:{}/hatchet?sslmode=disable",
+                "postgresql://hatchet:hatchet@{}:5432/hatchet?sslmode=disable",
                 postgres.get_bridge_ip_address().await.unwrap(),
-                postgres.get_host_port_ipv4(5432.tcp()).await.unwrap()
             ),
         )
         .with_network("hatchet")

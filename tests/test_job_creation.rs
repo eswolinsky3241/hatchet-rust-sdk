@@ -7,7 +7,7 @@ mod common;
 
 #[tokio::test]
 async fn test_hatchet() {
-    let (_, hatchet_container, token) = common::start_containers_and_get_token().await;
+    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
     let server_url = format!(
         "http://localhost:{}",
         hatchet_container.get_host_port_ipv4(8888).await.unwrap()
