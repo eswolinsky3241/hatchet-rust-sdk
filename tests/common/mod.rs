@@ -1,4 +1,3 @@
-use std::sync::{Arc, Mutex, Once};
 use testcontainers::core::wait::HealthWaitStrategy;
 use testcontainers::{
     GenericImage, Healthcheck, ImageExt,
