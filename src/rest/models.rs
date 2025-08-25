@@ -25,7 +25,6 @@ pub(crate) struct TaskInput {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct Task {
-    #[serde(rename = "errorMessage")]
     pub(crate) output: Option<Value>,
     pub(crate) input: TaskInput,
     #[serde(rename = "taskExternalId")]
