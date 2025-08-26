@@ -164,7 +164,6 @@ impl HatchetClient {
         token: &str,
         tls_strategy: &str,
     ) -> Result<Self, HatchetError> {
-        println!("{}", token);
         let config = HatchetConfig::new(token, tls_strategy)?;
         let channel = Self::create_channel(&grpc_broadcast_address, &config.tls_strategy).await?;
 
