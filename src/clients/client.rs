@@ -21,7 +21,7 @@ pub trait HatchetClientTrait: std::fmt::Debug + Send + Sync + DynClone + 'static
     async fn get_workflow_run(
         &self,
         run_id: &str,
-    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError>;
+    ) -> Result<crate::clients::rest::models::V1WorkflowRunCreate200Response, HatchetError>;
 
     async fn put_workflow(
         &mut self,
@@ -186,7 +186,7 @@ impl HatchetClient {
     ) -> crate::workflows::Workflow<I, O>
     where
         I: serde::Serialize + Send + Sync,
-        O: serde::de::DeserializeOwned + Send + Sync,
+        O: serde::de::DeserializeOwned + Send + Sync + std::fmt::Debug,
     {
         crate::workflows::Workflow::<I, O>::new(
             workflow_name,
@@ -214,9 +214,23 @@ impl HatchetClientTrait for HatchetClient {
     async fn get_workflow_run(
         &self,
         run_id: &str,
-    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
-        self.api_get(&format!("/api/v1/stable/workflow-runs/{}", run_id))
+    ) -> Result<crate::clients::rest::models::V1WorkflowRunCreate200Response, HatchetError> {
+        use crate::clients::rest::apis::configuration;
+        use crate::clients::rest::apis::workflow_runs_api;
+        // use crate::clients::rest::models::workflow_run
+        let configuration = configuration::Configuration {
+            base_path: self.server_url.clone(),
+            user_agent: None,
+            client: reqwest::Client::new(),
+            basic_auth: None,
+            oauth_access_token: None,
+            bearer_access_token: Some(self.api_token.clone()),
+            api_key: None,
+        };
+        let workflow = workflow_runs_api::v1_workflow_run_get(&configuration, run_id)
             .await
+            .unwrap();
+        Ok(workflow)
     }
 
     async fn put_workflow(

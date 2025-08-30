@@ -111,7 +111,7 @@ impl TaskDispatcher {
                         step_id: message.step_id.clone(),
                         step_run_id: message.step_run_id.clone(),
                         action_id: message.action_id.clone(),
-                        event_timestamp: Some(crate::utils::proto_timestamp_now().unwrap()),
+                        event_timestamp: Some(crate::utils::proto_timestamp_now()?),
                         event_type,
                         event_payload,
                         retry_count: None,

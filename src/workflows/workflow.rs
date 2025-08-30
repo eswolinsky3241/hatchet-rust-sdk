@@ -25,7 +25,7 @@ pub struct Workflow<I, O> {
 impl<I, O> Workflow<I, O>
 where
     I: Serialize + Send + Sync,
-    O: DeserializeOwned + Send + Sync,
+    O: DeserializeOwned + Send + Sync + std::fmt::Debug,
 {
     pub fn new(
         name: impl Into<String>,
@@ -112,22 +112,21 @@ where
             let workflow = self.get_run(&run_id).await?;
 
             match workflow.run.status {
-                WorkflowStatus::Running => {}
-                WorkflowStatus::Completed => {
-                    let output_json = workflow
+                crate::clients::rest::models::v1_workflow_run_create_200_response_run::Status::Running => {}
+                crate::clients::rest::models::v1_workflow_run_create_200_response_run::Status::Completed => {
+                    let output_json = &workflow
                         .tasks
                         .last() // Get the output of the last task
                         .ok_or(HatchetError::MissingTasks)?
-                        .output
-                        .as_ref()
-                        .ok_or(HatchetError::MissingOutput)?;
+                        .output;
                     let output: O = serde_json::from_value(output_json.clone())
                         .map_err(|e| HatchetError::JsonDecodeError(e))?;
+                    println!("{:?}", output);
                     return Ok(output);
                 }
-                WorkflowStatus::Failed => {
+                crate::clients::rest::models::v1_workflow_run_create_200_response_run::Status::Failed => {
                     return Err(HatchetError::WorkflowFailed {
-                        error_message: workflow.run.error_message.clone(),
+                        error_message: workflow.run.error_message.unwrap().clone(),
                     });
                 }
                 _ => {}
@@ -158,7 +157,7 @@ where
     async fn get_run(
         &self,
         run_id: &str,
-    ) -> Result<crate::rest::models::GetWorkflowRunResponse, HatchetError> {
+    ) -> Result<crate::clients::rest::models::V1WorkflowRunCreate200Response, HatchetError> {
         self.client.get_workflow_run(run_id).await
     }
 }

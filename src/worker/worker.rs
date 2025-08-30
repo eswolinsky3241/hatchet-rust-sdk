@@ -41,7 +41,7 @@ impl Worker {
     ) -> Self
     where
         I: Serialize + Send + Sync,
-        O: DeserializeOwned + Send + Sync,
+        O: DeserializeOwned + Send + Sync + std::fmt::Debug,
     {
         self.workflows.push(workflow.to_proto());
 

@@ -25,7 +25,7 @@ pub struct V1WorkflowRunCreate200ResponseRun {
     pub finished_at: Option<String>,
     /// The duration of the task run, in milliseconds.
     #[serde(rename = "duration", skip_serializing_if = "Option::is_none")]
-    pub duration: Option<i32>,
+    pub duration: Option<i64>,
     /// The ID of the tenant.
     #[serde(rename = "tenantId")]
     pub tenant_id: uuid::Uuid,
