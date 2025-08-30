@@ -6,12 +6,12 @@ use futures::FutureExt;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use crate::client::HatchetClientTrait;
+use crate::clients::client::HatchetClientTrait;
+use crate::clients::grpc::v0::dispatcher;
 use crate::error::HatchetError;
-use crate::grpc::v0::dispatcher;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::workflows::task::ExecutableTask;
 use crate::workflows::context::Context;
+use crate::workflows::task::ExecutableTask;
 
 #[derive(Clone)]
 pub(crate) struct TaskDispatcher {

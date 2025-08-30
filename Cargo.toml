@@ -18,7 +18,7 @@ dyn-clone = "1.0.20"
 futures = "0.3.31"
 prost = "0.13"
 prost-types = "0.13"
-reqwest = { version = "0.12.22", features = ["json"] }
+reqwest = { version = "0.12.22", features = ["json", "multipart"] }
 rustls = { version = "*", features = ["ring"] }
 rustls-native-certs = "0.8.1"
 serde = { version = "1", features = ["derive"] }
@@ -33,6 +33,10 @@ tonic = { version = "0.13", features = [
     "_tls-any",
     "tls-native-roots",
 ] }
+serde_repr = "^0.1"
+url = "^2.5"
+uuid = { version = "^1.8", features = ["serde", "v4"] }
+
 
 [build-dependencies]
 tonic-build = { version = "0.13.1", features = ["prost"] }

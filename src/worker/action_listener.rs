@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::client::HatchetClientTrait;
+use crate::clients::client::HatchetClientTrait;
+use crate::clients::grpc::v0::dispatcher;
 use crate::error::HatchetError;
-use crate::grpc::v0::dispatcher;
 
 pub(crate) struct ActionListener {
     pub(crate) client: Box<dyn HatchetClientTrait>,

@@ -1,11 +1,11 @@
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::client::HatchetClientTrait;
-use crate::error::HatchetError;
-use crate::grpc::v1::workflows::{
+use crate::clients::client::HatchetClientTrait;
+use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
+use crate::error::HatchetError;
 use crate::rest::models::WorkflowStatus;
 
 use crate::workflows::task::{ExecutableTask, Task};
@@ -238,8 +238,8 @@ impl DefaultFilter {
 //     // async fn test_run_no_wait_returns_run_id() {
 //     //     use std::sync::Arc;
 
-//     //     use crate::client::MockHatchetClientTrait;
-//     //     use crate::grpc::v0::workflows::TriggerWorkflowResponse;
+//     //     use crate::clients::client::MockHatchetClientTrait;
+//     //     use crate::clients::grpc::v0::workflows::TriggerWorkflowResponse;
 
 //     //     let mut mock_client = MockHatchetClientTrait::new();
 //     //     let expected_run_id = "test-run-id-12345";

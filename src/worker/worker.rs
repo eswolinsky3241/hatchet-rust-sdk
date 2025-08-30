@@ -5,10 +5,10 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 
-use crate::client::HatchetClientTrait;
+use crate::clients::client::HatchetClientTrait;
+use crate::clients::grpc::v0::dispatcher;
+use crate::clients::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::error::HatchetError;
-use crate::grpc::v0::dispatcher;
-use crate::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::worker::action_listener::ActionListener;
 use crate::workflows::task::ExecutableTask;
 
@@ -17,7 +17,7 @@ pub struct Worker {
     max_runs: i32,
     client: Box<dyn HatchetClientTrait>,
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
-    workflows: Vec<crate::grpc::v1::workflows::CreateWorkflowVersionRequest>,
+    workflows: Vec<crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
 impl Worker {
@@ -103,7 +103,7 @@ impl Worker {
                 .await
                 .listen(worker_id_clone, action_tx)
                 .await as Result<(), HatchetError>
-        } );
+        });
 
         tokio::try_join!(
             async {

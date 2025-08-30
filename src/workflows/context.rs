@@ -1,7 +1,7 @@
 use tokio::sync::mpsc;
 
 use crate::HatchetError;
-use crate::client::HatchetClientTrait;
+use crate::clients::client::HatchetClientTrait;
 use crate::rest::models::GetWorkflowRunResponse;
 
 #[derive(Debug)]

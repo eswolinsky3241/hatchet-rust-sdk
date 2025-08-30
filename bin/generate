@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -eux
+
+tmp_dir=./tmp
+
+openapi-generator generate -i api-contracts/openapi/openapi.yaml \
+    -g rust \
+    --skip-validate-spec \
+    --global-property=apiTests=false \
+    --global-property=apiDocks=true \
+    --global-property=modelTests=false \
+    --global-property=modelDocs=true \
+    -o $tmp_dir
+
+# Replace all instances of crate:: with crate::clients::rest:: in generated files
+find $tmp_dir -name "*.rs" -type f -exec sed -i '' 's/crate::/crate::clients::rest::/g' {} +
+
+# Due to possible bug, replace instances of <Object> with <serde_json::Value>
+find $tmp_dir -name "*.rs" -type f -exec sed -i '' 's/<Object>/<serde_json::Value>/g' {} +
+
+mv $tmp_dir/src/lib.rs $tmp_dir/src/mod.rs
+
+cp -r $tmp_dir/src/* src/clients/rest
+
+rm -r $tmp_dir

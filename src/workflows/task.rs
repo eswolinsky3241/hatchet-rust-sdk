@@ -1,4 +1,4 @@
-use crate::grpc::v1::workflows::CreateTaskOpts;
+use crate::clients::grpc::v1::workflows::CreateTaskOpts;
 use crate::workflows::context::Context;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
