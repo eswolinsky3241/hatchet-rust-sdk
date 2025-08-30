@@ -17,9 +17,9 @@ struct SimpleOutput {
 }
 
 #[derive(Debug, Error)]
-enum MyError {
+pub enum MyError {
     #[error("Test failed.")]
-    Failure(#[from] HatchetError),
+    Failure,
 }
 
 #[tokio::test]
@@ -105,13 +105,6 @@ async fn test_run_returns_error_if_job_fails() {
             .await
             .unwrap();
 
-    use thiserror::Error;
-    #[derive(Debug, Error)]
-    pub enum MyError {
-        #[error("Test failed.")]
-        Failure,
-    }
-
     let my_task = hatchet.new_task(
         "step1",
         async move |_input: SimpleInput,
@@ -150,5 +143,86 @@ async fn test_run_returns_error_if_job_fails() {
     };
 
     assert!(matches!(output, Err(_err)));
+    worker_handle.abort()
+}
+
+#[tokio::test]
+async fn test_spawn_child_workflow() {
+    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
+    let server_url = format!(
+        "http://localhost:{}",
+        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
+    );
+    let grpc_broadcast_address = format!(
+        "localhost:{}",
+        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
+    );
+    let hatchet =
+        HatchetClient::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+            .await
+            .unwrap();
+
+    let child_task = hatchet.new_task(
+        "child_task",
+        async move |_input: hatchet_sdk::EmptyModel,
+                    _ctx: hatchet_sdk::Context|
+                    -> Result<serde_json::Value, MyError> {
+            Ok(serde_json::json!({"output": "Hello from child task"}))
+        },
+    );
+
+    let mut child_workflow = hatchet
+        .new_workflow::<hatchet_sdk::EmptyModel, serde_json::Value>(
+            "child_workflow",
+            vec![],
+            vec![],
+            vec![],
+        )
+        .add_task(child_task)
+        .unwrap();
+
+    let child_workflow_clone = child_workflow.clone();
+
+    let parent_task = hatchet.new_task(
+        "parent_task",
+        async move |_input: hatchet_sdk::EmptyModel,
+                    _ctx: hatchet_sdk::Context|
+                    -> Result<serde_json::Value, MyError> {
+            Ok(child_workflow
+                .run(hatchet_sdk::EmptyModel, None)
+                .await
+                .unwrap())
+        },
+    );
+    let mut parent_workflow = hatchet
+        .new_workflow::<hatchet_sdk::EmptyModel, serde_json::Value>(
+            "parent-workflow",
+            vec![],
+            vec![],
+            vec![],
+        )
+        .add_task(parent_task)
+        .unwrap();
+
+    let parent_workflow_clone = parent_workflow.clone();
+    let worker_handle = tokio::spawn(async move {
+        Worker::new("rust-worker", hatchet.clone(), 5)
+            .unwrap()
+            .add_workflow(parent_workflow_clone)
+            .add_workflow(child_workflow_clone)
+            .start()
+            .await
+            .unwrap()
+    });
+
+    // Give worker time to register task
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    let output = parent_workflow.run(hatchet_sdk::EmptyModel, None).await;
+
+    assert_eq!(
+        "Hello from child task",
+        output.unwrap().get("output").unwrap()
+    );
     worker_handle.abort()
 }
