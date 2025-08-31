@@ -12,11 +12,14 @@ use crate::error::HatchetError;
 use crate::worker::action_listener::ActionListener;
 use crate::workflows::task::ExecutableTask;
 
+#[derive(derive_builder::Builder)]
 pub struct Worker {
     pub name: String,
     max_runs: i32,
     client: HatchetClient,
+    #[builder(default = "Arc::new(Mutex::new(HashMap::new()))")]
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
+    #[builder(default = "vec![]")]
     workflows: Vec<crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
@@ -36,8 +39,8 @@ impl Worker {
         workflow: crate::workflows::workflow::Workflow<I, O>,
     ) -> Self
     where
-        I: Serialize + Send + Sync,
-        O: DeserializeOwned + Send + Sync + std::fmt::Debug,
+        I: Serialize + Send + Sync + Clone,
+        O: DeserializeOwned + Send + Sync + std::fmt::Debug + Clone,
     {
         self.workflows.push(workflow.to_proto());
 

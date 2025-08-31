@@ -3,7 +3,6 @@ use crate::clients::rest::apis::configuration::Configuration;
 use crate::config::{HatchetConfig, TlsStrategy};
 use crate::error::HatchetError;
 use crate::features::workflows::WorkflowsClient;
-use crate::workflows::DefaultFilter;
 use std::sync::Arc;
 use tonic::transport::{Channel, ClientTlsConfig};
 
@@ -135,24 +134,12 @@ impl HatchetClient {
         .await
     }
 
-    pub fn new_workflow<I, O>(
-        &self,
-        workflow_name: &str,
-        on_events: Vec<String>,
-        cron_triggers: Vec<String>,
-        default_filters: Vec<DefaultFilter>,
-    ) -> crate::workflows::Workflow<I, O>
+    pub fn new_workflow<I, O>(&self) -> crate::workflows::workflow::WorkflowBuilder<I, O>
     where
-        I: serde::Serialize + Send + Sync,
-        O: serde::de::DeserializeOwned + Send + Sync + std::fmt::Debug,
+        I: serde::Serialize + Send + Sync + Clone,
+        O: serde::de::DeserializeOwned + Send + Sync + std::fmt::Debug + Clone,
     {
-        crate::workflows::Workflow::<I, O>::new(
-            workflow_name,
-            self.clone(),
-            on_events,
-            cron_triggers,
-            default_filters,
-        )
+        crate::workflows::workflow::WorkflowBuilder::<I, O>::default().client(self.clone())
     }
 
     pub fn new_task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::workflows::Task<I, O, E>

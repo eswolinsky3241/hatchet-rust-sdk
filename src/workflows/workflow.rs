@@ -9,23 +9,31 @@ use crate::error::HatchetError;
 use crate::features::workflows::models::GetWorkflowRunResponse;
 use crate::features::workflows::models::WorkflowStatus;
 use crate::workflows::task::{ExecutableTask, Task};
+use derive_builder::Builder;
 
-#[derive(Clone)]
+#[derive(Clone, Builder)]
+#[builder(pattern = "owned")]
 pub struct Workflow<I, O> {
     pub(crate) name: String,
     client: HatchetClient,
+    #[builder(default = "vec![]")]
     pub(crate) executable_tasks: Vec<Box<dyn ExecutableTask>>,
+    #[builder(default = "vec![]")]
     tasks: Vec<CreateTaskOpts>,
+    #[builder(default = "vec![]")]
     on_events: Vec<String>,
+    #[builder(default = "vec![]")]
     cron_triggers: Vec<String>,
+    #[builder(default = "vec![]")]
     default_filters: Vec<DefaultFilter>,
+    #[builder(default = "std::marker::PhantomData")]
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 
 impl<I, O> Workflow<I, O>
 where
-    I: Serialize + Send + Sync,
-    O: DeserializeOwned + Send + Sync + std::fmt::Debug,
+    I: Serialize + Send + Sync + Clone,
+    O: DeserializeOwned + Send + Sync + std::fmt::Debug + Clone,
 {
     pub fn new(
         name: impl Into<String>,
@@ -209,71 +217,3 @@ impl DefaultFilter {
         }
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-
-//     use super::*;
-//     use crate::EmptyModel;
-//     use crate::config::HatchetConfig;
-
-//     #[tokio::test]
-//     async fn test_duplicate_task_names_raises_error() {
-//         let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
-//         let token = format!("header.{}.sig", payload.to_string());
-//         let config = HatchetConfig::new(&token, "none").unwrap();
-//         let client = HatchetClient::new(config).await.unwrap();
-//         let workflow =
-//             Workflow::<EmptyModel, EmptyModel>::new("test-workflow", client, vec![], vec![]);
-
-//         let task1: Task<_, _> = Task::<EmptyModel, EmptyModel>::new(
-//             "test-task",
-//             |_input: EmptyModel, _ctx: crate::Context| async move { Ok(EmptyModel {}) },
-//         );
-
-//         let task2: Task<_, _> = Task::<EmptyModel, EmptyModel>::new(
-//             "test-task",
-//             |_input: EmptyModel, _ctx: crate::Context| async move { Ok(EmptyModel {}) },
-//         );
-
-//         assert!(matches!(
-//             workflow.add_task(task1).unwrap().add_task(task2),
-//             Err(HatchetError::DuplicateTask {
-//                 task_name: _,
-//                 workflow_name: _
-//             })
-//         ));
-//     }
-
-//     // #[tokio::test]
-//     // async fn test_run_no_wait_returns_run_id() {
-//     //     use std::sync::Arc;
-
-//     //     use crate::clients::client::MockHatchetClientTrait;
-//     //     use crate::clients::grpc::v0::workflows::TriggerWorkflowResponse;
-
-//     //     let mut mock_client = MockHatchetClientTrait::new();
-//     //     let expected_run_id = "test-run-id-12345";
-
-//     //     mock_client
-//     //         .expect_trigger_workflow()
-//     //         .times(1)
-//     //         .returning(move |_request| {
-//     //             Ok(TriggerWorkflowResponse {
-//     //                 workflow_run_id: expected_run_id.to_string(),
-//     //             })
-//     //         });
-
-//     //     let mock_client = Arc::new(mock_client);
-
-//     //     let workflow = Workflow::<EmptyModel, EmptyModel, _>::new(
-//     //         "test-workflow",
-//     //         mock_client,
-//     //         vec![],
-//     //         vec![],
-//     //     );
-
-//     //     let run_id = workflow.run_no_wait(EmptyModel {}, None).await.unwrap();
-//     //     assert_eq!(run_id, expected_run_id);
-//     // }
-// }
