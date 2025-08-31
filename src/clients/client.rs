@@ -134,7 +134,7 @@ impl HatchetClient {
         .await
     }
 
-    pub fn new_workflow<I, O>(&self) -> crate::workflow::WorkflowBuilder<I, O>
+    pub fn workflow<I, O>(&self) -> crate::workflow::WorkflowBuilder<I, O>
     where
         I: serde::Serialize + Send + Sync,
         O: serde::de::DeserializeOwned + Send + Sync,
@@ -142,7 +142,7 @@ impl HatchetClient {
         crate::workflow::WorkflowBuilder::<I, O>::default().client(self.clone())
     }
 
-    pub fn new_task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::Task<I, O, E>
+    pub fn task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::Task<I, O, E>
     where
         I: serde::de::DeserializeOwned + Send + Sync + 'static,
         O: serde::Serialize + Send + Sync + 'static,
@@ -151,5 +151,9 @@ impl HatchetClient {
         Fut: std::future::Future<Output = Result<O, E>> + Send + 'static,
     {
         crate::Task::<I, O, E>::new(name, f)
+    }
+
+    pub fn worker(&self) -> crate::worker::worker::WorkerBuilder {
+        crate::worker::worker::WorkerBuilder::default().client(self.clone())
     }
 }

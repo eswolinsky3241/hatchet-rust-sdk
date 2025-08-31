@@ -46,7 +46,7 @@ async fn test_run_returns_job_output() {
         Failure(#[from] HatchetError),
     }
 
-    let my_task = hatchet.new_task(
+    let my_task = hatchet.task(
         "step1",
         async move |input: SimpleInput,
                     _ctx: hatchet_sdk::Context|
@@ -57,7 +57,7 @@ async fn test_run_returns_job_output() {
         },
     );
     let mut workflow = hatchet
-        .new_workflow::<SimpleInput, SimpleOutput>()
+        .workflow::<SimpleInput, SimpleOutput>()
         .name(String::from("rust-workflow3"))
         .build()
         .unwrap()
@@ -113,14 +113,14 @@ async fn test_run_returns_error_if_job_fails() {
             .await
             .unwrap();
 
-    let my_task = hatchet.new_task(
+    let my_task = hatchet.task(
         "step1",
         async move |_input: SimpleInput,
                     _ctx: hatchet_sdk::Context|
                     -> Result<SimpleOutput, MyError> { Err(MyError::Failure) },
     );
     let mut workflow = hatchet
-        .new_workflow::<SimpleInput, SimpleOutput>()
+        .workflow::<SimpleInput, SimpleOutput>()
         .name(String::from("rust-workflow3"))
         .build()
         .unwrap()
@@ -129,7 +129,11 @@ async fn test_run_returns_error_if_job_fails() {
 
     let workflow_clone = workflow.clone();
     let worker_handle = tokio::spawn(async move {
-        Worker::new("rust-worker", hatchet.clone(), 5)
+        hatchet
+            .worker()
+            .name(String::from("rust-worker"))
+            .max_runs(5)
+            .build()
             .unwrap()
             .add_workflow(workflow_clone)
             .start()
@@ -173,7 +177,7 @@ async fn test_dynamically_spawn_child_workflow() {
             .await
             .unwrap();
 
-    let child_task = hatchet.new_task(
+    let child_task = hatchet.task(
         "child_task",
         async move |_input: hatchet_sdk::EmptyModel,
                     _ctx: hatchet_sdk::Context|
@@ -183,7 +187,7 @@ async fn test_dynamically_spawn_child_workflow() {
     );
 
     let mut child_workflow = hatchet
-        .new_workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
+        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
         .name(String::from("child_workflow"))
         .build()
         .unwrap()
@@ -192,7 +196,7 @@ async fn test_dynamically_spawn_child_workflow() {
 
     let child_workflow_clone = child_workflow.clone();
 
-    let parent_task = hatchet.new_task(
+    let parent_task = hatchet.task(
         "parent_task",
         async move |_input: hatchet_sdk::EmptyModel,
                     _ctx: hatchet_sdk::Context|
@@ -204,7 +208,7 @@ async fn test_dynamically_spawn_child_workflow() {
         },
     );
     let mut parent_workflow = hatchet
-        .new_workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
+        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
         .name(String::from("parent-workflow"))
         .build()
         .unwrap()
@@ -250,7 +254,7 @@ async fn test_dag_workflow() {
             .await
             .unwrap();
 
-    let parent_task = hatchet.new_task(
+    let parent_task = hatchet.task(
         "parent_task",
         async move |_input: hatchet_sdk::EmptyModel,
                     _ctx: hatchet_sdk::Context|
@@ -260,7 +264,7 @@ async fn test_dag_workflow() {
     );
 
     let child_task = hatchet
-        .new_task(
+        .task(
             "child_task",
             async move |_input: hatchet_sdk::EmptyModel,
                         ctx: hatchet_sdk::Context|
@@ -273,7 +277,7 @@ async fn test_dag_workflow() {
         .add_parent(&parent_task);
 
     let mut dag_workflow = hatchet
-        .new_workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
+        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
         .name(String::from("parent-workflow"))
         .build()
         .unwrap()

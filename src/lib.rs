@@ -45,11 +45,11 @@
 //!     let hatchet = HatchetClient::from_env().await.unwrap();
 //!
 //!     // Create a workflow
-//!     let mut workflow = hatchet.new_workflow::<SimpleInput, SimpleOutput>()
+//!     let mut workflow = hatchet.workflow::<SimpleInput, SimpleOutput>()
 //!         .name(String::from("simple-workflow"))
 //!         .build()
 //!         .unwrap()
-//!         .add_task(hatchet.new_task("simple-task", simple_task))
+//!         .add_task(hatchet.task("simple-task", simple_task))
 //!         .unwrap();
 //!
 //!     // Run the workflow

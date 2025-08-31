@@ -13,6 +13,7 @@ use crate::task::ExecutableTask;
 use crate::worker::action_listener::ActionListener;
 
 #[derive(derive_builder::Builder)]
+#[builder(pattern = "owned")]
 pub struct Worker {
     pub name: String,
     max_runs: i32,
