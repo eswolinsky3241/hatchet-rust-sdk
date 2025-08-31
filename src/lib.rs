@@ -12,8 +12,7 @@
 //! dotenvy = "0.15.7"
 //! ```
 //!
-//! ```rust
-//!
+//! ```no_run
 //! use anyhow;
 //! use hatchet_sdk::{Context, HatchetClient};
 //! use serde::{Deserialize, Serialize};
@@ -24,13 +23,14 @@
 //!     message: String,
 //! }
 //!
-//! #[derive(Serialize, Deserialize)]
+//! #[derive(Serialize, Deserialize, Debug)]
 //! struct SimpleOutput {
 //!     transformed_message: String,
 //! }
 //!
 //! // Define your task handler
 //! async fn simple_task(input: SimpleInput, ctx: Context) -> anyhow::Result<SimpleOutput> {
+//!     ctx.log("Starting simple task").await?;
 //!     Ok(SimpleOutput {
 //!         transformed_message: input.message.to_lowercase(),
 //!     })
@@ -52,14 +52,8 @@
 //!         .add_task(hatchet.task("simple-task", simple_task))
 //!         .unwrap();
 //!
-//!     // Enqueue the workflow
-//!     let output = workflow.run_no_wait(SimpleInput {
-//!         message: "Hello, world!".to_string(),
-//!     }, None).await.unwrap();
-//!
-//!
-//!     // Create and start a worker
-//!     let worker = hatchet.worker()
+//!     // Create and start a worker, registering the workflow with Hatchet
+//!     hatchet.worker()
 //!         .name(String::from("simple-worker"))
 //!         .max_runs(5)
 //!         .build()
@@ -69,8 +63,28 @@
 //!         .await
 //!         .unwrap();
 //! }
-//!
 //! ```
+//!
+//! ### Running workflows
+//!
+//! Use the `run` method to run the workflow synchronously:
+//!
+//! ```no_run
+//! let output = workflow.run(SimpleInput {
+//!     message: "Hello, world!".to_string(),
+//! }, None).await.unwrap();
+//!
+//! println!("Output: {:?}", output);
+//! ```
+//!
+//! Use the `run_no_wait` method to run the workflow asynchronously:
+//!
+//! ```no_run
+//! workflow.run_no_wait(SimpleInput {
+//!     message: "Hello, world!".to_string(),
+//! }, None).await.unwrap();
+//! ```
+//!
 
 pub(crate) mod clients;
 pub mod config;

@@ -76,8 +76,8 @@ impl Context {
         Ok(current_task.input.triggers.filter_payload.clone())
     }
 
-    pub async fn log(&self, message: String) -> Result<(), HatchetError> {
-        self.logger_tx.send(message).await.unwrap();
+    pub async fn log(&self, message: &str) -> Result<(), HatchetError> {
+        self.logger_tx.send(message.to_string()).await.unwrap();
 
         Ok(())
     }

@@ -43,6 +43,7 @@ derive_builder = "0.20.2"
 tonic-build = { version = "0.13.1", features = ["prost"] }
 
 [dev-dependencies]
+anyhow = "1.0.99"
 dotenvy = "0.15.7"
 mockall = "0.13"
 rstest = "0.26.1"
