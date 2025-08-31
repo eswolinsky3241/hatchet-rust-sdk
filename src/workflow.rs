@@ -33,7 +33,7 @@ pub struct Workflow<I, O> {
 impl<I, O> Workflow<I, O>
 where
     I: Serialize + Send + Sync + Clone,
-    O: DeserializeOwned + Send + Sync + std::fmt::Debug + Clone,
+    O: DeserializeOwned + Send + Sync + Clone,
 {
     pub fn new(
         name: impl Into<String>,
