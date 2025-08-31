@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 
-use crate::clients::client::HatchetClientTrait;
+use crate::clients::client::HatchetClient;
 use crate::clients::grpc::v0::dispatcher;
 use crate::clients::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::error::HatchetError;
@@ -15,21 +15,17 @@ use crate::workflows::task::ExecutableTask;
 pub struct Worker {
     pub name: String,
     max_runs: i32,
-    client: Box<dyn HatchetClientTrait>,
+    client: HatchetClient,
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     workflows: Vec<crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
 impl Worker {
-    pub fn new(
-        name: &str,
-        client: impl HatchetClientTrait,
-        max_runs: i32,
-    ) -> Result<Self, HatchetError> {
+    pub fn new(name: &str, client: HatchetClient, max_runs: i32) -> Result<Self, HatchetError> {
         Ok(Self {
             name: name.to_string(),
             max_runs,
-            client: Box::new(client),
+            client,
             tasks: Arc::new(Mutex::new(HashMap::new())),
             workflows: vec![],
         })
@@ -58,12 +54,8 @@ impl Worker {
     pub async fn register_workflows(&mut self) {
         for workflow in &self.workflows {
             self.client
-                .put_workflow(
-                    &workflow.name,
-                    workflow.tasks.clone(),
-                    Some(workflow.event_triggers.clone()),
-                    workflow.cron_triggers.clone(),
-                )
+                .admin_client
+                .put_workflow(workflow.clone())
                 .await
                 .unwrap();
         }
@@ -108,7 +100,7 @@ impl Worker {
         tokio::try_join!(
             async {
                 loop {
-                    self.client.heartbeat(&worker_id).await?;
+                    self.client.dispatcher_client.heartbeat(&worker_id).await?;
                     tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
                 }
                 #[allow(unreachable_code)]
@@ -130,7 +122,7 @@ impl Worker {
     }
 
     async fn register_worker(
-        client: &mut Box<dyn HatchetClientTrait>,
+        client: &mut HatchetClient,
         name: &str,
         actions: Vec<String>,
         max_runs: i32,
@@ -145,7 +137,10 @@ impl Worker {
             runtime_info: None,
         };
 
-        let response = client.register_worker(registration).await?;
+        let response = client
+            .dispatcher_client
+            .register_worker(registration)
+            .await?;
 
         Ok(response.worker_id)
     }

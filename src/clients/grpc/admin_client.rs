@@ -1,20 +1,6 @@
-use std::fmt::Debug;
-
-use dyn_clone::DynClone;
-
 use crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest;
 use crate::clients::grpc::v1::workflows::admin_service_client::AdminServiceClient;
 use crate::error::HatchetError;
-
-#[async_trait::async_trait]
-pub trait AdminClientTrait: Debug + Send + Sync + DynClone + 'static {
-    async fn put_workflow(
-        &mut self,
-        workflow: CreateWorkflowVersionRequest,
-    ) -> Result<(), HatchetError>;
-}
-
-dyn_clone::clone_trait_object!(AdminClientTrait);
 
 #[derive(Clone, Debug)]
 pub(crate) struct AdminClient {
@@ -29,9 +15,8 @@ impl AdminClient {
     }
 }
 
-#[async_trait::async_trait]
-impl AdminClientTrait for AdminClient {
-    async fn put_workflow(
+impl AdminClient {
+    pub async fn put_workflow(
         &mut self,
         workflow: CreateWorkflowVersionRequest,
     ) -> Result<(), HatchetError> {

@@ -13,10 +13,10 @@ pub(crate) enum TlsStrategy {
 
 #[derive(Debug, Clone)]
 pub struct HatchetConfig {
-    pub api_token: String,
-    pub grpc_address: String,
-    pub server_url: String,
-    pub tls_strategy: TlsStrategy,
+    pub(crate) api_token: String,
+    pub(crate) grpc_address: String,
+    pub(crate) server_url: String,
+    pub(crate) tls_strategy: TlsStrategy,
 }
 
 impl HatchetConfig {

@@ -58,4 +58,6 @@ pub enum HatchetError {
     GrpcErrorStatus(#[from] tonic::Status),
     #[error("Error installing default crypto provider")]
     CryptoProvider,
+    #[error("{0}")]
+    RestApiError(String),
 }

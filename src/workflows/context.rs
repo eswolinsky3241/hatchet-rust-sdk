@@ -1,20 +1,20 @@
 use tokio::sync::mpsc;
 
 use crate::HatchetError;
-use crate::clients::client::HatchetClientTrait;
-use crate::rest::models::GetWorkflowRunResponse;
+use crate::clients::client::HatchetClient;
+use crate::features::workflows::models::GetWorkflowRunResponse;
 
 #[derive(Debug)]
 pub struct Context {
     logger_tx: mpsc::Sender<String>,
-    client: Box<dyn HatchetClientTrait>,
+    client: HatchetClient,
     workflow_run_id: String,
     step_run_id: String,
 }
 
 impl Context {
     pub(crate) async fn new(
-        client: Box<dyn HatchetClientTrait>,
+        client: HatchetClient,
         workflow_run_id: &str,
         step_run_id: &str,
     ) -> Self {
@@ -27,6 +27,7 @@ impl Context {
         tokio::spawn(async move {
             while let Some(message) = rx.recv().await {
                 client_clone
+                    .event_client
                     .put_log(&step_run_id_clone, message)
                     .await
                     .unwrap();
@@ -83,10 +84,8 @@ impl Context {
 
     async fn get_current_workflow(&self) -> Result<GetWorkflowRunResponse, HatchetError> {
         self.client
-            .api_get(&format!(
-                "/api/v1/stable/workflow-runs/{}",
-                self.workflow_run_id
-            ))
+            .workflow_rest_client
+            .get(&self.workflow_run_id)
             .await
     }
 }

@@ -1,19 +1,19 @@
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::clients::client::HatchetClientTrait;
+use crate::clients::client::HatchetClient;
 use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
 use crate::error::HatchetError;
-use crate::rest::models::WorkflowStatus;
-
+use crate::features::workflows::models::GetWorkflowRunResponse;
+use crate::features::workflows::models::WorkflowStatus;
 use crate::workflows::task::{ExecutableTask, Task};
 
 #[derive(Clone)]
 pub struct Workflow<I, O> {
     pub(crate) name: String,
-    client: Box<dyn HatchetClientTrait>,
+    client: HatchetClient,
     pub(crate) executable_tasks: Vec<Box<dyn ExecutableTask>>,
     tasks: Vec<CreateTaskOpts>,
     on_events: Vec<String>,
@@ -29,7 +29,7 @@ where
 {
     pub fn new(
         name: impl Into<String>,
-        client: Box<dyn HatchetClientTrait>,
+        client: HatchetClient,
         on_events: Vec<String>,
         cron_triggers: Vec<String>,
         default_filters: Vec<DefaultFilter>,
@@ -112,21 +112,24 @@ where
             let workflow = self.get_run(&run_id).await?;
 
             match workflow.run.status {
-                crate::clients::rest::models::v1_workflow_run_create_200_response_run::Status::Running => {}
-                crate::clients::rest::models::v1_workflow_run_create_200_response_run::Status::Completed => {
+                WorkflowStatus::Running => {}
+                WorkflowStatus::Completed => {
                     let output_json = &workflow
                         .tasks
                         .last() // Get the output of the last task
                         .ok_or(HatchetError::MissingTasks)?
-                        .output;
-                    let output: O = serde_json::from_value(output_json.clone())
+                        .output
+                        .as_ref()
+                        .ok_or(HatchetError::MissingOutput)?
+                        .to_string();
+                    let output: O = serde_json::from_str(&output_json)
                         .map_err(|e| HatchetError::JsonDecodeError(e))?;
                     println!("{:?}", output);
                     return Ok(output);
                 }
-                crate::clients::rest::models::v1_workflow_run_create_200_response_run::Status::Failed => {
+                WorkflowStatus::Failed => {
                     return Err(HatchetError::WorkflowFailed {
-                        error_message: workflow.run.error_message.unwrap().clone(),
+                        error_message: workflow.run.error_message.clone(),
                     });
                 }
                 _ => {}
@@ -148,17 +151,27 @@ where
 
         let response = self
             .client
-            .trigger_workflow(&self.name, input_json, options.additional_metadata)
+            .workflow_client
+            .trigger_workflow(
+                crate::clients::grpc::v0::workflows::TriggerWorkflowRequest {
+                    name: self.name.clone(),
+                    input: input_json.to_string(),
+                    parent_id: None,
+                    parent_step_run_id: None,
+                    child_index: None,
+                    child_key: None,
+                    additional_metadata: options.additional_metadata.map(|v| v.to_string()),
+                    desired_worker_id: None,
+                    priority: None,
+                },
+            )
             .await?;
 
         Ok(response.workflow_run_id)
     }
 
-    async fn get_run(
-        &self,
-        run_id: &str,
-    ) -> Result<crate::clients::rest::models::V1WorkflowRunCreate200Response, HatchetError> {
-        self.client.get_workflow_run(run_id).await
+    async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
+        self.client.workflow_rest_client.get(&run_id).await
     }
 }
 
