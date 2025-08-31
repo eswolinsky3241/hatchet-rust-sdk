@@ -35,6 +35,25 @@ impl Worker {
         })
     }
 
+    /// Register a workflow with this worker. When the worker starts, it will register the workflow with Hatchet.
+    /// Hatchet will then assign runs of the workflow to this worker.
+    ///
+    /// ```no_run
+    /// use hatchet_sdk::{HatchetClient, EmptyModel};
+    /// let hatchet = HatchetClient::from_env().await.unwrap();
+    ///
+    /// let my_task = hatchet.task("my-task", |input: EmptyModel, _ctx: Context| async move {
+    ///     Ok(EmptyModel)
+    /// });
+    ///
+    /// let my_workflow = hatchet.workflow().name("my-workflow")
+    ///     .add_task(my_task)
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// let worker = hatchet.worker().name("my-worker").build().unwrap();
+    /// worker.add_workflow(my_workflow);
+    /// ```
     pub fn add_workflow<I, O>(mut self, workflow: crate::workflow::Workflow<I, O>) -> Self
     where
         I: Serialize + Send + Sync,
@@ -62,6 +81,17 @@ impl Worker {
         }
     }
 
+    /// Start the worker.
+    /// This will register the worker with Hatchet and start listening for assigned tasks.
+    /// Use ctrl+c to stop the worker.
+    ///
+    /// ```no_run
+    /// use hatchet_sdk::{HatchetClient, EmptyModel};
+    /// let hatchet = HatchetClient::from_env().await.unwrap();
+    /// let worker = hatchet.worker().name("my-worker").build().unwrap();
+    /// worker.add_workflow(my_workflow);
+    /// worker.start().await.unwrap();
+    /// ```
     pub async fn start(&mut self) -> Result<(), HatchetError> {
         let mut actions = vec![];
         for workflow in &self.workflows {

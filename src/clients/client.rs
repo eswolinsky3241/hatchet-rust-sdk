@@ -6,6 +6,7 @@ use crate::features::workflows::WorkflowsClient;
 use std::sync::Arc;
 use tonic::transport::{Channel, ClientTlsConfig};
 
+/// The main client for interacting with the Hatchet API.
 #[derive(Clone, Debug)]
 pub struct HatchetClient {
     server_url: String,
@@ -80,6 +81,9 @@ impl HatchetClient {
         Ok(channel)
     }
 
+    /// Create a client from environment variables.
+    /// Set the HATCHET_CLIENT_TOKEN environment variable to your Hatchet API token.
+    /// Set the HATCHET_CLIENT_TLS_STRATEGY environment variable to either "none" or "tls" (defaults to "tls").
     pub async fn from_env() -> Result<Self, HatchetError> {
         let config = HatchetConfig::from_env()?;
 
@@ -134,6 +138,20 @@ impl HatchetClient {
         .await
     }
 
+    /// Create a new workflow.
+    ///
+    /// ```no_run
+    /// use hatchet_sdk::{HatchetClient, EmptyModel};
+    /// let hatchet = HatchetClient::from_env().await.unwrap();
+    /// let workflow = hatchet.workflow::<EmptyModel, EmptyModel>()
+    ///     .name(String::from("my-workflow"))
+    ///     .build()
+    ///     .add_task(hatchet.task("my-task", |input: EmptyModel, _ctx: Context| async move {
+    ///         Ok(EmptyModel)
+    ///     }))
+    ///     .unwrap();
+    ///
+    /// ```
     pub fn workflow<I, O>(&self) -> crate::workflow::WorkflowBuilder<I, O>
     where
         I: serde::Serialize + Send + Sync,
@@ -142,6 +160,15 @@ impl HatchetClient {
         crate::workflow::WorkflowBuilder::<I, O>::default().client(self.clone())
     }
 
+    /// Create a new task.
+    ///
+    /// ```no_run
+    /// use hatchet_sdk::{HatchetClient, EmptyModel};
+    /// let hatchet = HatchetClient::from_env().await.unwrap();
+    /// let task = hatchet.task("my-task", |input: EmptyModel, _ctx: Context| async move {
+    ///     Ok(EmptyModel)
+    /// });
+    /// ```
     pub fn task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::Task<I, O, E>
     where
         I: serde::de::DeserializeOwned + Send + Sync + 'static,
@@ -153,6 +180,13 @@ impl HatchetClient {
         crate::Task::<I, O, E>::new(name, f)
     }
 
+    /// Create a new worker.
+    ///
+    /// ```no_run
+    /// use hatchet_sdk::{HatchetClient, EmptyModel};
+    /// let hatchet = HatchetClient::from_env().await.unwrap();
+    /// let worker = hatchet.worker().name("my-worker").build().unwrap();
+    /// ```
     pub fn worker(&self) -> crate::worker::worker::WorkerBuilder {
         crate::worker::worker::WorkerBuilder::default().client(self.clone())
     }
