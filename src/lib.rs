@@ -1,6 +1,7 @@
 pub(crate) mod clients;
 pub mod config;
 pub mod error;
+pub mod features;
 pub(crate) mod rest;
 pub mod utils;
 pub mod worker;
