@@ -51,7 +51,7 @@ impl Worker {
         self
     }
 
-    pub async fn register_workflows(&mut self) {
+    async fn register_workflows(&mut self) {
         for workflow in &self.workflows {
             self.client
                 .admin_client
