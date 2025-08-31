@@ -10,8 +10,8 @@ use crate::clients::client::HatchetClient;
 use crate::clients::grpc::v0::dispatcher;
 use crate::context::Context;
 use crate::error::HatchetError;
+use crate::task::ExecutableTask;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::workflows::task::ExecutableTask;
 
 #[derive(Clone)]
 pub(crate) struct TaskDispatcher {
@@ -81,7 +81,7 @@ impl TaskDispatcher {
                         .expect("missing `input` field");
 
                     let result: Result<
-                        Result<serde_json::Value, crate::workflows::task::TaskError>,
+                        Result<serde_json::Value, crate::task::TaskError>,
                         Box<dyn std::any::Any + Send>,
                     > = AssertUnwindSafe(task.execute(input_value, context))
                         .catch_unwind()

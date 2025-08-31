@@ -9,8 +9,8 @@ use crate::clients::client::HatchetClient;
 use crate::clients::grpc::v0::dispatcher;
 use crate::clients::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::error::HatchetError;
+use crate::task::ExecutableTask;
 use crate::worker::action_listener::ActionListener;
-use crate::workflows::task::ExecutableTask;
 
 #[derive(derive_builder::Builder)]
 pub struct Worker {
@@ -34,10 +34,7 @@ impl Worker {
         })
     }
 
-    pub fn add_workflow<I, O>(
-        mut self,
-        workflow: crate::workflows::workflow::Workflow<I, O>,
-    ) -> Self
+    pub fn add_workflow<I, O>(mut self, workflow: crate::workflow::Workflow<I, O>) -> Self
     where
         I: Serialize + Send + Sync + Clone,
         O: DeserializeOwned + Send + Sync + std::fmt::Debug + Clone,

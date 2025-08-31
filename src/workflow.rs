@@ -8,7 +8,7 @@ use crate::clients::grpc::v1::workflows::{
 use crate::error::HatchetError;
 use crate::features::workflows::models::GetWorkflowRunResponse;
 use crate::features::workflows::models::WorkflowStatus;
-use crate::workflows::task::{ExecutableTask, Task};
+use crate::task::{ExecutableTask, Task};
 use derive_builder::Builder;
 
 #[derive(Clone, Builder)]
