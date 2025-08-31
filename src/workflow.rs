@@ -114,6 +114,7 @@ where
     ) -> Result<O, HatchetError> {
         let run_id = self.run_no_wait(input, options).await?;
 
+        // Wait 2 seconds for eventual consistency
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
         loop {
@@ -146,14 +147,11 @@ where
         }
     }
 
-    async fn trigger<T>(
+    async fn trigger(
         &mut self,
-        input: T,
+        input: I,
         options: TriggerWorkflowOptions,
-    ) -> Result<String, HatchetError>
-    where
-        T: Serialize,
-    {
+    ) -> Result<String, HatchetError> {
         let input_json = serde_json::to_value(&input).map_err(HatchetError::JsonEncode)?;
 
         let response = self
