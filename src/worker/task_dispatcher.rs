@@ -8,9 +8,9 @@ use tokio_util::sync::CancellationToken;
 
 use crate::clients::client::HatchetClient;
 use crate::clients::grpc::v0::dispatcher;
+use crate::context::Context;
 use crate::error::HatchetError;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
-use crate::workflows::context::Context;
 use crate::workflows::task::ExecutableTask;
 
 #[derive(Clone)]
