@@ -64,16 +64,17 @@ pub trait HatchetClientTrait: std::fmt::Debug + Send + Sync + DynClone + 'static
 dyn_clone::clone_trait_object!(HatchetClientTrait);
 
 #[derive(Clone, Debug)]
-pub struct HatchetClient {
+pub struct HatchetClient<'a> {
     server_url: String,
     api_token: String,
     workflow_client: Box<dyn WorkflowClientTrait + Send + Sync>,
     dispatcher_client: Box<dyn DispatcherClientTrait + Send + Sync>,
     event_client: Box<dyn EventClientTrait + Send + Sync>,
     admin_client: Box<dyn AdminClientTrait + Send + Sync>,
+    workflow_run_client: crate::features::workflows::WorkflowsClient<'a>,
 }
 
-impl HatchetClient {
+impl<'a> HatchetClient<'a> {
     pub async fn new(
         server_url: String,
         api_token: String,
@@ -81,6 +82,7 @@ impl HatchetClient {
         workflow_client: Box<dyn WorkflowClientTrait + Send + Sync>,
         dispatcher_client: Box<dyn DispatcherClientTrait + Send + Sync>,
         event_client: Box<dyn EventClientTrait + Send + Sync>,
+        workflow_run_client: crate::features::workflows::WorkflowsClient<'a>,
     ) -> Result<Self, HatchetError> {
         Ok(Self {
             server_url,
@@ -89,6 +91,7 @@ impl HatchetClient {
             dispatcher_client,
             event_client,
             admin_client,
+            workflow_run_client,
         })
     }
 
