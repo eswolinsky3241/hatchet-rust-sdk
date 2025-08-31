@@ -52,12 +52,22 @@
 //!         .add_task(hatchet.task("simple-task", simple_task))
 //!         .unwrap();
 //!
-//!     // Run the workflow
-//!     let output = workflow.run(SimpleInput {
+//!     // Enqueue the workflow
+//!     let output = workflow.run_no_wait(SimpleInput {
 //!         message: "Hello, world!".to_string(),
 //!     }, None).await.unwrap();
 //!
-//!     println!("Output: {:?}", output);
+//!
+//!     // Create and start a worker
+//!     let worker = hatchet.worker()
+//!         .name(String::from("simple-worker"))
+//!         .max_runs(5)
+//!         .build()
+//!         .unwrap()
+//!         .add_workflow(workflow)
+//!         .start()
+//!         .await
+//!         .unwrap();
 //! }
 //!
 //! ```
