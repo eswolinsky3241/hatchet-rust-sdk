@@ -140,7 +140,6 @@ impl TaskDispatcher {
     ) -> Result<(), crate::HatchetError> {
         let step_run_id = message.step_run_id.clone();
         if let Some((handle, token)) = self.task_runs.lock().unwrap().remove(&step_run_id) {
-            println!("[{step_run_id}] Cancelling task...");
             token.cancel();
             handle.abort();
         }

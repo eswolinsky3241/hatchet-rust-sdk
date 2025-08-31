@@ -124,7 +124,6 @@ where
                         .to_string();
                     let output: O = serde_json::from_str(&output_json)
                         .map_err(|e| HatchetError::JsonDecodeError(e))?;
-                    println!("{:?}", output);
                     return Ok(output);
                 }
                 WorkflowStatus::Failed => {
