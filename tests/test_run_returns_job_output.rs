@@ -218,12 +218,12 @@ async fn test_dynamically_spawn_child_workflow() {
     // Give worker time to register task
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    let output = parent_workflow.run(hatchet_sdk::EmptyModel, None).await;
+    let output = parent_workflow
+        .run(hatchet_sdk::EmptyModel, None)
+        .await
+        .unwrap();
 
-    assert_eq!(
-        "Hello from child task",
-        output.unwrap().get("output").unwrap()
-    );
+    assert_eq!("Hello from child task", output.get("output").unwrap());
     worker_handle.abort()
 }
 
@@ -291,7 +291,6 @@ async fn test_dag_workflow() {
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     let output = dag_workflow.run(hatchet_sdk::EmptyModel, None).await;
-    println!("{:?}", output);
 
     assert_eq!(
         "Parent said: \"I am your father\"",
