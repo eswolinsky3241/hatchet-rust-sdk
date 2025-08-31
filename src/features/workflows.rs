@@ -18,18 +18,15 @@ impl WorkflowsClient {
         let response = v1_workflow_run_get(&self.configuration, workflow_run_id)
             .await
             .map_err(|e| HatchetError::RestApiError(e.to_string()))?;
-        Ok(
-            serde_json::from_str::<GetWorkflowRunResponse>(&serde_json::to_string(&response)?)
-                .unwrap(),
-        )
+        Ok(GetWorkflowRunResponse::from(response))
     }
 }
 
 pub mod models {
-    use std::collections::HashMap;
-
+    use crate::clients::rest::models::V1WorkflowRunCreate200Response;
     use serde::Deserialize;
     use serde_json::Value;
+    use std::collections::HashMap;
 
     #[derive(Debug, Deserialize)]
     pub struct GetWorkflowRunResponse {
@@ -80,4 +77,13 @@ pub mod models {
 
     #[derive(Debug, Deserialize)]
     pub struct Workflow;
+
+    impl From<V1WorkflowRunCreate200Response> for GetWorkflowRunResponse {
+        fn from(response: V1WorkflowRunCreate200Response) -> Self {
+            let json_str = serde_json::to_string(&response)
+                .expect("Failed to serialize V1WorkflowRunCreate200Response");
+            serde_json::from_str(&json_str)
+                .expect("Failed to deserialize to GetWorkflowRunResponse")
+        }
+    }
 }
