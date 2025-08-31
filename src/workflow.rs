@@ -32,8 +32,8 @@ pub struct Workflow<I, O> {
 
 impl<I, O> Workflow<I, O>
 where
-    I: Serialize + Send + Sync + Clone,
-    O: DeserializeOwned + Send + Sync + Clone,
+    I: Serialize + Send + Sync,
+    O: DeserializeOwned + Send + Sync,
 {
     pub fn new(
         name: impl Into<String>,

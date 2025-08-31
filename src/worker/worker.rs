@@ -36,8 +36,8 @@ impl Worker {
 
     pub fn add_workflow<I, O>(mut self, workflow: crate::workflow::Workflow<I, O>) -> Self
     where
-        I: Serialize + Send + Sync + Clone,
-        O: DeserializeOwned + Send + Sync + Clone,
+        I: Serialize + Send + Sync,
+        O: DeserializeOwned + Send + Sync,
     {
         self.workflows.push(workflow.to_proto());
 

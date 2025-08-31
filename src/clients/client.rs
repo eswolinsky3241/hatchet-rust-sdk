@@ -136,8 +136,8 @@ impl HatchetClient {
 
     pub fn new_workflow<I, O>(&self) -> crate::workflow::WorkflowBuilder<I, O>
     where
-        I: serde::Serialize + Send + Sync + Clone,
-        O: serde::de::DeserializeOwned + Send + Sync + Clone,
+        I: serde::Serialize + Send + Sync,
+        O: serde::de::DeserializeOwned + Send + Sync,
     {
         crate::workflow::WorkflowBuilder::<I, O>::default().client(self.clone())
     }
