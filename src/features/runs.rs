@@ -4,6 +4,7 @@ use crate::error::HatchetError;
 use models::*;
 use std::sync::Arc;
 
+///The runs client is a client for interacting with task and workflow runs within Hatchet.
 #[derive(Clone, Debug)]
 pub struct RunsClient {
     configuration: Arc<Configuration>,
@@ -14,6 +15,13 @@ impl RunsClient {
         Self { configuration }
     }
 
+    /// Get a workflow run by its ID.
+    ///
+    /// ```no_run
+    /// use hatchet_sdk::{HatchetClient, EmptyModel};
+    /// let hatchet = HatchetClient::from_env().await.unwrap();
+    /// let workflow_run = hatchet.workflow_rest_client.get("123").await.unwrap();
+    /// ```
     pub async fn get(&self, workflow_run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
         let response = v1_workflow_run_get(&self.configuration, workflow_run_id)
             .await
