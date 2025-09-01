@@ -1,5 +1,5 @@
 use crate::Hatchet;
-use crate::clients::grpc::v1::workflows::CreateTaskOpts;
+use crate::clients::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
 use crate::context::Context;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
@@ -111,7 +111,7 @@ where
         })
     }
 
-    pub(crate) fn to_proto(&self, workflow_name: &str) -> CreateTaskOpts {
+    fn to_task_proto(&self, workflow_name: &str) -> CreateTaskOpts {
         CreateTaskOpts {
             readable_id: self.name.clone(),
             action: format!("{workflow_name}:{}", &self.name),
@@ -126,6 +126,25 @@ where
             concurrency: vec![],
             conditions: None,
             schedule_timeout: None,
+        }
+    }
+
+    pub(crate) fn to_standalone_workflow_proto(&self) -> CreateWorkflowVersionRequest {
+        let task_proto = self.to_task_proto(&self.name);
+        CreateWorkflowVersionRequest {
+            name: self.name.clone(),
+            description: String::from(""),
+            version: String::from(""),
+            event_triggers: vec![],
+            cron_triggers: vec![],
+            tasks: vec![task_proto],
+            concurrency: None,
+            cron_input: None,
+            on_failure_task: None,
+            sticky: None,
+            default_priority: None,
+            concurrency_arr: vec![],
+            default_filters: vec![],
         }
     }
 

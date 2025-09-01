@@ -207,22 +207,7 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     fn add_task_or_workflow(mut self, workflow: Task<I, O, E>) -> Self {
-        let task_proto = workflow.to_proto(&workflow.name);
-        let workflow_proto = crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest {
-            name: workflow.name.clone(),
-            description: String::from(""),
-            version: String::from(""),
-            event_triggers: vec![],
-            cron_triggers: vec![],
-            tasks: vec![task_proto],
-            concurrency: None,
-            cron_input: None,
-            on_failure_task: None,
-            sticky: None,
-            default_priority: None,
-            concurrency_arr: vec![],
-            default_filters: vec![],
-        };
+        let workflow_proto = workflow.to_standalone_workflow_proto();
         self.workflows.push(workflow_proto);
 
         let fully_qualified_name = format!("{}:{}", workflow.name, workflow.name);
