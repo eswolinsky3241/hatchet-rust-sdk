@@ -42,7 +42,6 @@
 //!     let mut workflow = hatchet.workflow::<SimpleInput, SimpleOutput>()
 //!         .name(String::from("simple-workflow"))
 //!         .build()
-//!         .unwrap()
 //!         .add_task(hatchet.task("simple-task", simple_task))
 //!         .unwrap();
 //!
@@ -51,7 +50,6 @@
 //!         .name(String::from("simple-worker"))
 //!         .max_runs(5)
 //!         .build()
-//!         .unwrap()
 //!         .add_workflow(workflow)
 //!         .start()
 //!         .await

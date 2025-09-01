@@ -5,22 +5,21 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 
-use crate::clients::hatchet::Hatchet;
 use crate::clients::grpc::v0::dispatcher;
 use crate::clients::grpc::v0::dispatcher::WorkerRegisterRequest;
+use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
 use crate::task::ExecutableTask;
 use crate::worker::action_listener::ActionListener;
 
-#[derive(derive_builder::Builder)]
-#[builder(pattern = "owned")]
+#[derive(typed_builder::TypedBuilder)]
 pub struct Worker {
     pub name: String,
     max_runs: i32,
     client: Hatchet,
-    #[builder(default = "Arc::new(Mutex::new(HashMap::new()))")]
+    #[builder(default = Arc::new(Mutex::new(HashMap::new())))]
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     workflows: Vec<crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
@@ -100,7 +99,6 @@ impl Worker {
     ///         workflow::<EmptyModel, EmptyModel>()
     ///         .name(String::from("my-workflow"))
     ///         .build()
-    ///         .unwrap()
     ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///             Ok(EmptyModel)
     ///         }))
@@ -108,8 +106,8 @@ impl Worker {
     ///
     ///     let mut worker = hatchet.worker()
     ///         .name(String::from("my-worker"))
+    ///         .max_runs(5)
     ///         .build()
-    ///         .unwrap()
     ///         .add_workflow(my_workflow);
     ///
     ///     worker.start().await.unwrap();

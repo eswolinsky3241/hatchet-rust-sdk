@@ -1,4 +1,4 @@
-use hatchet_sdk::worker::worker::WorkerBuilder;
+use hatchet_sdk::worker::worker::Worker;
 use hatchet_sdk::{Hatchet, HatchetError};
 
 mod common;
@@ -33,18 +33,16 @@ async fn test_run_returns_job_output() {
         .workflow::<SimpleInput, SimpleOutput>()
         .name(String::from("test-workflow"))
         .build()
-        .unwrap()
         .add_task(my_task)
         .unwrap();
 
     let workflow_clone = workflow.clone();
     let worker_handle = tokio::spawn(async move {
-        WorkerBuilder::default()
+        Worker::builder()
             .name(String::from("test-worker"))
             .client(hatchet.clone())
             .max_runs(5)
             .build()
-            .unwrap()
             .add_workflow(workflow_clone)
             .start()
             .await
@@ -95,7 +93,6 @@ async fn test_run_returns_error_if_job_fails() {
         .workflow::<SimpleInput, SimpleOutput>()
         .name(String::from("test-workflow"))
         .build()
-        .unwrap()
         .add_task(my_task)
         .unwrap();
 
@@ -106,7 +103,6 @@ async fn test_run_returns_error_if_job_fails() {
             .name(String::from("test-worker"))
             .max_runs(5)
             .build()
-            .unwrap()
             .add_workflow(workflow_clone)
             .start()
             .await
@@ -161,7 +157,6 @@ async fn test_dynamically_spawn_child_workflow() {
         .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
         .name(String::from("child_workflow"))
         .build()
-        .unwrap()
         .add_task(child_task)
         .unwrap();
 
@@ -182,18 +177,16 @@ async fn test_dynamically_spawn_child_workflow() {
         .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
         .name(String::from("parent-workflow"))
         .build()
-        .unwrap()
         .add_task(parent_task)
         .unwrap();
 
     let parent_workflow_clone = parent_workflow.clone();
     let worker_handle = tokio::spawn(async move {
-        hatchet_sdk::worker::worker::WorkerBuilder::default()
+        hatchet_sdk::worker::worker::Worker::builder()
             .name(String::from("test-worker"))
             .client(hatchet.clone())
             .max_runs(5)
             .build()
-            .unwrap()
             .add_workflow(parent_workflow_clone)
             .add_workflow(child_workflow_clone)
             .start()
@@ -254,7 +247,6 @@ async fn test_dag_workflow() {
         .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
         .name(String::from("parent-workflow"))
         .build()
-        .unwrap()
         .add_task(parent_task)
         .unwrap()
         .add_task(child_task)
@@ -262,12 +254,11 @@ async fn test_dag_workflow() {
 
     let dag_workflow_clone = dag_workflow.clone();
     let worker_handle = tokio::spawn(async move {
-        hatchet_sdk::worker::worker::WorkerBuilder::default()
+        hatchet_sdk::worker::worker::Worker::builder()
             .name(String::from("test-worker"))
             .client(hatchet.clone())
             .max_runs(5)
             .build()
-            .unwrap()
             .add_workflow(dag_workflow_clone)
             .start()
             .await

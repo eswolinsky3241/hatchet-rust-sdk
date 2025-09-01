@@ -1,22 +1,21 @@
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::clients::hatchet::Hatchet;
 use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
+use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
 use crate::features::runs::models::WorkflowStatus;
 use crate::task::{ExecutableTask, Task};
-use derive_builder::Builder;
+use typed_builder::TypedBuilder;
 
-#[derive(Clone, Builder)]
-#[builder(pattern = "owned")]
+#[derive(Clone, TypedBuilder)]
 pub struct Workflow<I, O> {
     pub(crate) name: String,
     client: Hatchet,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     pub(crate) executable_tasks: Vec<Box<dyn ExecutableTask>>,
     #[builder(default = String::from(""))]
     description: String,
@@ -24,15 +23,15 @@ pub struct Workflow<I, O> {
     version: String,
     #[builder(default = 1)]
     default_priority: i32,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     tasks: Vec<CreateTaskOpts>,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     on_events: Vec<String>,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     cron_triggers: Vec<String>,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     default_filters: Vec<DefaultFilter>,
-    #[builder(default = "std::marker::PhantomData")]
+    #[builder(default = std::marker::PhantomData)]
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 

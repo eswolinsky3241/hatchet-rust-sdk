@@ -15,7 +15,6 @@ worker = []
 
 async-trait = "0.1.88"
 base64 = "0.22"
-derive_builder = "0.20.2"
 dyn-clone = "1.0.20"
 futures = "0.3.31"
 prost = "0.13"
@@ -35,6 +34,7 @@ tonic = { version = "0.13", features = [
     "tls-native-roots",
 ] }
 serde_repr = "^0.1"
+typed-builder = "0.21.2"
 url = "^2.5"
 uuid = { version = "^1.8", features = ["serde", "v4"] }
 
