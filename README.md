@@ -5,7 +5,7 @@
 
  ## Examples
 
- We recommend adding your Hatchet API token to a `.env` file and installing dotenvy to load it in your application.
+ We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
 
  ### Defining a simple workflow
 

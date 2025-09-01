@@ -5,12 +5,7 @@
 //!
 //! ## Examples
 //!
-//! We recommend adding your Hatchet API token to a `.env` file and installing dotenvy to load it in your application.
-//!
-//! ```toml
-//! [dependencies]
-//! dotenvy = "0.15.7"
-//! ```
+//! We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
 //!
 //! ```no_run
 //! use hatchet_sdk::{Context, HatchetClient};
