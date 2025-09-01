@@ -27,7 +27,7 @@ async fn main() {
         },
     );
 
-    let mut workflow = hatchet
+    let workflow = hatchet
         .workflow::<SimpleInput, SimpleOutput>()
         .name(String::from("simple-workflow"))
         .build()
