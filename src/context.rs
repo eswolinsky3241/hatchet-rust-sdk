@@ -76,6 +76,15 @@ impl Context {
         Ok(current_task.input.triggers.filter_payload.clone())
     }
 
+    /// Log a line to the Hatchet API. This will send the log line to the Hatchet API and return immediately.
+    /// ```no_run
+    /// use hatchet_sdk::{HatchetClient, EmptyModel};
+    /// let hatchet = HatchetClient::from_env().await.unwrap();
+    /// let task = hatchet.task("my-task", |_input: EmptyModel, ctx: Context| async move {
+    ///     ctx.log("Hello, world!").await.unwrap();
+    ///     Ok(EmptyModel)
+    /// });
+    /// ```
     pub async fn log(&self, message: &str) -> Result<(), HatchetError> {
         self.logger_tx.send(message.to_string()).await.unwrap();
 
