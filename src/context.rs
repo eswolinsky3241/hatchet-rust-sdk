@@ -4,6 +4,7 @@ use crate::HatchetError;
 use crate::clients::client::HatchetClient;
 use crate::features::runs::models::GetWorkflowRunResponse;
 
+/// The context object is used to interact with the Hatchet API from within a task.
 #[derive(Debug)]
 pub struct Context {
     logger_tx: mpsc::Sender<String>,
@@ -41,6 +42,14 @@ impl Context {
         }
     }
 
+    /// Get the output of a parent task in a DAG.
+    ///
+    /// ```no_run
+    /// let task = hatchet.task("my-task", |_input: EmptyModel, ctx: Context| async move {
+    ///     let parent_output = ctx.parent_output("parent_task").await.unwrap();
+    ///     Ok(EmptyModel)
+    /// });
+    /// ```
     pub async fn parent_output(
         &self,
         parent_step_name: &str,
