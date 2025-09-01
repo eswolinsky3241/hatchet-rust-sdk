@@ -19,8 +19,11 @@ impl RunsClient {
     ///
     /// ```no_run
     /// use hatchet_sdk::{HatchetClient, EmptyModel};
-    /// let hatchet = HatchetClient::from_env().await.unwrap();
-    /// let workflow_run = hatchet.workflow_rest_client.get("123").await.unwrap();
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let workflow_run = hatchet.workflow_rest_client.get("123").await.unwrap();
+    /// }
     /// ```
     pub async fn get(&self, workflow_run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
         let response = v1_workflow_run_get(&self.configuration, workflow_run_id)

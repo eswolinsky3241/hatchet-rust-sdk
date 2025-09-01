@@ -10,7 +10,6 @@
  ### Defining a simple workflow
 
  ```rust
- use anyhow;
  use hatchet_sdk::{Context, HatchetClient};
  use serde::{Deserialize, Serialize};
 

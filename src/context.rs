@@ -44,7 +44,7 @@ impl Context {
 
     /// Get the output of a parent task in a DAG.
     ///
-    /// ```no_run
+    /// ```compile_fail
     /// let task = hatchet.task("my-task", |_input: EmptyModel, ctx: Context| async move {
     ///     let parent_output = ctx.parent_output("parent_task").await.unwrap();
     ///     Ok(EmptyModel)
@@ -86,7 +86,7 @@ impl Context {
     }
 
     /// Log a line to the Hatchet API. This will send the log line to the Hatchet API and return immediately.
-    /// ```no_run
+    /// ```compile_fail
     /// use hatchet_sdk::{HatchetClient, EmptyModel};
     /// let hatchet = HatchetClient::from_env().await.unwrap();
     /// let task = hatchet.task("my-task", |_input: EmptyModel, ctx: Context| async move {

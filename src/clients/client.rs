@@ -141,16 +141,18 @@ impl HatchetClient {
     /// Create a new workflow.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{HatchetClient, EmptyModel};
-    /// let hatchet = HatchetClient::from_env().await.unwrap();
-    /// let workflow = hatchet.workflow::<EmptyModel, EmptyModel>()
-    ///     .name(String::from("my-workflow"))
-    ///     .build()
-    ///     .add_task(hatchet.task("my-task", |input: EmptyModel, _ctx: Context| async move {
-    ///         Ok(EmptyModel)
-    ///     }))
-    ///     .unwrap();
-    ///
+    /// use hatchet_sdk::{Context, HatchetClient, EmptyModel};
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let workflow = hatchet.workflow::<EmptyModel, EmptyModel>()
+    ///         .name(String::from("my-workflow"))
+    ///         .build().unwrap()
+    ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
+    ///             Ok(EmptyModel)
+    ///         }))
+    ///         .unwrap();
+    /// }
     /// ```
     pub fn workflow<I, O>(&self) -> crate::workflow::WorkflowBuilder<I, O>
     where
@@ -163,11 +165,15 @@ impl HatchetClient {
     /// Create a new task.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{HatchetClient, EmptyModel};
-    /// let hatchet = HatchetClient::from_env().await.unwrap();
-    /// let task = hatchet.task("my-task", |input: EmptyModel, _ctx: Context| async move {
-    ///     Ok(EmptyModel)
-    /// });
+    /// use hatchet_sdk::{Context, HatchetClient, EmptyModel};
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let task = hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
+    ///         Ok(EmptyModel)
+    ///     });
+    /// }
+    ///
     /// ```
     pub fn task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::Task<I, O, E>
     where
@@ -183,9 +189,12 @@ impl HatchetClient {
     /// Create a new worker.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{HatchetClient, EmptyModel};
-    /// let hatchet = HatchetClient::from_env().await.unwrap();
-    /// let worker = hatchet.worker().name("my-worker").build().unwrap();
+    /// use hatchet_sdk::{HatchetClient};
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let worker = hatchet.worker().name(String::from("my-worker")).build().unwrap();
+    /// }
     /// ```
     pub fn worker(&self) -> crate::worker::worker::WorkerBuilder {
         crate::worker::worker::WorkerBuilder::default().client(self.clone())

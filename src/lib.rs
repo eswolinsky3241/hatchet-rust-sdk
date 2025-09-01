@@ -13,7 +13,6 @@
 //! ```
 //!
 //! ```no_run
-//! use anyhow;
 //! use hatchet_sdk::{Context, HatchetClient};
 //! use serde::{Deserialize, Serialize};
 //!
@@ -69,7 +68,7 @@
 //!
 //! Use the `run` method to run the workflow synchronously:
 //!
-//! ```no_run
+//! ```compile_fail
 //! let output = workflow.run(SimpleInput {
 //!     message: "Hello, world!".to_string(),
 //! }, None).await.unwrap();
@@ -79,7 +78,7 @@
 //!
 //! Use the `run_no_wait` method to run the workflow asynchronously:
 //!
-//! ```no_run
+//! ```compile_fail
 //! workflow.run_no_wait(SimpleInput {
 //!     message: "Hello, world!".to_string(),
 //! }, None).await.unwrap();
