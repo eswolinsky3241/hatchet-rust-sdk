@@ -62,6 +62,4 @@ pub enum HatchetError {
     RestApiError(String),
     #[error("Error sending message to dispatcher: {0}")]
     DispatchError(String),
-    #[error("Parent task not found: {parent_step_name}")]
-    ParentTaskNotFound { parent_step_name: String },
 }
