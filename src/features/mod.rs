@@ -1,1 +1,1 @@
-pub mod workflows;
+pub mod runs;

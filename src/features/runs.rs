@@ -5,11 +5,11 @@ use models::*;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-pub struct WorkflowsClient {
+pub struct RunsClient {
     configuration: Arc<Configuration>,
 }
 
-impl WorkflowsClient {
+impl RunsClient {
     pub fn new(configuration: Arc<Configuration>) -> Self {
         Self { configuration }
     }

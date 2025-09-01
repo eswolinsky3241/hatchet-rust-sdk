@@ -2,7 +2,7 @@ use tokio::sync::mpsc;
 
 use crate::HatchetError;
 use crate::clients::client::HatchetClient;
-use crate::features::workflows::models::GetWorkflowRunResponse;
+use crate::features::runs::models::GetWorkflowRunResponse;
 
 #[derive(Debug)]
 pub struct Context {

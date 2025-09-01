@@ -2,7 +2,7 @@ use super::grpc::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
 use crate::clients::rest::apis::configuration::Configuration;
 use crate::config::{HatchetConfig, TlsStrategy};
 use crate::error::HatchetError;
-use crate::features::workflows::WorkflowsClient;
+use crate::features::runs::RunsClient;
 use std::sync::Arc;
 use tonic::transport::{Channel, ClientTlsConfig};
 
@@ -15,7 +15,7 @@ pub struct HatchetClient {
     pub(crate) dispatcher_client: DispatcherClient,
     pub(crate) event_client: EventClient,
     pub(crate) admin_client: AdminClient,
-    pub workflow_rest_client: WorkflowsClient,
+    pub workflow_rest_client: RunsClient,
 }
 
 impl HatchetClient {
@@ -26,7 +26,7 @@ impl HatchetClient {
         workflow_client: WorkflowClient,
         dispatcher_client: DispatcherClient,
         event_client: EventClient,
-        workflow_rest_client: WorkflowsClient,
+        workflow_rest_client: RunsClient,
     ) -> Result<Self, HatchetError> {
         Ok(Self {
             server_url,
@@ -124,7 +124,7 @@ impl HatchetClient {
             bearer_access_token: Some(config.api_token.clone()),
             api_key: None,
         });
-        let workflow_rest_client = WorkflowsClient::new(rest_configuration.clone());
+        let workflow_rest_client = RunsClient::new(rest_configuration.clone());
 
         Self::new(
             server_url.to_string(),

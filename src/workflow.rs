@@ -6,8 +6,8 @@ use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
 use crate::error::HatchetError;
-use crate::features::workflows::models::GetWorkflowRunResponse;
-use crate::features::workflows::models::WorkflowStatus;
+use crate::features::runs::models::GetWorkflowRunResponse;
+use crate::features::runs::models::WorkflowStatus;
 use crate::task::{ExecutableTask, Task};
 use derive_builder::Builder;
 
