@@ -8,7 +8,7 @@
 //! We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
 //!
 //! ```no_run
-//! use hatchet_sdk::{Context, Hatchet};
+//! use hatchet_sdk::{Context, Hatchet, Register, Runnable};
 //! use serde::{Deserialize, Serialize};
 //!
 //! // Define your input and output types
@@ -50,7 +50,7 @@
 //!         .name(String::from("simple-worker"))
 //!         .max_runs(5)
 //!         .build()
-//!         .add_workflow(workflow)
+//!         .add_task_or_workflow(workflow)
 //!         .start()
 //!         .await
 //!         .unwrap();
@@ -83,16 +83,17 @@ pub mod config;
 pub mod context;
 pub mod error;
 pub mod features;
-pub mod task;
+pub mod runnables;
 pub mod utils;
 pub mod worker;
-pub mod workflow;
 
 pub use clients::hatchet::Hatchet;
 pub use context::Context;
 pub use error::HatchetError;
-pub use task::Task;
+pub use runnables::Runnable;
+pub use runnables::Task;
+pub use runnables::TriggerWorkflowOptions;
+pub use runnables::Workflow;
 pub use utils::EmptyModel;
+pub use worker::Register;
 pub use worker::Worker;
-pub use workflow::TriggerWorkflowOptions;
-pub use workflow::Workflow;

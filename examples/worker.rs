@@ -1,5 +1,5 @@
 use anyhow;
-use hatchet_sdk::{Context, Hatchet};
+use hatchet_sdk::{Context, Hatchet, Register};
 use serde::{Deserialize, Serialize};
 
 #[tokio::main]
@@ -39,7 +39,7 @@ async fn main() {
         .name(String::from("simple-worker"))
         .max_runs(5)
         .build()
-        .add_workflow(workflow)
+        .add_task_or_workflow(workflow)
         .start()
         .await
         .unwrap();

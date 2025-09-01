@@ -56,7 +56,7 @@
          .max_runs(5)
          .build()
          .unwrap()
-         .add_workflow(workflow)
+         .add_task_or_workflow(workflow)
          .start()
          .await
          .unwrap();

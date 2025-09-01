@@ -53,7 +53,8 @@ impl Hatchet {
         let channel = Channel::from_shared(format!("http://{}", grpc_address))
             .map_err(|e| HatchetError::InvalidUri(e.to_string()))?
             .connect()
-            .await?;
+            .await
+            .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?;
 
         Ok(channel)
     }
@@ -74,9 +75,11 @@ impl Hatchet {
 
         let channel = Channel::from_shared(format!("https://{}", grpc_address))
             .map_err(|e| HatchetError::InvalidUri(e.to_string()))?
-            .tls_config(tls)?
+            .tls_config(tls)
+            .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?
             .connect()
-            .await?;
+            .await
+            .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?;
 
         Ok(channel)
     }
@@ -156,12 +159,12 @@ impl Hatchet {
     /// ```
     pub fn workflow<I, O>(
         &self,
-    ) -> crate::workflow::WorkflowBuilder<I, O, ((), (Hatchet,), (), (), (), (), (), (), (), (), ())>
+    ) -> crate::runnables::WorkflowBuilder<I, O, ((), (Hatchet,), (), (), (), (), (), (), (), (), ())>
     where
         I: serde::Serialize + Send + Sync,
         O: serde::de::DeserializeOwned + Send + Sync,
     {
-        crate::workflow::Workflow::<I, O>::builder().client(self.clone())
+        crate::runnables::Workflow::<I, O>::builder().client(self.clone())
     }
 
     /// Create a new task.
@@ -179,13 +182,13 @@ impl Hatchet {
     /// ```
     pub fn task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::Task<I, O, E>
     where
-        I: serde::de::DeserializeOwned + Send + Sync + 'static,
+        I: serde::Serialize + serde::de::DeserializeOwned + Send + Sync + 'static,
         O: serde::Serialize + Send + Sync + 'static,
         E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
         F: FnOnce(I, crate::context::Context) -> Fut + Send + Sync + Clone + 'static,
         Fut: std::future::Future<Output = Result<O, E>> + Send + 'static,
     {
-        crate::Task::<I, O, E>::new(name, f)
+        crate::Task::<I, O, E>::new(name, f, self.clone())
     }
 
     /// Create a new worker.

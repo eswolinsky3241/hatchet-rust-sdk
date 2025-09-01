@@ -19,7 +19,7 @@ pub struct SimpleOutput {
     pub transformed_message: String,
 }
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 pub enum MyError {
     #[error("Test failed.")]
     Failure,

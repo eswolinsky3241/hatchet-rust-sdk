@@ -1,5 +1,5 @@
 use anyhow;
-use hatchet_sdk::{Context, EmptyModel, Hatchet};
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Register, Runnable};
 use serde::{Deserialize, Serialize};
 
 #[tokio::main]
@@ -64,7 +64,7 @@ async fn main() {
             .name(String::from("test-worker"))
             .max_runs(5)
             .build()
-            .add_workflow(workflow_clone)
+            .add_task_or_workflow(workflow_clone)
             .start()
             .await
             .unwrap()

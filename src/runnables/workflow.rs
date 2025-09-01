@@ -8,7 +8,7 @@ use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
 use crate::features::runs::models::WorkflowStatus;
-use crate::task::{ExecutableTask, Task};
+use crate::runnables::task::{ExecutableTask, Task};
 use typed_builder::TypedBuilder;
 
 #[derive(Clone, TypedBuilder)]
@@ -85,63 +85,13 @@ where
         }
     }
 
-    pub async fn run_no_wait(
-        &mut self,
-        input: I,
-        options: Option<TriggerWorkflowOptions>,
-    ) -> Result<String, HatchetError> {
-        self.trigger(input, options.unwrap_or_default()).await
-    }
-
-    pub async fn run(
-        &mut self,
-        input: I,
-        options: Option<TriggerWorkflowOptions>,
-    ) -> Result<O, HatchetError> {
-        let run_id = self.run_no_wait(input, options).await?;
-
-        // Wait 2 seconds for eventual consistency
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-        loop {
-            let workflow = self.get_run(&run_id).await?;
-
-            match workflow.run.status {
-                WorkflowStatus::Running => {}
-                WorkflowStatus::Completed => {
-                    let mut task_outputs = serde_json::Map::new();
-
-                    for task in &workflow.tasks {
-                        if let (Some(action_id), Some(output)) = (&task.action_id, &task.output) {
-                            if let Some(task_name) = self.safely_get_action_name(action_id) {
-                                task_outputs.insert(task_name, output.clone());
-                            }
-                        }
-                    }
-
-                    let output_value = serde_json::Value::Object(task_outputs);
-                    let output: O = serde_json::from_value(output_value)
-                        .map_err(|e| HatchetError::JsonDecodeError(e))?;
-                    return Ok(output);
-                }
-                WorkflowStatus::Failed => {
-                    return Err(HatchetError::WorkflowFailed {
-                        error_message: workflow.run.error_message.clone(),
-                    });
-                }
-                _ => {}
-            }
-
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        }
-    }
-
     async fn trigger(
         &mut self,
         input: I,
         options: TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
-        let input_json = serde_json::to_value(&input).map_err(HatchetError::JsonEncode)?;
+        let input_json =
+            serde_json::to_value(&input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
 
         let response = self
             .client
@@ -170,6 +120,64 @@ where
 
     fn safely_get_action_name(&self, action_id: &str) -> Option<String> {
         action_id.split(':').nth(1).map(|s| s.to_string())
+    }
+}
+
+#[async_trait::async_trait]
+impl<I, O> crate::runnables::Runnable<I, O> for Workflow<I, O>
+where
+    I: Serialize + Send + Sync,
+    O: DeserializeOwned + Send + Sync,
+{
+    async fn run_no_wait(
+        &mut self,
+        input: I,
+        options: Option<TriggerWorkflowOptions>,
+    ) -> Result<String, HatchetError> {
+        Ok(self.trigger(input, options.unwrap_or_default()).await?)
+    }
+
+    async fn run(
+        &mut self,
+        input: I,
+        options: Option<TriggerWorkflowOptions>,
+    ) -> Result<O, HatchetError> {
+        let run_id = self.run_no_wait(input, options).await?;
+
+        // Wait 2 seconds for eventual consistency
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+        loop {
+            let workflow = self.get_run(&run_id).await?;
+
+            match workflow.run.status {
+                WorkflowStatus::Running => {}
+                WorkflowStatus::Completed => {
+                    let mut task_outputs = serde_json::Map::new();
+
+                    for task in &workflow.tasks {
+                        if let (Some(action_id), Some(output)) = (&task.action_id, &task.output) {
+                            if let Some(task_name) = self.safely_get_action_name(action_id) {
+                                task_outputs.insert(task_name, output.clone());
+                            }
+                        }
+                    }
+
+                    let output_value = serde_json::Value::Object(task_outputs);
+                    let output: O = serde_json::from_value(output_value)
+                        .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))?;
+                    return Ok(output);
+                }
+                WorkflowStatus::Failed => {
+                    return Err(HatchetError::WorkflowFailed {
+                        error_message: workflow.run.error_message.clone(),
+                    });
+                }
+                _ => {}
+            }
+
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
     }
 }
 

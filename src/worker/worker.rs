@@ -9,7 +9,7 @@ use crate::clients::grpc::v0::dispatcher;
 use crate::clients::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
-use crate::task::ExecutableTask;
+use crate::runnables::*;
 use crate::worker::action_listener::ActionListener;
 
 #[derive(typed_builder::TypedBuilder)]
@@ -54,26 +54,9 @@ impl Worker {
     ///     .unwrap();
     ///
     ///     let worker = hatchet.worker().name(String::from("my-worker")).build().unwrap();
-    ///     worker.add_workflow(my_workflow);
+    ///     worker.add_task_or_workflow(my_workflow);
     /// }
     /// ```
-    pub fn add_workflow<I, O>(mut self, workflow: crate::workflow::Workflow<I, O>) -> Self
-    where
-        I: Serialize + Send + Sync,
-        O: DeserializeOwned + Send + Sync,
-    {
-        self.workflows.push(workflow.to_proto());
-
-        for task in workflow.executable_tasks {
-            let fully_qualified_name = format!("{}:{}", workflow.name, task.name());
-            self.tasks
-                .lock()
-                .unwrap()
-                .insert(fully_qualified_name, Arc::from(task));
-        }
-        self
-    }
-
     async fn register_workflows(&mut self) {
         for workflow in &self.workflows {
             self.client
@@ -89,7 +72,7 @@ impl Worker {
     /// Use ctrl+c to stop the worker.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
+    /// use hatchet_sdk::{Context, Hatchet, EmptyModel, Runnable,Register};
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -108,7 +91,7 @@ impl Worker {
     ///         .name(String::from("my-worker"))
     ///         .max_runs(5)
     ///         .build()
-    ///         .add_workflow(my_workflow);
+    ///         .add_task_or_workflow(my_workflow);
     ///
     ///     worker.start().await.unwrap();
     /// }
@@ -196,4 +179,66 @@ impl Worker {
 
         Ok(response.worker_id)
     }
+}
+
+impl<I, O> Register<Workflow<I, O>, I, O> for Worker
+where
+    I: Serialize + Send + Sync,
+    O: DeserializeOwned + Send + Sync,
+{
+    fn add_task_or_workflow(mut self, workflow: Workflow<I, O>) -> Self {
+        self.workflows.push(workflow.to_proto());
+
+        for task in workflow.executable_tasks {
+            let fully_qualified_name = format!("{}:{}", workflow.name, task.name());
+            self.tasks
+                .lock()
+                .unwrap()
+                .insert(fully_qualified_name, Arc::from(task));
+        }
+        self
+    }
+}
+
+impl<I, O, E> Register<Task<I, O, E>, I, O> for Worker
+where
+    I: DeserializeOwned + Serialize + Send + Sync + 'static,
+    O: Serialize + DeserializeOwned + Send + Sync + 'static,
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn add_task_or_workflow(mut self, workflow: Task<I, O, E>) -> Self {
+        let task_proto = workflow.to_proto(&workflow.name);
+        let workflow_proto = crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest {
+            name: workflow.name.clone(),
+            description: String::from(""),
+            version: String::from(""),
+            event_triggers: vec![],
+            cron_triggers: vec![],
+            tasks: vec![task_proto],
+            concurrency: None,
+            cron_input: None,
+            on_failure_task: None,
+            sticky: None,
+            default_priority: None,
+            concurrency_arr: vec![],
+            default_filters: vec![],
+        };
+        self.workflows.push(workflow_proto);
+
+        let fully_qualified_name = format!("{}:{}", workflow.name, workflow.name);
+        self.tasks
+            .lock()
+            .unwrap()
+            .insert(fully_qualified_name, Arc::from(workflow.into_executable()));
+        self
+    }
+}
+
+pub trait Register<T, I, O>
+where
+    T: Runnable<I, O>,
+    I: Serialize + Send + Sync,
+    O: DeserializeOwned + Send + Sync,
+{
+    fn add_task_or_workflow(self, workflow: T) -> Self;
 }
