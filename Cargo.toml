@@ -46,3 +46,11 @@ tonic-build = { version = "0.13.1", features = ["prost"] }
 anyhow = "1.0.99"
 dotenvy = "0.15.7"
 testcontainers = "0.25.0"
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+
+[[example]]
+name = "worker"
+path = "examples/worker.rs"
