@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 pub enum HatchetError {
     #[error("Missing required environment variable \"{var}\".")]
     MissingEnvVar { var: String },
@@ -8,12 +8,12 @@ pub enum HatchetError {
     InvalidTokenFormat,
     #[error("Error decoding token: {0}.")]
     Base64DecodeError(#[from] base64::DecodeError),
-    #[error("Error decoding JSON.")]
-    JsonDecodeError(#[from] serde_json::Error),
+    #[error("Error decoding JSON: {0}")]
+    JsonDecodeError(String),
     #[error("Missing required field in JWT payload: {0}")]
     MissingTokenField(&'static str),
     #[error("Error sending API request: {0}")]
-    ApiRequestError(#[from] reqwest::Error),
+    ApiRequestError(String),
     #[error("Hatchet request failed:\nurl: {method} {url}\nstatus: {status}\ncontents: {body}")]
     HttpError {
         url: String,
@@ -22,11 +22,11 @@ pub enum HatchetError {
         body: String,
     },
     #[error("Error encoding JSON")]
-    JsonEncode(serde_json::Error),
-    #[error("Invalid authorization header in gRPC request")]
-    InvalidAuthHeader(#[from] tonic::metadata::errors::InvalidMetadataValue),
-    #[error("Unable to connect to gRPC server")]
-    GrpcConnect(#[from] tonic::transport::Error),
+    JsonEncode(String),
+    #[error("Invalid authorization header in gRPC request: {0}")]
+    InvalidAuthHeader(String),
+    #[error("Unable to connect to gRPC server: {0}")]
+    GrpcConnect(String),
     #[error("Error calling gRPC service: {0}")]
     GrpcCall(tonic::Status),
     #[error("Response missing output")]
