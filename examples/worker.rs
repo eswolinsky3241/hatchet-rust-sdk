@@ -17,20 +17,24 @@ async fn main() {
         message: String,
     }
 
-    let task = hatchet.task(
-        "simple-task",
-        async move |input: SimpleInput, ctx: Context| -> anyhow::Result<SimpleOutput> {
-            ctx.log("Starting simple task").await?;
-            Ok(SimpleOutput {
-                message: input.message.to_lowercase(),
-            })
-        },
-    );
+    let task = hatchet
+        .task(
+            "simple-task",
+            async move |input: SimpleInput, ctx: Context| -> anyhow::Result<SimpleOutput> {
+                ctx.log("Starting simple task").await?;
+                Ok(SimpleOutput {
+                    message: input.message.to_lowercase(),
+                })
+            },
+        )
+        .build()
+        .unwrap();
 
     let workflow = hatchet
         .workflow::<SimpleInput, SimpleOutput>()
         .name(String::from("simple-workflow"))
         .build()
+        .unwrap()
         .add_task(task)
         .unwrap();
 
@@ -39,6 +43,7 @@ async fn main() {
         .name(String::from("simple-worker"))
         .max_runs(5)
         .build()
+        .unwrap()
         .add_task_or_workflow(workflow)
         .start()
         .await

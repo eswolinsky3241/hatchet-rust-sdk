@@ -12,7 +12,8 @@ use crate::error::HatchetError;
 use crate::runnables::*;
 use crate::worker::action_listener::ActionListener;
 
-#[derive(typed_builder::TypedBuilder)]
+#[derive(derive_builder::Builder)]
+#[builder(pattern = "owned")]
 pub struct Worker {
     pub name: String,
     max_runs: i32,

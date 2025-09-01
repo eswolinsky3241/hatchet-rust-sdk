@@ -157,14 +157,12 @@ impl Hatchet {
     ///         .unwrap();
     /// }
     /// ```
-    pub fn workflow<I, O>(
-        &self,
-    ) -> crate::runnables::WorkflowBuilder<I, O, ((), (Hatchet,), (), (), (), (), (), (), (), (), ())>
+    pub fn workflow<I, O>(&self) -> crate::runnables::WorkflowBuilder<I, O>
     where
         I: serde::Serialize + Send + Sync,
         O: serde::de::DeserializeOwned + Send + Sync,
     {
-        crate::runnables::Workflow::<I, O>::builder().client(self.clone())
+        crate::runnables::WorkflowBuilder::<I, O>::default().client(self.clone())
     }
 
     /// Create a new task.
@@ -180,7 +178,11 @@ impl Hatchet {
     /// }
     ///
     /// ```
-    pub fn task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::Task<I, O, E>
+    pub fn task<I, O, E, F, Fut>(
+        &self,
+        name: &str,
+        handler: F,
+    ) -> crate::runnables::task::TaskBuilder<I, O, E>
     where
         I: serde::Serialize + serde::de::DeserializeOwned + Send + Sync + 'static,
         O: serde::Serialize + Send + Sync + 'static,
@@ -188,7 +190,15 @@ impl Hatchet {
         F: FnOnce(I, crate::context::Context) -> Fut + Send + Sync + Clone + 'static,
         Fut: std::future::Future<Output = Result<O, E>> + Send + 'static,
     {
-        crate::Task::<I, O, E>::new(name, f, self.clone())
+        let handler = Arc::new(move |input: I, ctx: crate::context::Context| {
+            let handler_clone = handler.clone();
+            Box::pin(handler_clone(input, ctx))
+                as std::pin::Pin<Box<dyn Future<Output = Result<O, E>> + Send>>
+        });
+        crate::runnables::task::TaskBuilder::<I, O, E>::default()
+            .name(name.to_string())
+            .handler(handler)
+            .client(self.clone())
     }
 
     /// Create a new worker.
@@ -201,7 +211,7 @@ impl Hatchet {
     ///     let worker = hatchet.worker().name(String::from("my-worker")).max_runs(5).build();
     /// }
     /// ```
-    pub fn worker(&self) -> crate::worker::worker::WorkerBuilder<((), (), (Hatchet,), (), ())> {
-        crate::worker::worker::Worker::builder().client(self.clone())
+    pub fn worker(&self) -> crate::worker::worker::WorkerBuilder {
+        crate::worker::worker::WorkerBuilder::default().client(self.clone())
     }
 }

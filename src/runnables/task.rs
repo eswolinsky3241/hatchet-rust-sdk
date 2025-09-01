@@ -1,4 +1,5 @@
 use super::ExtractRunnableOutput;
+use super::workflow::DefaultFilter;
 use crate::Hatchet;
 use crate::clients::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
 use crate::context::Context;
@@ -47,13 +48,27 @@ pub trait ExecutableTask: Send + Sync + dyn_clone::DynClone {
 
 dyn_clone::clone_trait_object!(ExecutableTask);
 
-#[derive(Clone)]
+#[derive(Clone, derive_builder::Builder)]
+#[builder(pattern = "owned")]
 pub struct Task<I, O, E> {
     client: Hatchet,
     pub(crate) name: String,
     handler:
         Arc<dyn Fn(I, Context) -> Pin<Box<dyn Future<Output = Result<O, E>> + Send>> + Send + Sync>,
+    #[builder(default = vec![])]
     parents: Vec<String>,
+    #[builder(default = String::from(""))]
+    description: String,
+    #[builder(default = String::from(""))]
+    version: String,
+    #[builder(default = 1)]
+    default_priority: i32,
+    #[builder(default = vec![])]
+    on_events: Vec<String>,
+    #[builder(default = vec![])]
+    cron_triggers: Vec<String>,
+    #[builder(default = vec![])]
+    default_filters: Vec<DefaultFilter>,
 }
 
 impl<I, O, E> Task<I, O, E>
@@ -62,25 +77,25 @@ where
     O: Serialize + Send + 'static,
     E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
 {
-    pub fn new<F, Fut>(name: impl Into<String>, handler: F, client: Hatchet) -> Self
-    where
-        F: FnOnce(I, Context) -> Fut + Send + Sync + Clone + 'static,
-        Fut: Future<Output = Result<O, E>> + Send + 'static,
-    {
-        let name = name.into();
-        let handler = Arc::new(move |input: I, ctx: Context| {
-            let handler_clone = handler.clone();
-            Box::pin(handler_clone(input, ctx))
-                as Pin<Box<dyn Future<Output = Result<O, E>> + Send>>
-        });
+    // pub fn new<F, Fut>(name: impl Into<String>, handler: F, client: Hatchet) -> Self
+    // where
+    //     F: FnOnce(I, Context) -> Fut + Send + Sync + Clone + 'static,
+    //     Fut: Future<Output = Result<O, E>> + Send + 'static,
+    // {
+    //     let name = name.into();
+    //     let handler = Arc::new(move |input: I, ctx: Context| {
+    //         let handler_clone = handler.clone();
+    //         Box::pin(handler_clone(input, ctx))
+    //             as Pin<Box<dyn Future<Output = Result<O, E>> + Send>>
+    //     });
 
-        Self {
-            client,
-            name,
-            handler,
-            parents: vec![],
-        }
-    }
+    //     Self {
+    //         client,
+    //         name,
+    //         handler,
+    //         parents: vec![],
+    //     }
+    // }
 
     pub fn add_parent<J, P, F>(mut self, parent: &Task<J, P, F>) -> Self {
         self.parents.push(parent.name.clone());
@@ -133,18 +148,23 @@ where
         let task_proto = self.to_task_proto(&self.name);
         CreateWorkflowVersionRequest {
             name: self.name.clone(),
-            description: String::from(""),
-            version: String::from(""),
-            event_triggers: vec![],
-            cron_triggers: vec![],
+            description: self.description.clone(),
+            version: self.version.clone(),
+            event_triggers: self.on_events.clone(),
+            cron_triggers: self.cron_triggers.clone(),
             tasks: vec![task_proto],
             concurrency: None,
             cron_input: None,
             on_failure_task: None,
             sticky: None,
-            default_priority: None,
+            default_priority: Some(self.default_priority),
             concurrency_arr: vec![],
-            default_filters: vec![],
+            default_filters: self
+                .default_filters
+                .clone()
+                .into_iter()
+                .map(|f| f.to_proto())
+                .collect(),
         }
     }
 

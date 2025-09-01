@@ -1,5 +1,5 @@
 mod runnable;
-mod task;
+pub mod task;
 mod workflow;
 
 pub(crate) use runnable::ExtractRunnableOutput;

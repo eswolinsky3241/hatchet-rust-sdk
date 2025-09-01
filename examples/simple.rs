@@ -16,17 +16,20 @@ async fn main() {
         message: String,
     }
 
-    let mut task = hatchet.task(
-        "simple-task",
-        async move |input: SimpleInput,
-                    ctx: Context|
-                    -> Result<SimpleOutput, hatchet_sdk::HatchetError> {
-            ctx.log("Starting simple task").await?;
-            Ok(SimpleOutput {
-                message: input.message.to_lowercase(),
-            })
-        },
-    );
+    let mut task = hatchet
+        .task(
+            "simple-task",
+            async move |input: SimpleInput,
+                        ctx: Context|
+                        -> Result<SimpleOutput, hatchet_sdk::HatchetError> {
+                ctx.log("Starting simple task").await?;
+                Ok(SimpleOutput {
+                    message: input.message.to_lowercase(),
+                })
+            },
+        )
+        .build()
+        .unwrap();
 
     let hatchet_clone = hatchet.clone();
     let task_clone = task.clone();
@@ -37,6 +40,7 @@ async fn main() {
             .name(String::from("test-worker"))
             .max_runs(5)
             .build()
+            .unwrap()
             .add_task_or_workflow(task_clone)
             .start()
             .await

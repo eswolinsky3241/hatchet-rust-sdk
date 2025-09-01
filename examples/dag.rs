@@ -24,14 +24,17 @@ async fn main() {
     dotenvy::dotenv().ok();
     let hatchet = Hatchet::from_env().await.unwrap();
 
-    let first_task = hatchet.task(
-        "first_task",
-        async move |_input: EmptyModel, _ctx: Context| -> anyhow::Result<FirstTaskOutput> {
-            Ok(FirstTaskOutput {
-                output: "Hello World".to_string(),
-            })
-        },
-    );
+    let first_task = hatchet
+        .task(
+            "first_task",
+            async move |_input: EmptyModel, _ctx: Context| -> anyhow::Result<FirstTaskOutput> {
+                Ok(FirstTaskOutput {
+                    output: "Hello World".to_string(),
+                })
+            },
+        )
+        .build()
+        .unwrap();
 
     let second_task = hatchet
         .task(
@@ -44,12 +47,15 @@ async fn main() {
                 })
             },
         )
+        .build()
+        .unwrap()
         .add_parent(&first_task);
 
     let mut workflow = hatchet
         .workflow::<EmptyModel, WorkflowOutput>()
         .name(String::from("dag-workflow"))
         .build()
+        .unwrap()
         .add_task(first_task)
         .unwrap()
         .add_task(second_task)
@@ -64,6 +70,7 @@ async fn main() {
             .name(String::from("test-worker"))
             .max_runs(5)
             .build()
+            .unwrap()
             .add_task_or_workflow(workflow_clone)
             .start()
             .await

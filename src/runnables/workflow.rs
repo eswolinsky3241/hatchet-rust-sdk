@@ -9,9 +9,10 @@ use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
 use crate::runnables::task::{ExecutableTask, Task};
-use typed_builder::TypedBuilder;
+use derive_builder::Builder;
 
-#[derive(Clone, TypedBuilder)]
+#[derive(Clone, Builder)]
+#[builder(pattern = "owned")]
 pub struct Workflow<I, O> {
     pub(crate) name: String,
     client: Hatchet,
