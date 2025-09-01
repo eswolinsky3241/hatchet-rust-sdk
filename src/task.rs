@@ -78,7 +78,7 @@ where
         self
     }
 
-    pub fn into_executable(self) -> Box<dyn ExecutableTask> {
+    pub(crate) fn into_executable(self) -> Box<dyn ExecutableTask> {
         let handler = self.handler;
         let name = self.name;
 

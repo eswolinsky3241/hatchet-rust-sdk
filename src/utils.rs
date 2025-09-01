@@ -37,7 +37,7 @@ tokio::task_local! {
 }
 
 /// A type that serializes to an empty JSON object.
-/// This can be used for workflows that don't need input.
+/// This can be used for workflows that don't need input or don't return output.
 ///
 /// # Example
 /// ```rust
