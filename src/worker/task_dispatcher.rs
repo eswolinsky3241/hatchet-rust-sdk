@@ -10,7 +10,7 @@ use crate::clients::grpc::v0::dispatcher;
 use crate::clients::hatchet::Hatchet;
 use crate::context::Context;
 use crate::error::HatchetError;
-use crate::task::ExecutableTask;
+use crate::runnables::ExecutableTask;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 
 #[derive(Clone)]
@@ -81,15 +81,15 @@ impl TaskDispatcher {
                         .expect("missing `input` field");
 
                     let result: Result<
-                        Result<serde_json::Value, crate::task::TaskError>,
+                        Result<serde_json::Value, crate::runnables::TaskError>,
                         Box<dyn std::any::Any + Send>,
                     > = AssertUnwindSafe(task.execute(input_value, context))
                         .catch_unwind()
                         .await;
 
                     let event_payload = match &result {
-                        Ok(Ok(output)) => output.to_string(),
-                        Ok(Err(e)) => e.to_string(),
+                        Ok(Ok(output)) => (2, output.to_string()),
+                        Ok(Err(e)) => (3, e.to_string()),
                         Err(panic_payload) => {
                             let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
                                 s.to_string()
@@ -98,11 +98,9 @@ impl TaskDispatcher {
                             } else {
                                 String::from("Unknown panic")
                             };
-                            format!("Task panicked: {panic_msg}")
+                            (3, format!("Task panicked: {panic_msg}"))
                         }
                     };
-
-                    let event_type = if result.unwrap().is_ok() { 2 } else { 3 };
 
                     let event = dispatcher::StepActionEvent {
                         worker_id: worker_id.to_string(),
@@ -112,8 +110,8 @@ impl TaskDispatcher {
                         step_run_id: message.step_run_id.clone(),
                         action_id: message.action_id.clone(),
                         event_timestamp: Some(crate::utils::proto_timestamp_now()?),
-                        event_type,
-                        event_payload,
+                        event_type: event_payload.0,
+                        event_payload: event_payload.1,
                         retry_count: None,
                         should_not_retry: None,
                     };

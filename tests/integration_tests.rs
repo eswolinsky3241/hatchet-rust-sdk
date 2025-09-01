@@ -1,5 +1,5 @@
 use hatchet_sdk::worker::worker::WorkerBuilder;
-use hatchet_sdk::{Hatchet, HatchetError};
+use hatchet_sdk::{Hatchet, HatchetError, Register, Runnable};
 
 mod common;
 use common::{MyError, SimpleInput, SimpleOutput};
@@ -19,33 +19,29 @@ async fn test_run_returns_job_output() {
         .await
         .unwrap();
 
-    let my_task = hatchet.task(
-        "step1",
-        async move |input: SimpleInput,
-                    _ctx: hatchet_sdk::Context|
-                    -> Result<SimpleOutput, MyError> {
-            Ok(SimpleOutput {
-                transformed_message: input.message.to_lowercase(),
-            })
-        },
-    );
-    let mut workflow = hatchet
-        .workflow::<SimpleInput, SimpleOutput>()
-        .name(String::from("test-workflow"))
+    let mut task = hatchet
+        .task(
+            "step1",
+            async move |input: SimpleInput,
+                        _ctx: hatchet_sdk::Context|
+                        -> Result<SimpleOutput, MyError> {
+                Ok(SimpleOutput {
+                    transformed_message: input.message.to_lowercase(),
+                })
+            },
+        )
         .build()
-        .unwrap()
-        .add_task(my_task)
         .unwrap();
 
-    let workflow_clone = workflow.clone();
-    let worker_handle = tokio::spawn(async move {
+    let task_clone = task.clone();
+    let worker_handle: tokio::task::JoinHandle<()> = tokio::spawn(async move {
         WorkerBuilder::default()
             .name(String::from("test-worker"))
             .client(hatchet.clone())
             .max_runs(5)
             .build()
             .unwrap()
-            .add_workflow(workflow_clone)
+            .add_task_or_workflow(task_clone)
             .start()
             .await
             .unwrap()
@@ -56,16 +52,15 @@ async fn test_run_returns_job_output() {
 
     assert_eq!(
         "uppercase",
-        workflow
-            .run(
-                SimpleInput {
-                    message: "UPPERCASE".to_string()
-                },
-                None
-            )
-            .await
-            .unwrap()
-            .transformed_message
+        task.run(
+            SimpleInput {
+                message: "UPPERCASE".to_string()
+            },
+            None
+        )
+        .await
+        .unwrap()
+        .transformed_message
     );
     worker_handle.abort()
 }
@@ -85,29 +80,24 @@ async fn test_run_returns_error_if_job_fails() {
         .await
         .unwrap();
 
-    let my_task = hatchet.task(
-        "step1",
-        async move |_input: SimpleInput,
-                    _ctx: hatchet_sdk::Context|
-                    -> Result<SimpleOutput, MyError> { Err(MyError::Failure) },
-    );
-    let mut workflow = hatchet
-        .workflow::<SimpleInput, SimpleOutput>()
-        .name(String::from("test-workflow"))
+    let mut task = hatchet
+        .task(
+            "step1",
+            async move |_input: SimpleInput,
+                        _ctx: hatchet_sdk::Context|
+                        -> Result<SimpleOutput, MyError> { Err(MyError::Failure) },
+        )
         .build()
-        .unwrap()
-        .add_task(my_task)
         .unwrap();
 
-    let workflow_clone = workflow.clone();
+    let task_clone = task.clone();
     let worker_handle = tokio::spawn(async move {
         hatchet
-            .worker()
-            .name(String::from("test-worker"))
+            .worker("test-worker")
             .max_runs(5)
             .build()
             .unwrap()
-            .add_workflow(workflow_clone)
+            .add_task_or_workflow(task_clone)
             .start()
             .await
             .unwrap()
@@ -116,7 +106,7 @@ async fn test_run_returns_error_if_job_fails() {
     // Give worker time to register task
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    let output = workflow
+    let output = task
         .run(
             SimpleInput {
                 message: "UPPERCASE".to_string(),
@@ -148,45 +138,33 @@ async fn test_dynamically_spawn_child_workflow() {
         .await
         .unwrap();
 
-    let child_task = hatchet.task(
-        "child_task",
-        async move |_input: hatchet_sdk::EmptyModel,
-                    _ctx: hatchet_sdk::Context|
-                    -> Result<serde_json::Value, MyError> {
-            Ok(serde_json::json!({"output": "Hello from child task"}))
-        },
-    );
-
-    let mut child_workflow = hatchet
-        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
-        .name(String::from("child_workflow"))
+    let mut child_task = hatchet
+        .task(
+            "child_task",
+            async move |_input: hatchet_sdk::EmptyModel,
+                        _ctx: hatchet_sdk::Context|
+                        -> Result<serde_json::Value, MyError> {
+                Ok(serde_json::json!({"output": "Hello from child task"}))
+            },
+        )
         .build()
-        .unwrap()
-        .add_task(child_task)
         .unwrap();
 
-    let child_workflow_clone = child_workflow.clone();
+    let child_task_clone = child_task.clone();
 
-    let parent_task = hatchet.task(
-        "parent_task",
-        async move |_input: hatchet_sdk::EmptyModel,
-                    _ctx: hatchet_sdk::Context|
-                    -> Result<serde_json::Value, MyError> {
-            Ok(child_workflow
-                .run(hatchet_sdk::EmptyModel, None)
-                .await
-                .unwrap())
-        },
-    );
-    let mut parent_workflow = hatchet
-        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
-        .name(String::from("parent-workflow"))
+    let mut parent_task = hatchet
+        .task(
+            "parent_task",
+            async move |_input: hatchet_sdk::EmptyModel,
+                        _ctx: hatchet_sdk::Context|
+                        -> Result<serde_json::Value, MyError> {
+                Ok(child_task.run(hatchet_sdk::EmptyModel, None).await.unwrap())
+            },
+        )
         .build()
-        .unwrap()
-        .add_task(parent_task)
         .unwrap();
 
-    let parent_workflow_clone = parent_workflow.clone();
+    let task_clone = parent_task.clone();
     let worker_handle = tokio::spawn(async move {
         hatchet_sdk::worker::worker::WorkerBuilder::default()
             .name(String::from("test-worker"))
@@ -194,8 +172,8 @@ async fn test_dynamically_spawn_child_workflow() {
             .max_runs(5)
             .build()
             .unwrap()
-            .add_workflow(parent_workflow_clone)
-            .add_workflow(child_workflow_clone)
+            .add_task_or_workflow(task_clone)
+            .add_task_or_workflow(child_task_clone)
             .start()
             .await
             .unwrap()
@@ -204,7 +182,7 @@ async fn test_dynamically_spawn_child_workflow() {
     // Give worker time to register task
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    let output = parent_workflow
+    let output = parent_task
         .run(hatchet_sdk::EmptyModel, None)
         .await
         .unwrap();
@@ -228,14 +206,17 @@ async fn test_dag_workflow() {
         .await
         .unwrap();
 
-    let parent_task = hatchet.task(
-        "parent_task",
-        async move |_input: hatchet_sdk::EmptyModel,
-                    _ctx: hatchet_sdk::Context|
-                    -> Result<serde_json::Value, MyError> {
-            Ok(serde_json::json!({"message": "I am your father"}))
-        },
-    );
+    let parent_task = hatchet
+        .task(
+            "parent_task",
+            async move |_input: hatchet_sdk::EmptyModel,
+                        _ctx: hatchet_sdk::Context|
+                        -> Result<serde_json::Value, MyError> {
+                Ok(serde_json::json!({"message": "I am your father"}))
+            },
+        )
+        .build()
+        .unwrap();
 
     let child_task = hatchet
         .task(
@@ -248,11 +229,12 @@ async fn test_dag_workflow() {
                 Ok(serde_json::json!({"output": format!("Parent said: {}", message.to_string())}))
             },
         )
+        .build()
+        .unwrap()
         .add_parent(&parent_task);
 
     let mut dag_workflow = hatchet
-        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
-        .name(String::from("parent-workflow"))
+        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>("parent-workflow")
         .build()
         .unwrap()
         .add_task(parent_task)
@@ -268,7 +250,7 @@ async fn test_dag_workflow() {
             .max_runs(5)
             .build()
             .unwrap()
-            .add_workflow(dag_workflow_clone)
+            .add_task_or_workflow(dag_workflow_clone)
             .start()
             .await
             .unwrap()
@@ -281,7 +263,12 @@ async fn test_dag_workflow() {
 
     assert_eq!(
         "Parent said: \"I am your father\"",
-        output.unwrap().get("output").unwrap()
+        output
+            .unwrap()
+            .get("child_task")
+            .unwrap()
+            .get("output")
+            .unwrap()
     );
     worker_handle.abort()
 }

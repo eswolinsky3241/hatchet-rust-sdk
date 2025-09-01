@@ -21,6 +21,10 @@ find $tmp_dir -name "*.rs" -type f -exec sed -i '' 's/crate::/crate::clients::re
 # Due to possible bug, replace instances of <Object> with <serde_json::Value>
 find $tmp_dir -name "*.rs" -type f -exec sed -i '' 's/<Object>/<serde_json::Value>/g' {} +
 
+# Update event IDs to i64
+sed -i '' 's/pub id: i32/pub id: i64/g' "$tmp_dir/src/models/v1_task_event_list_200_response_rows_inner.rs"
+sed -i '' 's/pub fn new(id: i32/pub fn new(id: i64/g' "$tmp_dir/src/models/v1_task_event_list_200_response_rows_inner.rs"
+
 mv $tmp_dir/src/lib.rs $tmp_dir/src/mod.rs
 
 cp -r $tmp_dir/src/* src/clients/rest

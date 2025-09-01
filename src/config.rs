@@ -57,7 +57,8 @@ impl HatchetConfig {
 
     fn decode_token(token_payload: &str) -> Result<serde_json::Value, HatchetError> {
         let payload_bytes = URL_SAFE_NO_PAD.decode(token_payload)?;
-        let payload_json: serde_json::Value = serde_json::from_slice(&payload_bytes)?;
+        let payload_json: serde_json::Value = serde_json::from_slice(&payload_bytes)
+            .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))?;
         Ok(payload_json)
     }
 

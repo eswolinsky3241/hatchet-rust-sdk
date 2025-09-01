@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct V1TaskEventList200ResponseRowsInner {
     #[serde(rename = "id")]
-    pub id: i32,
+    pub id: i64,
     #[serde(rename = "taskId")]
     pub task_id: uuid::Uuid,
     #[serde(rename = "timestamp")]
@@ -40,7 +40,7 @@ pub struct V1TaskEventList200ResponseRowsInner {
 }
 
 impl V1TaskEventList200ResponseRowsInner {
-    pub fn new(id: i32, task_id: uuid::Uuid, timestamp: String, event_type: EventType, message: String) -> V1TaskEventList200ResponseRowsInner {
+    pub fn new(id: i64, task_id: uuid::Uuid, timestamp: String, event_type: EventType, message: String) -> V1TaskEventList200ResponseRowsInner {
         V1TaskEventList200ResponseRowsInner {
             id,
             task_id,

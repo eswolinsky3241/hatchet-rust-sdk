@@ -65,6 +65,8 @@ pub mod models {
         pub input: TaskInput,
         #[serde(rename = "taskExternalId")]
         pub task_external_id: String,
+        #[serde(rename = "actionId")]
+        pub action_id: Option<String>,
     }
 
     #[derive(Debug, Deserialize)]

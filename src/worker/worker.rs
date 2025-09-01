@@ -5,11 +5,11 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 
-use crate::clients::hatchet::Hatchet;
 use crate::clients::grpc::v0::dispatcher;
 use crate::clients::grpc::v0::dispatcher::WorkerRegisterRequest;
+use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
-use crate::task::ExecutableTask;
+use crate::runnables::*;
 use crate::worker::action_listener::ActionListener;
 
 #[derive(derive_builder::Builder)]
@@ -18,9 +18,9 @@ pub struct Worker {
     pub name: String,
     max_runs: i32,
     client: Hatchet,
-    #[builder(default = "Arc::new(Mutex::new(HashMap::new()))")]
+    #[builder(default = Arc::new(Mutex::new(HashMap::new())))]
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     workflows: Vec<crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest>,
 }
 
@@ -48,33 +48,16 @@ impl Worker {
     ///     Ok(EmptyModel)
     /// });
     ///
-    /// let my_workflow = hatchet.workflow().name(String::from("my-workflow"))
+    /// let my_workflow = hatchet.workflow("my-workflow")
     ///     .build()
     ///     .unwrap()
     ///     .add_task(my_task)
     ///     .unwrap();
     ///
-    ///     let worker = hatchet.worker().name(String::from("my-worker")).build().unwrap();
-    ///     worker.add_workflow(my_workflow);
+    ///     let worker = hatchet.worker("my-worker").build().unwrap();
+    ///     worker.add_task_or_workflow(my_workflow);
     /// }
     /// ```
-    pub fn add_workflow<I, O>(mut self, workflow: crate::workflow::Workflow<I, O>) -> Self
-    where
-        I: Serialize + Send + Sync,
-        O: DeserializeOwned + Send + Sync,
-    {
-        self.workflows.push(workflow.to_proto());
-
-        for task in workflow.executable_tasks {
-            let fully_qualified_name = format!("{}:{}", workflow.name, task.name());
-            self.tasks
-                .lock()
-                .unwrap()
-                .insert(fully_qualified_name, Arc::from(task));
-        }
-        self
-    }
-
     async fn register_workflows(&mut self) {
         for workflow in &self.workflows {
             self.client
@@ -89,16 +72,15 @@ impl Worker {
     /// This will register the worker with Hatchet and start listening for assigned tasks.
     /// Use ctrl+c to stop the worker.
     ///
-    /// ```no_run
-    /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
+    /// ```compile_fail
+    /// use hatchet_sdk::{Context, Hatchet, EmptyModel, Runnable,Register};
     ///
     /// #[tokio::main]
     /// async fn main() {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     
     ///     let my_workflow = hatchet.
-    ///         workflow::<EmptyModel, EmptyModel>()
-    ///         .name(String::from("my-workflow"))
+    ///         workflow::<EmptyModel, EmptyModel>("my-workflow")
     ///         .build()
     ///         .unwrap()
     ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
@@ -106,11 +88,11 @@ impl Worker {
     ///         }))
     ///         .unwrap();
     ///
-    ///     let mut worker = hatchet.worker()
-    ///         .name(String::from("my-worker"))
+    ///     let mut worker = hatchet.worker("my-worker")
+    ///         .max_runs(5)
     ///         .build()
     ///         .unwrap()
-    ///         .add_workflow(my_workflow);
+    ///         .add_task_or_workflow(my_workflow);
     ///
     ///     worker.start().await.unwrap();
     /// }
@@ -198,4 +180,50 @@ impl Worker {
 
         Ok(response.worker_id)
     }
+}
+
+impl<I, O> Register<Workflow<I, O>, I, O> for Worker
+where
+    I: Serialize + Send + Sync + 'static,
+    O: DeserializeOwned + Send + Sync + 'static,
+{
+    fn add_task_or_workflow(mut self, workflow: Workflow<I, O>) -> Self {
+        self.workflows.push(workflow.to_proto());
+
+        for task in workflow.executable_tasks {
+            let fully_qualified_name = format!("{}:{}", workflow.name, task.name());
+            self.tasks
+                .lock()
+                .unwrap()
+                .insert(fully_qualified_name, Arc::from(task));
+        }
+        self
+    }
+}
+
+impl<I, O, E> Register<Task<I, O, E>, I, O> for Worker
+where
+    I: DeserializeOwned + Serialize + Send + Sync + 'static,
+    O: Serialize + DeserializeOwned + Send + Sync + 'static,
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn add_task_or_workflow(mut self, workflow: Task<I, O, E>) -> Self {
+        let workflow_proto = workflow.to_standalone_workflow_proto();
+        self.workflows.push(workflow_proto);
+
+        let fully_qualified_name = format!("{}:{}", workflow.name, workflow.name);
+        self.tasks
+            .lock()
+            .unwrap()
+            .insert(fully_qualified_name, Arc::from(workflow.into_executable()));
+        self
+    }
+}
+
+pub trait Register<T, I, O>
+where
+    I: Serialize + Send + Sync + 'static,
+    O: DeserializeOwned + Send + Sync + 'static,
+{
+    fn add_task_or_workflow(self, workflow: T) -> Self;
 }

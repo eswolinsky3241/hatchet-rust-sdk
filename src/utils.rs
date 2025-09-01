@@ -20,7 +20,11 @@ pub(crate) fn add_grpc_auth_header<T>(
     request: &mut Request<T>,
     token: &str,
 ) -> Result<(), HatchetError> {
-    let token_header: MetadataValue<_> = format!("Bearer {}", token).parse()?;
+    let token_header: MetadataValue<_> = format!("Bearer {}", token).parse().map_err(
+        |e: tonic::metadata::errors::InvalidMetadataValue| {
+            HatchetError::InvalidAuthHeader(e.to_string())
+        },
+    )?;
     request.metadata_mut().insert("authorization", token_header);
     Ok(())
 }

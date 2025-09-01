@@ -7,8 +7,8 @@
 //!
 //! We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
 //!
-//! ```no_run
-//! use hatchet_sdk::{Context, Hatchet};
+//! ```compile_fail
+//! use hatchet_sdk::{Context, Hatchet, Register, Runnable};
 //! use serde::{Deserialize, Serialize};
 //!
 //! // Define your input and output types
@@ -39,20 +39,16 @@
 //!     let hatchet = Hatchet::from_env().await.unwrap();
 //!
 //!     // Create a workflow
-//!     let mut workflow = hatchet.workflow::<SimpleInput, SimpleOutput>()
-//!         .name(String::from("simple-workflow"))
+//!     let mut workflow = hatchet.workflow::<SimpleInput, SimpleOutput>("simple-workflow")
 //!         .build()
-//!         .unwrap()
 //!         .add_task(hatchet.task("simple-task", simple_task))
 //!         .unwrap();
 //!
 //!     // Create and start a worker, registering the workflow with Hatchet
-//!     hatchet.worker()
-//!         .name(String::from("simple-worker"))
+//!     hatchet.worker("simple-worker")
 //!         .max_runs(5)
 //!         .build()
-//!         .unwrap()
-//!         .add_workflow(workflow)
+//!         .add_task_or_workflow(workflow)
 //!         .start()
 //!         .await
 //!         .unwrap();
@@ -85,16 +81,17 @@ pub mod config;
 pub mod context;
 pub mod error;
 pub mod features;
-pub mod task;
+pub mod runnables;
 pub mod utils;
 pub mod worker;
-pub mod workflow;
 
 pub use clients::hatchet::Hatchet;
 pub use context::Context;
 pub use error::HatchetError;
-pub use task::Task;
+pub use runnables::Runnable;
+pub use runnables::Task;
+pub use runnables::TriggerWorkflowOptions;
+pub use runnables::Workflow;
 pub use utils::EmptyModel;
+pub use worker::Register;
 pub use worker::Worker;
-pub use workflow::TriggerWorkflowOptions;
-pub use workflow::Workflow;

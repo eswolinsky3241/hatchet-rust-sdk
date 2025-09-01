@@ -1,14 +1,14 @@
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::clients::hatchet::Hatchet;
+use super::ExtractRunnableOutput;
 use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
+use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
-use crate::features::runs::models::WorkflowStatus;
-use crate::task::{ExecutableTask, Task};
+use crate::runnables::task::{ExecutableTask, Task};
 use derive_builder::Builder;
 
 #[derive(Clone, Builder)]
@@ -16,7 +16,7 @@ use derive_builder::Builder;
 pub struct Workflow<I, O> {
     pub(crate) name: String,
     client: Hatchet,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     pub(crate) executable_tasks: Vec<Box<dyn ExecutableTask>>,
     #[builder(default = String::from(""))]
     description: String,
@@ -24,15 +24,15 @@ pub struct Workflow<I, O> {
     version: String,
     #[builder(default = 1)]
     default_priority: i32,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     tasks: Vec<CreateTaskOpts>,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     on_events: Vec<String>,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     cron_triggers: Vec<String>,
-    #[builder(default = "vec![]")]
+    #[builder(default = vec![])]
     default_filters: Vec<DefaultFilter>,
-    #[builder(default = "std::marker::PhantomData")]
+    #[builder(default = std::marker::PhantomData)]
     _phantom: std::marker::PhantomData<(I, O)>,
 }
 
@@ -58,7 +58,7 @@ where
             });
         }
 
-        self.tasks.push(task.to_proto(&self.name));
+        self.tasks.push(task.to_task_proto(&self.name));
         self.executable_tasks.push(task.into_executable());
         Ok(self)
     }
@@ -86,60 +86,13 @@ where
         }
     }
 
-    pub async fn run_no_wait(
-        &mut self,
-        input: I,
-        options: Option<TriggerWorkflowOptions>,
-    ) -> Result<String, HatchetError> {
-        self.trigger(input, options.unwrap_or_default()).await
-    }
-
-    pub async fn run(
-        &mut self,
-        input: I,
-        options: Option<TriggerWorkflowOptions>,
-    ) -> Result<O, HatchetError> {
-        let run_id = self.run_no_wait(input, options).await?;
-
-        // Wait 2 seconds for eventual consistency
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-        loop {
-            let workflow = self.get_run(&run_id).await?;
-
-            match workflow.run.status {
-                WorkflowStatus::Running => {}
-                WorkflowStatus::Completed => {
-                    let output_json = &workflow
-                        .tasks
-                        .last() // Get the output of the last task
-                        .ok_or(HatchetError::MissingTasks)?
-                        .output
-                        .as_ref()
-                        .ok_or(HatchetError::MissingOutput)?
-                        .to_string();
-                    let output: O = serde_json::from_str(&output_json)
-                        .map_err(|e| HatchetError::JsonDecodeError(e))?;
-                    return Ok(output);
-                }
-                WorkflowStatus::Failed => {
-                    return Err(HatchetError::WorkflowFailed {
-                        error_message: workflow.run.error_message.clone(),
-                    });
-                }
-                _ => {}
-            }
-
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        }
-    }
-
     async fn trigger(
         &mut self,
         input: I,
         options: TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
-        let input_json = serde_json::to_value(&input).map_err(HatchetError::JsonEncode)?;
+        let input_json =
+            serde_json::to_value(&input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
 
         let response = self
             .client
@@ -162,8 +115,49 @@ where
         Ok(response.workflow_run_id)
     }
 
+    fn safely_get_action_name(&self, action_id: &str) -> Option<String> {
+        action_id.split(':').nth(1).map(|s| s.to_string())
+    }
+}
+
+impl<I, O> ExtractRunnableOutput<O> for Workflow<I, O>
+where
+    I: Serialize + Send + Sync + 'static,
+    O: DeserializeOwned + Send + Sync + 'static,
+{
+    fn extract_output(&self, workflow: GetWorkflowRunResponse) -> Result<O, HatchetError> {
+        let mut task_outputs = serde_json::Map::new();
+
+        for task in &workflow.tasks {
+            if let (Some(action_id), Some(output)) = (&task.action_id, &task.output) {
+                if let Some(task_name) = self.safely_get_action_name(action_id) {
+                    task_outputs.insert(task_name, output.clone());
+                }
+            }
+        }
+
+        let output_value = serde_json::Value::Object(task_outputs);
+        Ok(serde_json::from_value(output_value)
+            .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))?)
+    }
+}
+
+#[async_trait::async_trait]
+impl<I, O> crate::runnables::Runnable<I, O> for Workflow<I, O>
+where
+    I: Serialize + Send + Sync + DeserializeOwned + 'static,
+    O: DeserializeOwned + Send + Sync + 'static,
+{
     async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
         self.client.workflow_rest_client.get(&run_id).await
+    }
+
+    async fn run_no_wait(
+        &mut self,
+        input: I,
+        options: Option<TriggerWorkflowOptions>,
+    ) -> Result<String, HatchetError> {
+        Ok(self.trigger(input, options.unwrap_or_default()).await?)
     }
 }
 

@@ -53,7 +53,8 @@ impl Hatchet {
         let channel = Channel::from_shared(format!("http://{}", grpc_address))
             .map_err(|e| HatchetError::InvalidUri(e.to_string()))?
             .connect()
-            .await?;
+            .await
+            .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?;
 
         Ok(channel)
     }
@@ -74,9 +75,11 @@ impl Hatchet {
 
         let channel = Channel::from_shared(format!("https://{}", grpc_address))
             .map_err(|e| HatchetError::InvalidUri(e.to_string()))?
-            .tls_config(tls)?
+            .tls_config(tls)
+            .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?
             .connect()
-            .await?;
+            .await
+            .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?;
 
         Ok(channel)
     }
@@ -145,21 +148,23 @@ impl Hatchet {
     /// #[tokio::main]
     /// async fn main() {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
-    ///     let workflow = hatchet.workflow::<EmptyModel, EmptyModel>()
-    ///         .name(String::from("my-workflow"))
-    ///         .build().unwrap()
+    ///     let workflow = hatchet.workflow::<EmptyModel, EmptyModel>("my-workflow")
+    ///         .build()
+    ///         .unwrap()
     ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///             Ok(EmptyModel)
-    ///         }))
+    ///         }).build().unwrap())
     ///         .unwrap();
     /// }
     /// ```
-    pub fn workflow<I, O>(&self) -> crate::workflow::WorkflowBuilder<I, O>
+    pub fn workflow<I, O>(&self, name: &str) -> crate::runnables::WorkflowBuilder<I, O>
     where
         I: serde::Serialize + Send + Sync,
         O: serde::de::DeserializeOwned + Send + Sync,
     {
-        crate::workflow::WorkflowBuilder::<I, O>::default().client(self.clone())
+        crate::runnables::WorkflowBuilder::<I, O>::default()
+            .name(name.to_string())
+            .client(self.clone())
     }
 
     /// Create a new task.
@@ -175,15 +180,27 @@ impl Hatchet {
     /// }
     ///
     /// ```
-    pub fn task<I, O, E, F, Fut>(&self, name: &str, f: F) -> crate::Task<I, O, E>
+    pub fn task<I, O, E, F, Fut>(
+        &self,
+        name: &str,
+        handler: F,
+    ) -> crate::runnables::task::TaskBuilder<I, O, E>
     where
-        I: serde::de::DeserializeOwned + Send + Sync + 'static,
+        I: serde::Serialize + serde::de::DeserializeOwned + Send + Sync + 'static,
         O: serde::Serialize + Send + Sync + 'static,
         E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
         F: FnOnce(I, crate::context::Context) -> Fut + Send + Sync + Clone + 'static,
         Fut: std::future::Future<Output = Result<O, E>> + Send + 'static,
     {
-        crate::Task::<I, O, E>::new(name, f)
+        let handler = Arc::new(move |input: I, ctx: crate::context::Context| {
+            let handler_clone = handler.clone();
+            Box::pin(handler_clone(input, ctx))
+                as std::pin::Pin<Box<dyn Future<Output = Result<O, E>> + Send>>
+        });
+        crate::runnables::task::TaskBuilder::<I, O, E>::default()
+            .name(name.to_string())
+            .handler(handler)
+            .client(self.clone())
     }
 
     /// Create a new worker.
@@ -193,10 +210,12 @@ impl Hatchet {
     /// #[tokio::main]
     /// async fn main() {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
-    ///     let worker = hatchet.worker().name(String::from("my-worker")).build().unwrap();
+    ///     let worker = hatchet.worker("my-worker").max_runs(5).build();
     /// }
     /// ```
-    pub fn worker(&self) -> crate::worker::worker::WorkerBuilder {
-        crate::worker::worker::WorkerBuilder::default().client(self.clone())
+    pub fn worker(&self, name: &str) -> crate::worker::worker::WorkerBuilder {
+        crate::worker::worker::WorkerBuilder::default()
+            .name(name.to_string())
+            .client(self.clone())
     }
 }
