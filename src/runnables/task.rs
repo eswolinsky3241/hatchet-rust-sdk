@@ -1,3 +1,4 @@
+use super::ExtractRunnableOutput;
 use crate::Hatchet;
 use crate::clients::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
 use crate::context::Context;
@@ -147,37 +148,22 @@ where
             default_filters: vec![],
         }
     }
+impl<I, O, E> ExtractRunnableOutput<O> for Task<I, O, E>
+where
+    I: Serialize + DeserializeOwned + Send + Sync + 'static,
+    O: Serialize + DeserializeOwned + Send + Sync + 'static,
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn extract_output(&self, workflow: GetWorkflowRunResponse) -> Result<O, HatchetError> {
+        let task_output = workflow
+            .tasks
+            .iter()
+            .find(|task| task.action_id == Some(format!("{}:{}", &self.name, &self.name)))
+            .and_then(|task| task.output.clone())
+            .ok_or_else(|| HatchetError::MissingOutput)?;
 
-    async fn trigger(
-        &mut self,
-        input: I,
-        options: TriggerWorkflowOptions,
-    ) -> Result<String, HatchetError> {
-        let input_json =
-            serde_json::to_value(&input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
-        let response = self
-            .client
-            .workflow_client
-            .trigger_workflow(
-                crate::clients::grpc::v0::workflows::TriggerWorkflowRequest {
-                    name: self.name.clone(),
-                    input: input_json.to_string(),
-                    parent_id: None,
-                    parent_step_run_id: None,
-                    child_index: None,
-                    child_key: None,
-                    additional_metadata: options.additional_metadata.map(|v| v.to_string()),
-                    desired_worker_id: None,
-                    priority: None,
-                },
-            )
-            .await?;
-
-        Ok(response.workflow_run_id)
-    }
-
-    async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
-        self.client.workflow_rest_client.get(&run_id).await
+        Ok(serde_json::from_value(task_output)
+            .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))?)
     }
 }
 
@@ -188,52 +174,15 @@ where
     O: Serialize + DeserializeOwned + Send + Sync + 'static,
     E: std::error::Error + Send + Sync + 'static,
 {
+    async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
+        self.client.workflow_rest_client.get(&run_id).await
+    }
     async fn run_no_wait(
         &mut self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError> {
         Ok(self.trigger(input, options.unwrap_or_default()).await?)
-    }
-
-    async fn run(
-        &mut self,
-        input: I,
-        options: Option<TriggerWorkflowOptions>,
-    ) -> Result<O, HatchetError> {
-        let run_id = self.run_no_wait(input, options).await?;
-
-        // Wait 2 seconds for eventual consistency
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-        loop {
-            let workflow = self.get_run(&run_id).await?;
-            match workflow.run.status {
-                WorkflowStatus::Running => {}
-                WorkflowStatus::Completed => {
-                    let task_output = workflow
-                        .tasks
-                        .iter()
-                        .find(|task| {
-                            task.action_id == Some(format!("{}:{}", &self.name, &self.name))
-                        })
-                        .and_then(|task| task.output.clone())
-                        .ok_or_else(|| HatchetError::MissingOutput)?;
-
-                    let output: O = serde_json::from_value(task_output)
-                        .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))?;
-                    return Ok(output);
-                }
-                WorkflowStatus::Failed => {
-                    return Err(HatchetError::WorkflowFailed {
-                        error_message: workflow.run.error_message.clone(),
-                    });
-                }
-                _ => {}
-            }
-
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        }
     }
 }
 

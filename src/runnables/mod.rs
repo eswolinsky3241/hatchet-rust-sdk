@@ -2,6 +2,7 @@ mod runnable;
 mod task;
 mod workflow;
 
+pub(crate) use runnable::ExtractRunnableOutput;
 pub use runnable::Runnable;
 pub(crate) use task::ExecutableTask;
 pub use task::Task;

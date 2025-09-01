@@ -183,8 +183,8 @@ impl Worker {
 
 impl<I, O> Register<Workflow<I, O>, I, O> for Worker
 where
-    I: Serialize + Send + Sync,
-    O: DeserializeOwned + Send + Sync,
+    I: Serialize + Send + Sync + 'static,
+    O: DeserializeOwned + Send + Sync + 'static,
 {
     fn add_task_or_workflow(mut self, workflow: Workflow<I, O>) -> Self {
         self.workflows.push(workflow.to_proto());
@@ -222,8 +222,8 @@ where
 pub trait Register<T, I, O>
 where
     T: Runnable<I, O>,
-    I: Serialize + Send + Sync,
-    O: DeserializeOwned + Send + Sync,
+    I: Serialize + Send + Sync + 'static,
+    O: DeserializeOwned + Send + Sync + 'static,
 {
     fn add_task_or_workflow(self, workflow: T) -> Self;
 }
