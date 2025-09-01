@@ -77,26 +77,6 @@ where
     O: Serialize + Send + 'static,
     E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
 {
-    // pub fn new<F, Fut>(name: impl Into<String>, handler: F, client: Hatchet) -> Self
-    // where
-    //     F: FnOnce(I, Context) -> Fut + Send + Sync + Clone + 'static,
-    //     Fut: Future<Output = Result<O, E>> + Send + 'static,
-    // {
-    //     let name = name.into();
-    //     let handler = Arc::new(move |input: I, ctx: Context| {
-    //         let handler_clone = handler.clone();
-    //         Box::pin(handler_clone(input, ctx))
-    //             as Pin<Box<dyn Future<Output = Result<O, E>> + Send>>
-    //     });
-
-    //     Self {
-    //         client,
-    //         name,
-    //         handler,
-    //         parents: vec![],
-    //     }
-    // }
-
     pub fn add_parent<J, P, F>(mut self, parent: &Task<J, P, F>) -> Self {
         self.parents.push(parent.name.clone());
         self
