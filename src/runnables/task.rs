@@ -111,7 +111,7 @@ where
         })
     }
 
-    fn to_task_proto(&self, workflow_name: &str) -> CreateTaskOpts {
+    pub(crate) fn to_task_proto(&self, workflow_name: &str) -> CreateTaskOpts {
         CreateTaskOpts {
             readable_id: self.name.clone(),
             action: format!("{workflow_name}:{}", &self.name),
