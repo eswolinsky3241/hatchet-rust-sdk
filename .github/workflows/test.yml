@@ -25,7 +25,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
       - name: Install protoc
         run: |
-          sudo apt-get update && sudo apt-get install -y protobuf-compiler
+          DEBIAN_FRONTEND=noninteractive sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - uses: actions/checkout@v4
       - name: Run tests
         run: cargo test --verbose
