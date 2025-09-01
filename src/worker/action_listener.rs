@@ -24,7 +24,9 @@ impl ActionListener {
             match response.message().await {
                 Ok(message) => match message {
                     Some(message) => {
-                        tx.send(message).await.unwrap();
+                        tx.send(message)
+                            .await
+                            .map_err(|e| HatchetError::DispatchError(e.to_string()))?;
                     }
                     None => return Ok(()),
                 },
