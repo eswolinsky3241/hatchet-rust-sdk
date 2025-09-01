@@ -54,3 +54,7 @@ path = "examples/simple.rs"
 [[example]]
 name = "worker"
 path = "examples/worker.rs"
+
+[[example]]
+name = "dag"
+path = "examples/dag.rs"
