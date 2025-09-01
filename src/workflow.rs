@@ -18,6 +18,12 @@ pub struct Workflow<I, O> {
     client: HatchetClient,
     #[builder(default = "vec![]")]
     pub(crate) executable_tasks: Vec<Box<dyn ExecutableTask>>,
+    #[builder(default = String::from(""))]
+    description: String,
+    #[builder(default = String::from(""))]
+    version: String,
+    #[builder(default = 1)]
+    default_priority: i32,
     #[builder(default = "vec![]")]
     tasks: Vec<CreateTaskOpts>,
     #[builder(default = "vec![]")]
@@ -35,25 +41,6 @@ where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
 {
-    pub fn new(
-        name: impl Into<String>,
-        client: HatchetClient,
-        on_events: Vec<String>,
-        cron_triggers: Vec<String>,
-        default_filters: Vec<DefaultFilter>,
-    ) -> Self {
-        Self {
-            name: name.into(),
-            client,
-            executable_tasks: vec![],
-            tasks: vec![],
-            on_events,
-            cron_triggers: cron_triggers,
-            default_filters,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
     pub fn add_task<P, E>(mut self, task: Task<I, P, E>) -> Result<Self, HatchetError>
     where
         I: serde::de::DeserializeOwned + Send + 'static,
@@ -79,8 +66,8 @@ where
     pub(crate) fn to_proto(&self) -> CreateWorkflowVersionRequest {
         CreateWorkflowVersionRequest {
             name: self.name.clone(),
-            description: String::from(""),
-            version: String::from(""),
+            description: self.description.clone(),
+            version: self.version.clone(),
             event_triggers: self.on_events.clone(),
             cron_triggers: self.cron_triggers.clone(),
             tasks: self.tasks.clone(),
@@ -88,7 +75,7 @@ where
             cron_input: None,
             on_failure_task: None,
             sticky: None,
-            default_priority: None,
+            default_priority: Some(self.default_priority),
             concurrency_arr: vec![],
             default_filters: self
                 .default_filters
