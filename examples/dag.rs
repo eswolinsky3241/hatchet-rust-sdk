@@ -1,30 +1,53 @@
 use anyhow;
 use hatchet_sdk::{Context, EmptyModel, Hatchet};
+use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() {
+    #[derive(Clone, Serialize, Deserialize, Debug)]
+    struct FirstTaskOutput {
+        output: String,
+    }
+
+    #[derive(Clone, Serialize, Deserialize, Debug)]
+    struct SecondTaskOutput {
+        first_step_result: String,
+        final_result: String,
+    }
+
+    #[derive(Clone, Serialize, Deserialize, Debug)]
+    struct WorkflowOutput {
+        first_task: FirstTaskOutput,
+        second_task: SecondTaskOutput,
+    }
+
     dotenvy::dotenv().ok();
     let hatchet = Hatchet::from_env().await.unwrap();
 
     let first_task = hatchet.task(
         "first_task",
-        async move |_input: EmptyModel, _ctx: Context| -> anyhow::Result<serde_json::Value> {
-            Ok(serde_json::json!({"output": "Hello World"}))
+        async move |_input: EmptyModel, _ctx: Context| -> anyhow::Result<FirstTaskOutput> {
+            Ok(FirstTaskOutput {
+                output: "Hello World".to_string(),
+            })
         },
     );
 
     let second_task = hatchet
         .task(
             "second_task",
-            async move |_input: EmptyModel, ctx: Context| -> anyhow::Result<serde_json::Value> {
+            async move |_input: EmptyModel, ctx: Context| -> anyhow::Result<SecondTaskOutput> {
                 let first_result = ctx.parent_output("first_task").await?;
-                Ok(serde_json::json!({"first_step_result": first_result.get("output").unwrap(), "final_result": "Completed"}))
+                Ok(SecondTaskOutput {
+                    first_step_result: first_result.get("output").unwrap().to_string(),
+                    final_result: "Completed".to_string(),
+                })
             },
         )
         .add_parent(&first_task);
 
     let mut workflow = hatchet
-        .workflow::<EmptyModel, serde_json::Value>()
+        .workflow::<EmptyModel, WorkflowOutput>()
         .name(String::from("dag-workflow"))
         .build()
         .add_task(first_task)
@@ -51,6 +74,13 @@ async fn main() {
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     let result = workflow.run(EmptyModel, None).await.unwrap();
-    println!("Workflow result: {}", result.to_string());
+    println!(
+        "First task result: {}",
+        serde_json::to_string(&result.first_task).unwrap()
+    );
+    println!(
+        "Second task result: {}",
+        serde_json::to_string(&result.second_task).unwrap()
+    );
     worker_handle.abort();
 }
