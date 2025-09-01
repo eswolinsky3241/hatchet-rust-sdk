@@ -23,12 +23,14 @@ impl Context {
 
         tokio::spawn(async move {
             while let Some(message) = rx.recv().await {
+                tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+
                 client_clone
                     .event_client
                     .put_log(&step_run_id_clone, message)
-                    .await
-                    .unwrap();
+                    .await?;
             }
+            Ok::<(), HatchetError>(())
         });
         Self {
             logger_tx: tx,
@@ -56,7 +58,9 @@ impl Context {
             .tasks
             .iter()
             .find(|task| task.task_external_id == self.step_run_id)
-            .unwrap();
+            .ok_or_else(|| HatchetError::ParentTaskNotFound {
+                parent_step_name: parent_step_name.to_string(),
+            })?;
 
         let parent = current_task
             .input
