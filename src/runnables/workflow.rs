@@ -8,7 +8,6 @@ use crate::clients::grpc::v1::workflows::{
 use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
-use crate::features::runs::models::WorkflowStatus;
 use crate::runnables::task::{ExecutableTask, Task};
 use typed_builder::TypedBuilder;
 
@@ -113,10 +112,6 @@ where
             .await?;
 
         Ok(response.workflow_run_id)
-    }
-
-    async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
-        self.client.workflow_rest_client.get(&run_id).await
     }
 
     fn safely_get_action_name(&self, action_id: &str) -> Option<String> {

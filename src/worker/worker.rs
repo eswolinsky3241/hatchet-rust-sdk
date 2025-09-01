@@ -221,7 +221,6 @@ where
 
 pub trait Register<T, I, O>
 where
-    T: Runnable<I, O>,
     I: Serialize + Send + Sync + 'static,
     O: DeserializeOwned + Send + Sync + 'static,
 {

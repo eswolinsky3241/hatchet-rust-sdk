@@ -1,5 +1,4 @@
 use super::workflow::TriggerWorkflowOptions;
-use crate::Hatchet;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
 use crate::features::runs::models::WorkflowStatus;
@@ -8,7 +7,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 #[async_trait::async_trait]
-pub trait Runnable<I, O>: ExtractRunnableOutput<O> + Send + Sync + TriggerRunnable<I>
+pub trait Runnable<I, O>: ExtractRunnableOutput<O> + Send + Sync
 where
     I: Serialize + Send + Sync + DeserializeOwned + 'static,
     O: DeserializeOwned + Send + Sync + 'static,
@@ -51,6 +50,6 @@ where
     ) -> Result<String, HatchetError>;
 }
 
-pub(crate) trait ExtractRunnableOutput<O> {
+pub trait ExtractRunnableOutput<O> {
     fn extract_output(&self, runnable: GetWorkflowRunResponse) -> Result<O, HatchetError>;
 }
