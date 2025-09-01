@@ -21,12 +21,6 @@ async fn test_run_returns_job_output() {
             .await
             .unwrap();
 
-    #[derive(Debug, Error)]
-    pub enum MyError {
-        #[error("Test failed.")]
-        Failure(#[from] HatchetError),
-    }
-
     let my_task = hatchet.task(
         "step1",
         async move |input: SimpleInput,
@@ -39,7 +33,7 @@ async fn test_run_returns_job_output() {
     );
     let mut workflow = hatchet
         .workflow::<SimpleInput, SimpleOutput>()
-        .name(String::from("rust-workflow3"))
+        .name(String::from("test-workflow"))
         .build()
         .unwrap()
         .add_task(my_task)
@@ -48,7 +42,7 @@ async fn test_run_returns_job_output() {
     let workflow_clone = workflow.clone();
     let worker_handle = tokio::spawn(async move {
         WorkerBuilder::default()
-            .name(String::from("rust-worker"))
+            .name(String::from("test-worker"))
             .client(hatchet.clone())
             .max_runs(5)
             .build()
@@ -102,7 +96,7 @@ async fn test_run_returns_error_if_job_fails() {
     );
     let mut workflow = hatchet
         .workflow::<SimpleInput, SimpleOutput>()
-        .name(String::from("rust-workflow3"))
+        .name(String::from("test-workflow"))
         .build()
         .unwrap()
         .add_task(my_task)
@@ -112,7 +106,7 @@ async fn test_run_returns_error_if_job_fails() {
     let worker_handle = tokio::spawn(async move {
         hatchet
             .worker()
-            .name(String::from("rust-worker"))
+            .name(String::from("test-worker"))
             .max_runs(5)
             .build()
             .unwrap()
@@ -198,7 +192,11 @@ async fn test_dynamically_spawn_child_workflow() {
 
     let parent_workflow_clone = parent_workflow.clone();
     let worker_handle = tokio::spawn(async move {
-        Worker::new("rust-worker", hatchet.clone(), 5)
+        hatchet_sdk::worker::worker::WorkerBuilder::default()
+            .name(String::from("test-worker"))
+            .client(hatchet.clone())
+            .max_runs(5)
+            .build()
             .unwrap()
             .add_workflow(parent_workflow_clone)
             .add_workflow(child_workflow_clone)
@@ -269,7 +267,11 @@ async fn test_dag_workflow() {
 
     let dag_workflow_clone = dag_workflow.clone();
     let worker_handle = tokio::spawn(async move {
-        Worker::new("rust-worker", hatchet.clone(), 5)
+        hatchet_sdk::worker::worker::WorkerBuilder::default()
+            .name(String::from("test-worker"))
+            .client(hatchet.clone())
+            .max_runs(5)
+            .build()
             .unwrap()
             .add_workflow(dag_workflow_clone)
             .start()
