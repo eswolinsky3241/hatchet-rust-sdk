@@ -36,8 +36,7 @@ async fn main() {
 
     let worker_handle = tokio::spawn(async move {
         let mut worker = hatchet_clone
-            .worker()
-            .name(String::from("test-worker"))
+            .worker("simple-worker")
             .max_runs(5)
             .build()
             .unwrap()

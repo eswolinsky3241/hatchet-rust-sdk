@@ -39,15 +39,13 @@
 //!     let hatchet = Hatchet::from_env().await.unwrap();
 //!
 //!     // Create a workflow
-//!     let mut workflow = hatchet.workflow::<SimpleInput, SimpleOutput>()
-//!         .name(String::from("simple-workflow"))
+//!     let mut workflow = hatchet.workflow::<SimpleInput, SimpleOutput>("simple-workflow")
 //!         .build()
 //!         .add_task(hatchet.task("simple-task", simple_task))
 //!         .unwrap();
 //!
 //!     // Create and start a worker, registering the workflow with Hatchet
-//!     hatchet.worker()
-//!         .name(String::from("simple-worker"))
+//!     hatchet.worker("simple-worker")
 //!         .max_runs(5)
 //!         .build()
 //!         .add_task_or_workflow(workflow)

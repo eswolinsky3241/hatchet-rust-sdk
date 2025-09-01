@@ -148,8 +148,7 @@ impl Hatchet {
     /// #[tokio::main]
     /// async fn main() {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
-    ///     let workflow = hatchet.workflow::<EmptyModel, EmptyModel>()
-    ///         .name(String::from("my-workflow"))
+    ///     let workflow = hatchet.workflow::<EmptyModel, EmptyModel>("my-workflow")
     ///         .build()
     ///         .unwrap()
     ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
@@ -158,12 +157,14 @@ impl Hatchet {
     ///         .unwrap();
     /// }
     /// ```
-    pub fn workflow<I, O>(&self) -> crate::runnables::WorkflowBuilder<I, O>
+    pub fn workflow<I, O>(&self, name: &str) -> crate::runnables::WorkflowBuilder<I, O>
     where
         I: serde::Serialize + Send + Sync,
         O: serde::de::DeserializeOwned + Send + Sync,
     {
-        crate::runnables::WorkflowBuilder::<I, O>::default().client(self.clone())
+        crate::runnables::WorkflowBuilder::<I, O>::default()
+            .name(name.to_string())
+            .client(self.clone())
     }
 
     /// Create a new task.
@@ -209,10 +210,12 @@ impl Hatchet {
     /// #[tokio::main]
     /// async fn main() {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
-    ///     let worker = hatchet.worker().name(String::from("my-worker")).max_runs(5).build();
+    ///     let worker = hatchet.worker("my-worker").max_runs(5).build();
     /// }
     /// ```
-    pub fn worker(&self) -> crate::worker::worker::WorkerBuilder {
-        crate::worker::worker::WorkerBuilder::default().client(self.clone())
+    pub fn worker(&self, name: &str) -> crate::worker::worker::WorkerBuilder {
+        crate::worker::worker::WorkerBuilder::default()
+            .name(name.to_string())
+            .client(self.clone())
     }
 }

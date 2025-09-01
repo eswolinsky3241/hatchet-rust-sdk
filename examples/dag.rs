@@ -52,8 +52,7 @@ async fn main() {
         .add_parent(&first_task);
 
     let mut workflow = hatchet
-        .workflow::<EmptyModel, WorkflowOutput>()
-        .name(String::from("dag-workflow"))
+        .workflow::<EmptyModel, WorkflowOutput>("dag-workflow")
         .build()
         .unwrap()
         .add_task(first_task)
@@ -66,8 +65,7 @@ async fn main() {
 
     let worker_handle = tokio::spawn(async move {
         hatchet_clone
-            .worker()
-            .name(String::from("test-worker"))
+            .worker("dag-worker")
             .max_runs(5)
             .build()
             .unwrap()

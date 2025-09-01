@@ -48,13 +48,13 @@ impl Worker {
     ///     Ok(EmptyModel)
     /// });
     ///
-    /// let my_workflow = hatchet.workflow().name(String::from("my-workflow"))
+    /// let my_workflow = hatchet.workflow("my-workflow")
     ///     .build()
     ///     .unwrap()
     ///     .add_task(my_task)
     ///     .unwrap();
     ///
-    ///     let worker = hatchet.worker().name(String::from("my-worker")).build().unwrap();
+    ///     let worker = hatchet.worker("my-worker").build().unwrap();
     ///     worker.add_task_or_workflow(my_workflow);
     /// }
     /// ```
@@ -80,8 +80,7 @@ impl Worker {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     
     ///     let my_workflow = hatchet.
-    ///         workflow::<EmptyModel, EmptyModel>()
-    ///         .name(String::from("my-workflow"))
+    ///         workflow::<EmptyModel, EmptyModel>("my-workflow")
     ///         .build()
     ///         .unwrap()
     ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
@@ -89,8 +88,7 @@ impl Worker {
     ///         }))
     ///         .unwrap();
     ///
-    ///     let mut worker = hatchet.worker()
-    ///         .name(String::from("my-worker"))
+    ///     let mut worker = hatchet.worker("my-worker")
     ///         .max_runs(5)
     ///         .build()
     ///         .unwrap()

@@ -93,8 +93,7 @@ async fn test_run_returns_error_if_job_fails() {
     let task_clone = task.clone();
     let worker_handle = tokio::spawn(async move {
         hatchet
-            .worker()
-            .name(String::from("test-worker"))
+            .worker("test-worker")
             .max_runs(5)
             .build()
             .unwrap()
@@ -235,8 +234,7 @@ async fn test_dag_workflow() {
         .add_parent(&parent_task);
 
     let mut dag_workflow = hatchet
-        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>()
-        .name(String::from("parent-workflow"))
+        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>("parent-workflow")
         .build()
         .unwrap()
         .add_task(parent_task)

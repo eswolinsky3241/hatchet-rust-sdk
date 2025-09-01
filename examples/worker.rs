@@ -31,16 +31,14 @@ async fn main() {
         .unwrap();
 
     let workflow = hatchet
-        .workflow::<SimpleInput, SimpleOutput>()
-        .name(String::from("simple-workflow"))
+        .workflow::<SimpleInput, SimpleOutput>("simple-workflow")
         .build()
         .unwrap()
         .add_task(task)
         .unwrap();
 
     hatchet
-        .worker()
-        .name(String::from("simple-worker"))
+        .worker("simple-worker")
         .max_runs(5)
         .build()
         .unwrap()
