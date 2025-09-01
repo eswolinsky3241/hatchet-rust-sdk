@@ -31,7 +31,6 @@ async fn main() {
         .workflow::<SimpleInput, SimpleOutput>()
         .name(String::from("simple-workflow"))
         .build()
-        .unwrap()
         .add_task(task)
         .unwrap();
 
