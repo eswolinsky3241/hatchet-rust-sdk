@@ -1,27 +1,9 @@
-use hatchet_sdk::HatchetClient;
-use hatchet_sdk::HatchetError;
-use hatchet_sdk::Worker;
 use hatchet_sdk::worker::worker::WorkerBuilder;
-use serde::{Deserialize, Serialize};
+use hatchet_sdk::{HatchetClient, HatchetError, Worker};
 use thiserror::Error;
 
 mod common;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct SimpleInput {
-    pub message: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct SimpleOutput {
-    pub transformed_message: String,
-}
-
-#[derive(Debug, Error)]
-pub enum MyError {
-    #[error("Test failed.")]
-    Failure,
-}
+use common::{MyError, SimpleInput, SimpleOutput};
 
 #[tokio::test]
 async fn test_run_returns_job_output() {
@@ -39,7 +21,6 @@ async fn test_run_returns_job_output() {
             .await
             .unwrap();
 
-    use thiserror::Error;
     #[derive(Debug, Error)]
     pub enum MyError {
         #[error("Test failed.")]

@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use testcontainers::core::wait::HealthWaitStrategy;
 use testcontainers::{
     GenericImage, Healthcheck, ImageExt,
@@ -5,7 +6,24 @@ use testcontainers::{
     core::{ExecCommand, IntoContainerPort, WaitFor},
     runners::AsyncRunner,
 };
+use thiserror::Error;
 use tokio::io::AsyncReadExt;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SimpleInput {
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SimpleOutput {
+    pub transformed_message: String,
+}
+
+#[derive(Debug, Error)]
+pub enum MyError {
+    #[error("Test failed.")]
+    Failure,
+}
 
 pub(crate) async fn start_containers_and_get_token() -> (
     ContainerAsync<GenericImage>,
