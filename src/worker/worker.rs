@@ -72,7 +72,7 @@ impl Worker {
     /// This will register the worker with Hatchet and start listening for assigned tasks.
     /// Use ctrl+c to stop the worker.
     ///
-    /// ```no_run
+    /// ```compile_fail
     /// use hatchet_sdk::{Context, Hatchet, EmptyModel, Runnable,Register};
     ///
     /// #[tokio::main]
@@ -83,6 +83,7 @@ impl Worker {
     ///         workflow::<EmptyModel, EmptyModel>()
     ///         .name(String::from("my-workflow"))
     ///         .build()
+    ///         .unwrap()
     ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///             Ok(EmptyModel)
     ///         }))
@@ -92,6 +93,7 @@ impl Worker {
     ///         .name(String::from("my-worker"))
     ///         .max_runs(5)
     ///         .build()
+    ///         .unwrap()
     ///         .add_task_or_workflow(my_workflow);
     ///
     ///     worker.start().await.unwrap();

@@ -151,9 +151,10 @@ impl Hatchet {
     ///     let workflow = hatchet.workflow::<EmptyModel, EmptyModel>()
     ///         .name(String::from("my-workflow"))
     ///         .build()
+    ///         .unwrap()
     ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///             Ok(EmptyModel)
-    ///         }))
+    ///         }).build().unwrap())
     ///         .unwrap();
     /// }
     /// ```

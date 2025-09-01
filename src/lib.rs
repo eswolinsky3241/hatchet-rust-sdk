@@ -7,7 +7,7 @@
 //!
 //! We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
 //!
-//! ```no_run
+//! ```compile_fail
 //! use hatchet_sdk::{Context, Hatchet, Register, Runnable};
 //! use serde::{Deserialize, Serialize};
 //!
