@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::clients::client::HatchetClient;
+use crate::clients::hatchet::Hatchet;
 use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
@@ -15,7 +15,7 @@ use derive_builder::Builder;
 #[builder(pattern = "owned")]
 pub struct Workflow<I, O> {
     pub(crate) name: String,
-    client: HatchetClient,
+    client: Hatchet,
     #[builder(default = "vec![]")]
     pub(crate) executable_tasks: Vec<Box<dyn ExecutableTask>>,
     #[builder(default = String::from(""))]

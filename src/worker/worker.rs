@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 
-use crate::clients::client::HatchetClient;
+use crate::clients::hatchet::Hatchet;
 use crate::clients::grpc::v0::dispatcher;
 use crate::clients::grpc::v0::dispatcher::WorkerRegisterRequest;
 use crate::error::HatchetError;
@@ -17,7 +17,7 @@ use crate::worker::action_listener::ActionListener;
 pub struct Worker {
     pub name: String,
     max_runs: i32,
-    client: HatchetClient,
+    client: Hatchet,
     #[builder(default = "Arc::new(Mutex::new(HashMap::new()))")]
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     #[builder(default = "vec![]")]
@@ -25,7 +25,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(name: &str, client: HatchetClient, max_runs: i32) -> Result<Self, HatchetError> {
+    pub fn new(name: &str, client: Hatchet, max_runs: i32) -> Result<Self, HatchetError> {
         Ok(Self {
             name: name.to_string(),
             max_runs,
@@ -39,11 +39,11 @@ impl Worker {
     /// Hatchet will then assign runs of the workflow to this worker.
     ///
     /// ```compile_fail
-    /// use hatchet_sdk::{Context, HatchetClient, EmptyModel};
+    /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     let my_task = hatchet.task::<EmptyModel, EmptyModel, MyError>("my-task", |input: EmptyModel, _ctx: Context| async move {
     ///     Ok(EmptyModel)
     /// });
@@ -90,11 +90,11 @@ impl Worker {
     /// Use ctrl+c to stop the worker.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{Context, HatchetClient, EmptyModel};
+    /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     
     ///     let my_workflow = hatchet.
     ///         workflow::<EmptyModel, EmptyModel>()
@@ -176,7 +176,7 @@ impl Worker {
     }
 
     async fn register_worker(
-        client: &mut HatchetClient,
+        client: &mut Hatchet,
         name: &str,
         actions: Vec<String>,
         max_runs: i32,

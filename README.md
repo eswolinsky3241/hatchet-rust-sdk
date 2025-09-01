@@ -10,7 +10,7 @@
  ### Defining a simple workflow
 
  ```rust
- use hatchet_sdk::{Context, HatchetClient};
+ use hatchet_sdk::{Context, Hatchet};
  use serde::{Deserialize, Serialize};
 
  // Define your input and output types
@@ -38,7 +38,7 @@
      dotenvy::dotenv().ok();
 
      // Create a Hatchet client
-     let hatchet = HatchetClient::from_env().await.unwrap();
+     let hatchet = Hatchet::from_env().await.unwrap();
 
      // Create a workflow
      let mut workflow = hatchet.workflow::<SimpleInput, SimpleOutput>()

@@ -8,7 +8,7 @@ use tonic::transport::{Channel, ClientTlsConfig};
 
 /// The main client for interacting with the Hatchet API.
 #[derive(Clone, Debug)]
-pub struct HatchetClient {
+pub struct Hatchet {
     server_url: String,
     api_token: String,
     pub(crate) workflow_client: WorkflowClient,
@@ -18,7 +18,7 @@ pub struct HatchetClient {
     pub workflow_rest_client: RunsClient,
 }
 
-impl HatchetClient {
+impl Hatchet {
     async fn new(
         server_url: String,
         api_token: String,
@@ -141,10 +141,10 @@ impl HatchetClient {
     /// Create a new workflow.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{Context, HatchetClient, EmptyModel};
+    /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
     /// #[tokio::main]
     /// async fn main() {
-    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     let workflow = hatchet.workflow::<EmptyModel, EmptyModel>()
     ///         .name(String::from("my-workflow"))
     ///         .build().unwrap()
@@ -165,10 +165,10 @@ impl HatchetClient {
     /// Create a new task.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{Context, HatchetClient, EmptyModel};
+    /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
     /// #[tokio::main]
     /// async fn main() {
-    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     let task = hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///         Ok(EmptyModel)
     ///     });
@@ -189,10 +189,10 @@ impl HatchetClient {
     /// Create a new worker.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{HatchetClient};
+    /// use hatchet_sdk::{Hatchet};
     /// #[tokio::main]
     /// async fn main() {
-    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     let worker = hatchet.worker().name(String::from("my-worker")).build().unwrap();
     /// }
     /// ```

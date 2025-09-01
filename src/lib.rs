@@ -8,7 +8,7 @@
 //! We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
 //!
 //! ```no_run
-//! use hatchet_sdk::{Context, HatchetClient};
+//! use hatchet_sdk::{Context, Hatchet};
 //! use serde::{Deserialize, Serialize};
 //!
 //! // Define your input and output types
@@ -36,7 +36,7 @@
 //!     dotenvy::dotenv().ok();
 //!
 //!     // Create a Hatchet client
-//!     let hatchet = HatchetClient::from_env().await.unwrap();
+//!     let hatchet = Hatchet::from_env().await.unwrap();
 //!
 //!     // Create a workflow
 //!     let mut workflow = hatchet.workflow::<SimpleInput, SimpleOutput>()
@@ -90,7 +90,7 @@ pub mod utils;
 pub mod worker;
 pub mod workflow;
 
-pub use clients::client::HatchetClient;
+pub use clients::hatchet::Hatchet;
 pub use context::Context;
 pub use error::HatchetError;
 pub use task::Task;

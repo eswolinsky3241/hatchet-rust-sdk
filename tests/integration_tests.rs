@@ -1,5 +1,5 @@
 use hatchet_sdk::worker::worker::WorkerBuilder;
-use hatchet_sdk::{HatchetClient, HatchetError, Worker};
+use hatchet_sdk::{Hatchet, HatchetError, Worker};
 use thiserror::Error;
 
 mod common;
@@ -16,10 +16,9 @@ async fn test_run_returns_job_output() {
         "localhost:{}",
         hatchet_container.get_host_port_ipv4(7077).await.unwrap()
     );
-    let hatchet =
-        HatchetClient::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-            .await
-            .unwrap();
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
 
     let my_task = hatchet.task(
         "step1",
@@ -83,10 +82,9 @@ async fn test_run_returns_error_if_job_fails() {
         "localhost:{}",
         hatchet_container.get_host_port_ipv4(7077).await.unwrap()
     );
-    let hatchet =
-        HatchetClient::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-            .await
-            .unwrap();
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
 
     let my_task = hatchet.task(
         "step1",
@@ -147,10 +145,9 @@ async fn test_dynamically_spawn_child_workflow() {
         "localhost:{}",
         hatchet_container.get_host_port_ipv4(7077).await.unwrap()
     );
-    let hatchet =
-        HatchetClient::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-            .await
-            .unwrap();
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
 
     let child_task = hatchet.task(
         "child_task",
@@ -228,10 +225,9 @@ async fn test_dag_workflow() {
         "localhost:{}",
         hatchet_container.get_host_port_ipv4(7077).await.unwrap()
     );
-    let hatchet =
-        HatchetClient::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-            .await
-            .unwrap();
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
 
     let parent_task = hatchet.task(
         "parent_task",

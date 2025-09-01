@@ -1,24 +1,20 @@
 use tokio::sync::mpsc;
 
 use crate::HatchetError;
-use crate::clients::client::HatchetClient;
+use crate::clients::hatchet::Hatchet;
 use crate::features::runs::models::GetWorkflowRunResponse;
 
 /// The context object is used to interact with the Hatchet API from within a task.
 #[derive(Debug)]
 pub struct Context {
     logger_tx: mpsc::Sender<String>,
-    client: HatchetClient,
+    client: Hatchet,
     workflow_run_id: String,
     step_run_id: String,
 }
 
 impl Context {
-    pub(crate) async fn new(
-        client: HatchetClient,
-        workflow_run_id: &str,
-        step_run_id: &str,
-    ) -> Self {
+    pub(crate) async fn new(client: Hatchet, workflow_run_id: &str, step_run_id: &str) -> Self {
         let mut client_clone = client.clone();
         let (tx, mut rx) = mpsc::channel::<String>(100);
         let step_run_id = step_run_id.to_string();
@@ -87,8 +83,8 @@ impl Context {
 
     /// Log a line to the Hatchet API. This will send the log line to the Hatchet API and return immediately.
     /// ```compile_fail
-    /// use hatchet_sdk::{HatchetClient, EmptyModel};
-    /// let hatchet = HatchetClient::from_env().await.unwrap();
+    /// use hatchet_sdk::{Hatchet, EmptyModel};
+    /// let hatchet = Hatchet::from_env().await.unwrap();
     /// let task = hatchet.task("my-task", |_input: EmptyModel, ctx: Context| async move {
     ///     ctx.log("Hello, world!").await.unwrap();
     ///     Ok(EmptyModel)

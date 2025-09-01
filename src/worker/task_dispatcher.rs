@@ -6,8 +6,8 @@ use futures::FutureExt;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use crate::clients::client::HatchetClient;
 use crate::clients::grpc::v0::dispatcher;
+use crate::clients::hatchet::Hatchet;
 use crate::context::Context;
 use crate::error::HatchetError;
 use crate::task::ExecutableTask;
@@ -16,7 +16,7 @@ use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 #[derive(Clone)]
 pub(crate) struct TaskDispatcher {
     pub(crate) registry: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
-    pub(crate) client: HatchetClient,
+    pub(crate) client: Hatchet,
     pub(crate) task_runs:
         Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,
 }

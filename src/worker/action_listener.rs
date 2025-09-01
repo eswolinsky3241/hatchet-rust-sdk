@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use crate::clients::client::HatchetClient;
 use crate::clients::grpc::v0::dispatcher;
+use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
 
 pub(crate) struct ActionListener {
-    pub(crate) client: HatchetClient,
+    pub(crate) client: Hatchet,
 }
 
 impl ActionListener {
-    pub(crate) fn new(client: HatchetClient) -> Self {
+    pub(crate) fn new(client: Hatchet) -> Self {
         Self { client }
     }
 

@@ -18,10 +18,10 @@ impl RunsClient {
     /// Get a workflow run by its ID.
     ///
     /// ```no_run
-    /// use hatchet_sdk::{HatchetClient, EmptyModel};
+    /// use hatchet_sdk::{Hatchet, EmptyModel};
     /// #[tokio::main]
     /// async fn main() {
-    ///     let hatchet = HatchetClient::from_env().await.unwrap();
+    ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     let workflow_run = hatchet.workflow_rest_client.get("123").await.unwrap();
     /// }
     /// ```
