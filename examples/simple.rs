@@ -35,16 +35,15 @@ async fn main() {
     let task_clone = task.clone();
 
     let worker_handle = tokio::spawn(async move {
-        hatchet_clone
+        let mut worker = hatchet_clone
             .worker()
             .name(String::from("test-worker"))
             .max_runs(5)
             .build()
             .unwrap()
-            .add_task_or_workflow(task_clone)
-            .start()
-            .await
-            .unwrap()
+            .add_task_or_workflow(task_clone);
+
+        worker.start().await.unwrap()
     });
 
     // Wait for the worker to register the workflow with Hatchet
