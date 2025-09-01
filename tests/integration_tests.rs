@@ -1,6 +1,5 @@
 use hatchet_sdk::worker::worker::WorkerBuilder;
-use hatchet_sdk::{Hatchet, HatchetError, Worker};
-use thiserror::Error;
+use hatchet_sdk::{Hatchet, HatchetError};
 
 mod common;
 use common::{MyError, SimpleInput, SimpleOutput};
