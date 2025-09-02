@@ -6,6 +6,7 @@ async fn main() {
     dotenvy::dotenv().ok();
     let hatchet = Hatchet::from_env().await.unwrap();
 
+    // Define your input and output types
     #[derive(Clone, Serialize, Deserialize)]
     struct SimpleInput {
         message: String,
@@ -13,7 +14,7 @@ async fn main() {
 
     #[derive(Clone, Serialize, Deserialize)]
     struct SimpleOutput {
-        message: String,
+        transformed_message: String,
     }
 
     let mut task = hatchet
@@ -24,7 +25,7 @@ async fn main() {
                         -> Result<SimpleOutput, hatchet_sdk::HatchetError> {
                 ctx.log("Starting simple task").await?;
                 Ok(SimpleOutput {
-                    message: input.message.to_lowercase(),
+                    transformed_message: input.message.to_lowercase(),
                 })
             },
         )
@@ -34,6 +35,7 @@ async fn main() {
     let hatchet_clone = hatchet.clone();
     let task_clone = task.clone();
 
+    // Spawn a worker to run the task in a separate thread
     let worker_handle = tokio::spawn(async move {
         let mut worker = hatchet_clone
             .worker("simple-worker")
@@ -48,19 +50,12 @@ async fn main() {
     // Wait for the worker to register the workflow with Hatchet
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    let result = task
-        .run(
-            SimpleInput {
-                message: String::from("Hello, world!"),
-            },
-            None,
-        )
-        .await
-        .unwrap();
-    println!(
-        "First task result: {}",
-        serde_json::to_string(&result).unwrap()
-    );
+    // Run the task synchronously
+    let input = SimpleInput {
+        message: String::from("Hello, world!"),
+    };
+    let result = task.run(input, None).await.unwrap();
+    println!("Result: {}", result.transformed_message);
 
     worker_handle.abort();
 }

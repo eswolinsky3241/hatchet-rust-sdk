@@ -16,8 +16,9 @@ use crate::worker::action_listener::ActionListener;
 #[builder(pattern = "owned")]
 pub struct Worker {
     pub name: String,
-    max_runs: i32,
     client: Hatchet,
+    #[builder(default = 100)]
+    max_runs: i32,
     #[builder(default = Arc::new(Mutex::new(HashMap::new())))]
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     #[builder(default = vec![])]
