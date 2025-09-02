@@ -82,9 +82,9 @@ where
         self
     }
 
-    pub(crate) fn into_executable(self) -> Box<dyn ExecutableTask> {
-        let handler = self.handler;
-        let name = self.name;
+    pub(crate) fn into_executable(&self) -> Box<dyn ExecutableTask> {
+        let handler = self.handler.clone();
+        let name = self.name.clone();
 
         Box::new(TypeErasedTask {
             name: name.clone(),

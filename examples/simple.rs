@@ -7,12 +7,12 @@ async fn main() {
     let hatchet = Hatchet::from_env().await.unwrap();
 
     // Define your input and output types
-    #[derive(Clone, Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize)]
     struct SimpleInput {
         message: String,
     }
 
-    #[derive(Clone, Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize)]
     struct SimpleOutput {
         transformed_message: String,
     }
@@ -32,20 +32,19 @@ async fn main() {
         .build()
         .unwrap();
 
-    let hatchet_clone = hatchet.clone();
-    let task_clone = task.clone();
+    let workflow = hatchet
+        .workflow::<SimpleInput, SimpleOutput>("simple-workflow")
+        .build()
+        .unwrap()
+        .add_task(&task)
+        .unwrap();
 
-    // Spawn a worker to run the task in a separate thread
-    let worker_handle = tokio::spawn(async move {
-        let mut worker = hatchet_clone
-            .worker("simple-worker")
-            .max_runs(5)
-            .build()
-            .unwrap()
-            .add_task_or_workflow(task_clone);
-
-        worker.start().await.unwrap()
-    });
+    let workflow2 = hatchet
+        .workflow::<SimpleInput, SimpleOutput>("simple-workflow2")
+        .build()
+        .unwrap()
+        .add_task(&task)
+        .unwrap();
 
     // Wait for the worker to register the workflow with Hatchet
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -56,6 +55,4 @@ async fn main() {
     };
     let result = task.run(input, None).await.unwrap();
     println!("Result: {}", result.transformed_message);
-
-    worker_handle.abort();
 }

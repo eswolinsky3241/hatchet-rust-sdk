@@ -55,9 +55,9 @@ async fn main() {
         .workflow::<EmptyModel, WorkflowOutput>("dag-workflow")
         .build()
         .unwrap()
-        .add_task(first_task)
+        .add_task(&first_task)
         .unwrap()
-        .add_task(second_task)
+        .add_task(&second_task)
         .unwrap();
 
     let hatchet_clone = hatchet.clone();

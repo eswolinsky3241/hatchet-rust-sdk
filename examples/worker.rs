@@ -34,7 +34,7 @@ async fn main() {
         .workflow::<SimpleInput, SimpleOutput>("simple-workflow")
         .build()
         .unwrap()
-        .add_task(task)
+        .add_task(&task)
         .unwrap();
 
     hatchet

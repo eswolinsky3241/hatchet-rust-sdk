@@ -52,7 +52,7 @@ impl Worker {
     /// let my_workflow = hatchet.workflow("my-workflow")
     ///     .build()
     ///     .unwrap()
-    ///     .add_task(my_task)
+    ///     .add_task(&my_task)
     ///     .unwrap();
     ///
     ///     let worker = hatchet.worker("my-worker").build().unwrap();
@@ -84,7 +84,7 @@ impl Worker {
     ///         workflow::<EmptyModel, EmptyModel>("my-workflow")
     ///         .build()
     ///         .unwrap()
-    ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
+    ///         .add_task(&hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///             Ok(EmptyModel)
     ///         }))
     ///         .unwrap();

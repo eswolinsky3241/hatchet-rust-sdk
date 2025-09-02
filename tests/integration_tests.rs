@@ -237,9 +237,9 @@ async fn test_dag_workflow() {
         .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>("parent-workflow")
         .build()
         .unwrap()
-        .add_task(parent_task)
+        .add_task(&parent_task)
         .unwrap()
-        .add_task(child_task)
+        .add_task(&child_task)
         .unwrap();
 
     let dag_workflow_clone = dag_workflow.clone();
