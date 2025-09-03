@@ -60,10 +60,7 @@ impl Hatchet {
     }
 
     async fn create_secure_channel(grpc_address: &str) -> Result<Channel, HatchetError> {
-        rustls::crypto::ring::default_provider()
-            .install_default()
-            .map_err(|_| return HatchetError::CryptoProvider)?;
-
+        let _ = rustls::crypto::ring::default_provider().install_default();
         let domain_name = grpc_address
             .split(':')
             .next()
@@ -153,8 +150,7 @@ impl Hatchet {
     ///         .unwrap()
     ///         .add_task(&hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///             Ok(EmptyModel)
-    ///         }).build().unwrap())
-    ///         .unwrap();
+    ///         }).build().unwrap());
     /// }
     /// ```
     pub fn workflow<I, O>(&self, name: &str) -> crate::runnables::WorkflowBuilder<I, O>

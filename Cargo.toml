@@ -58,3 +58,11 @@ path = "examples/worker.rs"
 [[example]]
 name = "dag"
 path = "examples/dag.rs"
+
+[[example]]
+name = "error"
+path = "examples/error.rs"
+
+[[example]]
+name = "dynamic_child_spawning"
+path = "examples/dynamic_child_spawning.rs"

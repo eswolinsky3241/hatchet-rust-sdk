@@ -41,7 +41,7 @@ where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
 {
-    pub fn add_task<P>(mut self, task: &Task<I, P>) -> Result<Self, HatchetError>
+    pub fn add_task<P>(mut self, task: &Task<I, P>) -> Self
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         P: serde::Serialize + Send + 'static,
@@ -51,15 +51,12 @@ where
             .iter()
             .any(|existing_task| existing_task.readable_id == task.name)
         {
-            return Err(HatchetError::DuplicateTask {
-                task_name: task.name.clone(),
-                workflow_name: self.name.clone(),
-            });
+            panic!("Duplicate tasks registered to workflow: {}", task.name);
         }
 
         self.tasks.push(task.to_task_proto(&self.name));
         self.executable_tasks.push(task.into_executable());
-        Ok(self)
+        self
     }
 
     pub(crate) fn to_proto(&self) -> CreateWorkflowVersionRequest {

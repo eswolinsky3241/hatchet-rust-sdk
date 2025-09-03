@@ -1,27 +1,25 @@
 use anyhow;
-use hatchet_sdk::{Context, EmptyModel, Hatchet, Register, Runnable};
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable};
 use serde::{Deserialize, Serialize};
 
-#[tokio::main]
-async fn main() {
-    #[derive(Clone, Serialize, Deserialize, Debug)]
-    struct FirstTaskOutput {
-        output: String,
-    }
+#[derive(Clone, Serialize, Deserialize, Debug)]
+struct FirstTaskOutput {
+    output: String,
+}
 
-    #[derive(Clone, Serialize, Deserialize, Debug)]
-    struct SecondTaskOutput {
-        first_step_result: String,
-        final_result: String,
-    }
+#[derive(Clone, Serialize, Deserialize, Debug)]
+struct SecondTaskOutput {
+    first_step_result: String,
+    final_result: String,
+}
 
-    #[derive(Clone, Serialize, Deserialize, Debug)]
-    struct WorkflowOutput {
-        first_task: FirstTaskOutput,
-        second_task: SecondTaskOutput,
-    }
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct WorkflowOutput {
+    first_task: FirstTaskOutput,
+    second_task: SecondTaskOutput,
+}
 
-    dotenvy::dotenv().ok();
+pub async fn create_dag_workflow() -> hatchet_sdk::Workflow<EmptyModel, WorkflowOutput> {
     let hatchet = Hatchet::from_env().await.unwrap();
 
     let first_task = hatchet
@@ -51,32 +49,20 @@ async fn main() {
         .unwrap()
         .add_parent(&first_task);
 
-    let mut workflow = hatchet
+    let workflow = hatchet
         .workflow::<EmptyModel, WorkflowOutput>("dag-workflow")
         .build()
         .unwrap()
         .add_task(&first_task)
-        .unwrap()
-        .add_task(&second_task)
-        .unwrap();
+        .add_task(&second_task);
 
-    let hatchet_clone = hatchet.clone();
-    let workflow_clone = workflow.clone();
+    workflow
+}
 
-    let worker_handle = tokio::spawn(async move {
-        hatchet_clone
-            .worker("dag-worker")
-            .max_runs(5)
-            .build()
-            .unwrap()
-            .add_task_or_workflow(workflow_clone)
-            .start()
-            .await
-            .unwrap()
-    });
-
-    // Wait for the worker to register the workflow with Hatchet
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+#[tokio::main]
+async fn main() {
+    dotenvy::dotenv().ok();
+    let mut workflow = create_dag_workflow().await;
 
     let result = workflow.run(EmptyModel, None).await.unwrap();
     println!(
@@ -87,5 +73,4 @@ async fn main() {
         "Second task result: {}",
         serde_json::to_string(&result.second_task).unwrap()
     );
-    worker_handle.abort();
 }

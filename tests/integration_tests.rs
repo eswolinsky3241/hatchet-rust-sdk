@@ -41,7 +41,7 @@ async fn test_run_returns_job_output() {
             .max_runs(5)
             .build()
             .unwrap()
-            .add_task_or_workflow(task_clone)
+            .add_task_or_workflow(&task_clone)
             .start()
             .await
             .unwrap()
@@ -85,7 +85,9 @@ async fn test_run_returns_error_if_job_fails() {
             "step1",
             async move |_input: SimpleInput,
                         _ctx: hatchet_sdk::Context|
-                        -> anyhow::Result<SimpleOutput> { anyhow::bail!("Test failed.") },
+                        -> anyhow::Result<SimpleOutput> {
+                anyhow::bail!("Test failed.")
+            },
         )
         .build()
         .unwrap();
@@ -97,7 +99,7 @@ async fn test_run_returns_error_if_job_fails() {
             .max_runs(5)
             .build()
             .unwrap()
-            .add_task_or_workflow(task_clone)
+            .add_task_or_workflow(&task_clone)
             .start()
             .await
             .unwrap()
@@ -172,8 +174,8 @@ async fn test_dynamically_spawn_child_workflow() {
             .max_runs(5)
             .build()
             .unwrap()
-            .add_task_or_workflow(task_clone)
-            .add_task_or_workflow(child_task_clone)
+            .add_task_or_workflow(&task_clone)
+            .add_task_or_workflow(&child_task_clone)
             .start()
             .await
             .unwrap()
@@ -238,9 +240,7 @@ async fn test_dag_workflow() {
         .build()
         .unwrap()
         .add_task(&parent_task)
-        .unwrap()
-        .add_task(&child_task)
-        .unwrap();
+        .add_task(&child_task);
 
     let dag_workflow_clone = dag_workflow.clone();
     let worker_handle = tokio::spawn(async move {
@@ -250,7 +250,7 @@ async fn test_dag_workflow() {
             .max_runs(5)
             .build()
             .unwrap()
-            .add_task_or_workflow(dag_workflow_clone)
+            .add_task_or_workflow(&dag_workflow_clone)
             .start()
             .await
             .unwrap()

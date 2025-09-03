@@ -53,7 +53,6 @@ impl Worker {
     ///     .build()
     ///     .unwrap()
     ///     .add_task(&my_task)
-    ///     .unwrap();
     ///
     ///     let worker = hatchet.worker("my-worker").build().unwrap();
     ///     worker.add_task_or_workflow(my_workflow);
@@ -87,7 +86,6 @@ impl Worker {
     ///         .add_task(&hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///             Ok(EmptyModel)
     ///         }))
-    ///         .unwrap();
     ///
     ///     let mut worker = hatchet.worker("my-worker")
     ///         .max_runs(5)
@@ -189,15 +187,15 @@ where
     I: Serialize + Send + Sync + 'static,
     O: DeserializeOwned + Send + Sync + 'static,
 {
-    fn add_task_or_workflow(mut self, workflow: Workflow<I, O>) -> Self {
+    fn add_task_or_workflow(mut self, workflow: &Workflow<I, O>) -> Self {
         self.workflows.push(workflow.to_proto());
 
-        for task in workflow.executable_tasks {
+        for task in &workflow.executable_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name());
             self.tasks
                 .lock()
                 .unwrap()
-                .insert(fully_qualified_name, Arc::from(task));
+                .insert(fully_qualified_name, Arc::from(task.clone()));
         }
         self
     }
@@ -208,7 +206,7 @@ where
     I: DeserializeOwned + Serialize + Send + Sync + 'static,
     O: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
-    fn add_task_or_workflow(mut self, workflow: Task<I, O>) -> Self {
+    fn add_task_or_workflow(mut self, workflow: &Task<I, O>) -> Self {
         let workflow_proto = workflow.to_standalone_workflow_proto();
         self.workflows.push(workflow_proto);
 
@@ -226,5 +224,5 @@ where
     I: Serialize + Send + Sync + 'static,
     O: DeserializeOwned + Send + Sync + 'static,
 {
-    fn add_task_or_workflow(self, workflow: T) -> Self;
+    fn add_task_or_workflow(self, workflow: &T) -> Self;
 }
