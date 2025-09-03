@@ -20,7 +20,7 @@ pub async fn create_child_spawning_workflow() -> (
     let child_task_1: hatchet_sdk::Task<ChildInput, serde_json::Value> = hatchet
         .task(
             "child_task_1",
-            async move |input: ChildInput, ctx: Context| -> anyhow::Result<serde_json::Value> {
+            async move |input: ChildInput, _ctx: Context| -> anyhow::Result<serde_json::Value> {
                 println!("child process {}", input.a);
                 Ok(serde_json::json!({"status": input.a}))
             },
@@ -31,10 +31,10 @@ pub async fn create_child_spawning_workflow() -> (
     let child_task_2: hatchet_sdk::Task<ChildInput, serde_json::Value> = hatchet
         .task(
             "child_task_2",
-            async move |input: ChildInput, ctx: Context| -> anyhow::Result<serde_json::Value> {
+            async move |_input: ChildInput, ctx: Context| -> anyhow::Result<serde_json::Value> {
                 let process_output = ctx.parent_output("child_task_1").await?;
                 let a = process_output.get("status").unwrap();
-                Ok(serde_json::json!({"status2": a.to_string()}))
+                Ok(serde_json::json!({"status2": format!("{}2", a.to_string())}))
             },
         )
         .build()
@@ -56,16 +56,25 @@ pub async fn create_child_spawning_workflow() -> (
             async move |input: ParentInput, _ctx: Context| -> anyhow::Result<serde_json::Value> {
                 let mut child_tasks = vec![];
                 for i in 0..input.n {
+                    let mut workflow_clone = child_workflow_clone.clone();
                     let mut options = TriggerWorkflowOptions::default();
                     options.additional_metadata = Some(serde_json::json!({
                         "child_index": i.to_string(),
                     }));
-                    let handle =
-                        child_workflow_clone.run(ChildInput { a: "a".to_string() }, Some(options));
+                    let handle = async move {
+                        let result = workflow_clone
+                            .run(ChildInput { a: i.to_string() }, Some(options))
+                            .await
+                            .unwrap()
+                            .get("child_task_2")
+                            .unwrap()
+                            .to_owned();
+                        result
+                    };
                     child_tasks.push(handle);
                 }
-                let results = futures::future::try_join_all(child_tasks).await.unwrap();
-                Ok(serde_json::json!(results))
+                let results = futures::future::join_all(child_tasks).await;
+                Ok(serde_json::Value::Array(results))
             },
         )
         .build()
@@ -87,7 +96,7 @@ async fn main() {
 
     let (mut parent_workflow, _child_workflow) = create_child_spawning_workflow().await;
 
-    let input = ParentInput { n: 1 };
+    let input = ParentInput { n: 10 };
     let result = parent_workflow.run(input, None).await.unwrap();
     println!("Result: {}", result.to_string());
 }
