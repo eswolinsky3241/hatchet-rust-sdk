@@ -34,7 +34,7 @@
 //!             "simple-task",
 //!             async move |input: SimpleInput,
 //!                         ctx: Context|
-//!                         -> Result<SimpleOutput, anyhow::HatchetError> {
+//!                         -> anyhow::Result<SimpleOutput> {
 //!                 ctx.log("Starting simple task").await?;
 //!                 Ok(SimpleOutput {
 //!                     transformed_message: input.message.to_lowercase(),
@@ -119,7 +119,7 @@
 //!            async move |_input: EmptyModel, ctx: Context| -> anyhow::Result<SecondTaskOutput> {
 //!                let first_result = ctx.parent_output("first_task").await?;
 //!                Ok(SecondTaskOutput {
-//!                    first_step_result: first_result.get("output").unwrap().to_string(),
+//!                    first_task_result: first_result.get("output").unwrap().to_string(),
 //!                    final_result: "Completed".to_string(),
 //!                })
 //!             },

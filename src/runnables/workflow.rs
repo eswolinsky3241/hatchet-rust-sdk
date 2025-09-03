@@ -41,11 +41,10 @@ where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
 {
-    pub fn add_task<P, E>(mut self, task: &Task<I, P, E>) -> Result<Self, HatchetError>
+    pub fn add_task<P>(mut self, task: &Task<I, P>) -> Result<Self, HatchetError>
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         P: serde::Serialize + Send + 'static,
-        E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
     {
         if self
             .tasks

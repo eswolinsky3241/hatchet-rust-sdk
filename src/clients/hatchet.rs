@@ -180,24 +180,23 @@ impl Hatchet {
     /// }
     ///
     /// ```
-    pub fn task<I, O, E, F, Fut>(
+    pub fn task<I, O, F, Fut>(
         &self,
         name: &str,
         handler: F,
-    ) -> crate::runnables::task::TaskBuilder<I, O, E>
+    ) -> crate::runnables::task::TaskBuilder<I, O>
     where
         I: serde::Serialize + serde::de::DeserializeOwned + Send + Sync + 'static,
         O: serde::Serialize + Send + Sync + 'static,
-        E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
         F: FnOnce(I, crate::context::Context) -> Fut + Send + Sync + Clone + 'static,
-        Fut: std::future::Future<Output = Result<O, E>> + Send + 'static,
+        Fut: std::future::Future<Output = anyhow::Result<O>> + Send + 'static,
     {
         let handler = Arc::new(move |input: I, ctx: crate::context::Context| {
             let handler_clone = handler.clone();
             Box::pin(handler_clone(input, ctx))
-                as std::pin::Pin<Box<dyn Future<Output = Result<O, E>> + Send>>
+                as std::pin::Pin<Box<dyn Future<Output = anyhow::Result<O>> + Send>>
         });
-        crate::runnables::task::TaskBuilder::<I, O, E>::default()
+        crate::runnables::task::TaskBuilder::<I, O>::default()
             .name(name.to_string())
             .handler(handler)
             .client(self.clone())

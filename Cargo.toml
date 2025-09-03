@@ -13,6 +13,7 @@ worker = []
 
 [dependencies]
 
+anyhow = "1.0.99"
 async-trait = "0.1.88"
 base64 = "0.22"
 derive_builder = "0.20.2"
@@ -43,7 +44,6 @@ uuid = { version = "^1.8", features = ["serde", "v4"] }
 tonic-build = { version = "0.13.1", features = ["prost"] }
 
 [dev-dependencies]
-anyhow = "1.0.99"
 dotenvy = "0.15.7"
 testcontainers = "0.25.0"
 

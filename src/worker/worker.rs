@@ -203,13 +203,12 @@ where
     }
 }
 
-impl<I, O, E> Register<Task<I, O, E>, I, O> for Worker
+impl<I, O> Register<Task<I, O>, I, O> for Worker
 where
     I: DeserializeOwned + Serialize + Send + Sync + 'static,
     O: Serialize + DeserializeOwned + Send + Sync + 'static,
-    E: std::error::Error + Send + Sync + 'static,
 {
-    fn add_task_or_workflow(mut self, workflow: Task<I, O, E>) -> Self {
+    fn add_task_or_workflow(mut self, workflow: Task<I, O>) -> Self {
         let workflow_proto = workflow.to_standalone_workflow_proto();
         self.workflows.push(workflow_proto);
 

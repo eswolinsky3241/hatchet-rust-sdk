@@ -2,7 +2,7 @@ use hatchet_sdk::worker::worker::WorkerBuilder;
 use hatchet_sdk::{Hatchet, HatchetError, Register, Runnable};
 
 mod common;
-use common::{MyError, SimpleInput, SimpleOutput};
+use common::{SimpleInput, SimpleOutput};
 
 #[tokio::test]
 async fn test_run_returns_job_output() {
@@ -24,7 +24,7 @@ async fn test_run_returns_job_output() {
             "step1",
             async move |input: SimpleInput,
                         _ctx: hatchet_sdk::Context|
-                        -> Result<SimpleOutput, MyError> {
+                        -> anyhow::Result<SimpleOutput> {
                 Ok(SimpleOutput {
                     transformed_message: input.message.to_lowercase(),
                 })
@@ -85,7 +85,7 @@ async fn test_run_returns_error_if_job_fails() {
             "step1",
             async move |_input: SimpleInput,
                         _ctx: hatchet_sdk::Context|
-                        -> Result<SimpleOutput, MyError> { Err(MyError::Failure) },
+                        -> anyhow::Result<SimpleOutput> { anyhow::bail!("Test failed.") },
         )
         .build()
         .unwrap();
@@ -143,7 +143,7 @@ async fn test_dynamically_spawn_child_workflow() {
             "child_task",
             async move |_input: hatchet_sdk::EmptyModel,
                         _ctx: hatchet_sdk::Context|
-                        -> Result<serde_json::Value, MyError> {
+                        -> anyhow::Result<serde_json::Value> {
                 Ok(serde_json::json!({"output": "Hello from child task"}))
             },
         )
@@ -157,7 +157,7 @@ async fn test_dynamically_spawn_child_workflow() {
             "parent_task",
             async move |_input: hatchet_sdk::EmptyModel,
                         _ctx: hatchet_sdk::Context|
-                        -> Result<serde_json::Value, MyError> {
+                        -> anyhow::Result<serde_json::Value> {
                 Ok(child_task.run(hatchet_sdk::EmptyModel, None).await.unwrap())
             },
         )
@@ -211,7 +211,7 @@ async fn test_dag_workflow() {
             "parent_task",
             async move |_input: hatchet_sdk::EmptyModel,
                         _ctx: hatchet_sdk::Context|
-                        -> Result<serde_json::Value, MyError> {
+                        -> anyhow::Result<serde_json::Value> {
                 Ok(serde_json::json!({"message": "I am your father"}))
             },
         )
@@ -223,8 +223,8 @@ async fn test_dag_workflow() {
             "child_task",
             async move |_input: hatchet_sdk::EmptyModel,
                         ctx: hatchet_sdk::Context|
-                        -> Result<serde_json::Value, MyError> {
-                let parent_output = ctx.parent_output("parent_task").await.unwrap();
+                        -> anyhow::Result<serde_json::Value> {
+                let parent_output = ctx.parent_output("parent_task").await?;
                 let message = parent_output.get("message").unwrap();
                 Ok(serde_json::json!({"output": format!("Parent said: {}", message.to_string())}))
             },
