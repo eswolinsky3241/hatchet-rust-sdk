@@ -2,29 +2,32 @@ use crate::clients::grpc::v0::workflows::workflow_service_client::WorkflowServic
 use crate::clients::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
 use crate::error::HatchetError;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Clone, Debug)]
 pub(crate) struct WorkflowClient {
-    client: WorkflowServiceClient<tonic::transport::Channel>,
+    client: Arc<Mutex<WorkflowServiceClient<tonic::transport::Channel>>>,
     api_token: String,
 }
 
 impl WorkflowClient {
     pub(crate) fn new(channel: tonic::transport::Channel, api_token: String) -> Self {
-        let client = WorkflowServiceClient::new(channel);
+        let client = Arc::new(Mutex::new(WorkflowServiceClient::new(channel)));
         Self { client, api_token }
     }
 }
 
 impl WorkflowClient {
     pub async fn trigger_workflow(
-        &mut self,
+        &self,
         mut trigger_workflow_request: TriggerWorkflowRequest,
     ) -> Result<TriggerWorkflowResponse, HatchetError> {
         update_task_execution_context(&mut trigger_workflow_request);
         let mut request = tonic::Request::new(trigger_workflow_request);
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
-        let response = self.client.trigger_workflow(request).await?;
+        let mut client = self.client.lock().await;
+        let response = client.trigger_workflow(request).await?;
         Ok(response.into_inner())
     }
 }

@@ -15,7 +15,7 @@ where
     async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError>;
 
     async fn run(
-        &mut self,
+        &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<O, HatchetError> {
@@ -44,7 +44,7 @@ where
     }
 
     async fn run_no_wait(
-        &mut self,
+        &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError>;

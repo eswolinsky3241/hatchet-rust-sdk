@@ -83,7 +83,7 @@ where
     }
 
     async fn trigger(
-        &mut self,
+        &self,
         input: I,
         options: TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
@@ -149,7 +149,7 @@ where
     }
 
     async fn run_no_wait(
-        &mut self,
+        &self,
         input: I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError> {

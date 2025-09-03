@@ -42,7 +42,7 @@ pub async fn create_child_spawning_workflow() -> (
             async move |input: ParentInput, _ctx: Context| -> anyhow::Result<serde_json::Value> {
                 let mut child_tasks = vec![];
                 for i in 0..input.n {
-                    let mut workflow_clone = child_workflow_clone.clone();
+                    let workflow_clone = child_workflow_clone.clone();
                     let mut options = TriggerWorkflowOptions::default();
                     options.additional_metadata = Some(serde_json::json!({
                         "child_index": i.to_string(),
@@ -80,7 +80,7 @@ pub async fn create_child_spawning_workflow() -> (
 async fn main() {
     dotenvy::dotenv().ok();
 
-    let (mut parent_workflow, _child_workflow) = create_child_spawning_workflow().await;
+    let (parent_workflow, _child_workflow) = create_child_spawning_workflow().await;
 
     let input = ParentInput { n: 10 };
     let result = parent_workflow.run(input, None).await.unwrap();
