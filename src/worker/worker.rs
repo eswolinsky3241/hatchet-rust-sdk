@@ -136,9 +136,10 @@ impl Worker {
 
         tokio::try_join!(
             async {
+                const HEARTBEAT_INTERVAL: u64 = 4;
                 loop {
                     self.client.dispatcher_client.heartbeat(&worker_id).await?;
-                    tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(HEARTBEAT_INTERVAL)).await;
                 }
                 #[allow(unreachable_code)]
                 Ok::<(), HatchetError>(())
