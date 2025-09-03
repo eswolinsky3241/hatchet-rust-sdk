@@ -17,36 +17,22 @@ pub async fn create_child_spawning_workflow() -> (
 ) {
     let hatchet = Hatchet::from_env().await.unwrap();
 
-    let child_task_1: hatchet_sdk::Task<ChildInput, serde_json::Value> = hatchet
+    let child_task: hatchet_sdk::Task<ChildInput, serde_json::Value> = hatchet
         .task(
-            "child_task_1",
+            "child_task",
             async move |input: ChildInput, _ctx: Context| -> anyhow::Result<serde_json::Value> {
                 println!("child process {}", input.a);
-                Ok(serde_json::json!({"status": input.a}))
+                Ok(serde_json::json!({"status": format!("Got input {}", input.a)}))
             },
         )
         .build()
         .unwrap();
 
-    let child_task_2: hatchet_sdk::Task<ChildInput, serde_json::Value> = hatchet
-        .task(
-            "child_task_2",
-            async move |_input: ChildInput, ctx: Context| -> anyhow::Result<serde_json::Value> {
-                let process_output = ctx.parent_output("child_task_1").await?;
-                let a = process_output.get("status").unwrap();
-                Ok(serde_json::json!({"status2": format!("{}2", a.to_string())}))
-            },
-        )
-        .build()
-        .unwrap()
-        .add_parent(&child_task_1);
-
     let child_workflow = hatchet
         .workflow::<ChildInput, serde_json::Value>("fanout-child")
         .build()
         .unwrap()
-        .add_task(&child_task_1)
-        .add_task(&child_task_2);
+        .add_task(&child_task);
 
     let child_workflow_clone = child_workflow.clone();
 
@@ -66,7 +52,7 @@ pub async fn create_child_spawning_workflow() -> (
                             .run(ChildInput { a: i.to_string() }, Some(options))
                             .await
                             .unwrap()
-                            .get("child_task_2")
+                            .get("child_task")
                             .unwrap()
                             .to_owned();
                         result
@@ -74,7 +60,7 @@ pub async fn create_child_spawning_workflow() -> (
                     child_tasks.push(handle);
                 }
                 let results = futures::future::join_all(child_tasks).await;
-                Ok(serde_json::Value::Array(results))
+                Ok(serde_json::json!({"results": results}))
             },
         )
         .build()
