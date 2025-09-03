@@ -61,13 +61,78 @@
 //! Declare a worker by calling the worker method on the Hatchet client. Tasks and workflows can be added to the worker. When the worker starts
 //! it will register the tasks with the Hatchet engine, allowing them to be triggered and assigned.
 //!
-//! ```no_compile
+//! ```compile_fail
 //! let mut worker = hatchet_clone
 //!     .worker("simple-worker")
 //!     .build()
 //!     .unwrap()
 //!     .add_task_or_workflow(simple_task);
 //! worker.start().await.unwrap()
+//! ```
+//! ## Declarative Workflow Design (DAGs)
+//! Hatchet workflows are designed in a Directed Acyclic Graph (DAG) format,
+//! where each task is a node in the graph, and the dependencies between tasks are the edges.
+//! ### Defining a Workflow
+//! Start by declaring a workflow with a name:
+//! ```
+//! use hatchet_sdk::{Context, EmptyModel, Hatchet, Register, Runnable};
+//! use serde::{Deserialize, Serialize};
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let hatchet = Hatchet::from_env().unwrap();
+//!
+//!     simple = hatchet.workflow::<EmptyModel, serde_json::Value>("SimpleWorkflow")
+//!         .build()
+//!         .unwrap();
+//! ```
+//! ### Building a DAG with Task Dependencies
+//! The power of Hatchet’s workflow design comes from connecting tasks into a DAG structure.
+//! Tasks can specify dependencies (parents) which must complete successfully before the task can start.
+//! ```
+//!     #[derive(Serialize, Deserialize)]
+//!     struct FirstTaskOutput {
+//!         output: String,
+//!     }
+//!
+//!     let first_task = hatchet
+//!         .task(
+//!          "first_task",
+//!          async move |_input: EmptyModel, _ctx: Context| -> anyhow::Result<FirstTaskOutput> {
+//!              Ok(FirstTaskOutput {
+//!                  output: "Hello World".to_string(),
+//!              })
+//!          },
+//!      )
+//!      .build()
+//!      .unwrap();
+//!
+//!     #[derive(Serialize, Deserialize)]
+//!     struct SecondTaskOutput {
+//!         first_task_result: String,
+//!         final_result: String
+//!     }
+//!
+//!     let second_task = hatchet
+//!         .task(
+//!            "second_task",
+//!            async move |_input: EmptyModel, ctx: Context| -> anyhow::Result<SecondTaskOutput> {
+//!                let first_result = ctx.parent_output("first_task").await?;
+//!                Ok(SecondTaskOutput {
+//!                    first_step_result: first_result.get("output").unwrap().to_string(),
+//!                    final_result: "Completed".to_string(),
+//!                })
+//!             },
+//!         )
+//!    .build()
+//!    .unwrap()
+//!    .add_parent(&first_task);
+//! ```
+//! ### Running a Workflow
+//! You can run workflows directly or enqueue them for asynchronous execution.
+//! ```
+//! let result = workflow.run(EmptyModel, None).await.unwrap();
+//! let run_id: String = workflow.run_no_wait(EmptyModel, None).await.unwrap();
 //! ```
 
 pub(crate) mod clients;
@@ -82,10 +147,6 @@ pub mod worker;
 pub use clients::hatchet::Hatchet;
 pub use context::Context;
 pub use error::HatchetError;
-pub use runnables::Runnable;
-pub use runnables::Task;
-pub use runnables::TriggerWorkflowOptions;
-pub use runnables::Workflow;
+pub use runnables::{Runnable, Task, TriggerWorkflowOptions, Workflow};
 pub use utils::EmptyModel;
-pub use worker::Register;
-pub use worker::Worker;
+pub use worker::{Register, Worker};
