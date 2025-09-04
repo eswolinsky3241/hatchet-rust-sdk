@@ -11,6 +11,6 @@ pub mod worker;
 pub use clients::hatchet::Hatchet;
 pub use context::Context;
 pub use error::HatchetError;
-pub use runnables::{Runnable, Task, TriggerWorkflowOptions, Workflow};
+pub use runnables::{Runnable, Task, TriggerWorkflowOptionsBuilder, Workflow};
 pub use utils::EmptyModel;
 pub use worker::{Register, Worker};

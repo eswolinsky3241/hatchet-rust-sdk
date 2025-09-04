@@ -176,11 +176,7 @@ impl Hatchet {
     /// }
     ///
     /// ```
-    pub fn task<I, O, F, Fut>(
-        &self,
-        name: &str,
-        handler: F,
-    ) -> crate::runnables::task::TaskBuilder<I, O>
+    pub fn task<I, O, F, Fut>(&self, name: &str, handler: F) -> crate::runnables::TaskBuilder<I, O>
     where
         I: serde::Serialize + serde::de::DeserializeOwned + Send + Sync + 'static,
         O: serde::Serialize + Send + Sync + 'static,
@@ -192,7 +188,7 @@ impl Hatchet {
             Box::pin(handler_clone(input, ctx))
                 as std::pin::Pin<Box<dyn Future<Output = anyhow::Result<O>> + Send>>
         });
-        crate::runnables::task::TaskBuilder::<I, O>::default()
+        crate::runnables::TaskBuilder::<I, O>::default()
             .name(name.to_string())
             .handler(handler)
             .client(self.clone())

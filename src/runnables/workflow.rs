@@ -1,15 +1,15 @@
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-
 use super::ExtractRunnableOutput;
+use super::TriggerWorkflowOptions;
+use super::{ExecutableTask, Task};
 use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
 use crate::clients::hatchet::Hatchet;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
-use crate::runnables::task::{ExecutableTask, Task};
 use derive_builder::Builder;
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 #[derive(Clone, Builder)]
 #[builder(pattern = "owned")]
@@ -142,7 +142,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<I, O> crate::runnables::Runnable<I, O> for Workflow<I, O>
+impl<I, O> super::Runnable<I, O> for Workflow<I, O>
 where
     I: Serialize + Send + Sync + DeserializeOwned + 'static,
     O: DeserializeOwned + Send + Sync + 'static,
@@ -160,15 +160,6 @@ where
             .trigger(input, options.unwrap_or(&TriggerWorkflowOptions::default()))
             .await?)
     }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct TriggerWorkflowOptions {
-    pub additional_metadata: Option<serde_json::Value>,
-    pub desired_worker_id: Option<String>,
-    pub namespace: Option<String>,
-    pub sticky: bool,
-    pub key: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]

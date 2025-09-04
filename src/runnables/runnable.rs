@@ -1,4 +1,4 @@
-use super::workflow::TriggerWorkflowOptions;
+use super::TriggerWorkflowOptions;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
 use crate::features::runs::models::WorkflowStatus;
