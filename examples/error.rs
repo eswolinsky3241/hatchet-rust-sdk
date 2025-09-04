@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MyCustomError {
-    #[error("Task failed.")]
+    #[error("Task failed. Start worker with RUST_BACKTRACE=1 to see backtrace")]
     TaskFailed,
 }
 
@@ -21,9 +21,10 @@ pub async fn create_error_task() -> hatchet_sdk::Task<EmptyModel, EmptyModel> {
 }
 
 #[tokio::main]
+#[allow(dead_code)]
 async fn main() {
     dotenvy::dotenv().ok();
-    let mut error_task = create_error_task().await;
+    let error_task = create_error_task().await;
     match error_task.run(EmptyModel, None).await {
         Ok(_) => (),
         Err(error) => {

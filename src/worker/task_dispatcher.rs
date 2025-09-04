@@ -30,9 +30,9 @@ impl TaskDispatcher {
         match message.action_type().as_str_name() {
             "START_STEP_RUN" => Ok(self.handle_start_step_run(worker_id, message).await?),
             "CANCEL_STEP_RUN" => Ok(self.handle_cancel_step_run(message).await?),
-            _ => Err(HatchetError::UnrecognizedAction {
-                action: message.action_type().as_str_name().to_string(),
-            }),
+            _ => Err(HatchetError::UnrecognizedAction(
+                message.action_type().as_str_name().to_string(),
+            )),
         }
     }
 

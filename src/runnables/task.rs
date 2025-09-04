@@ -79,6 +79,10 @@ pub struct Task<I, O> {
     cron_triggers: Vec<String>,
     #[builder(default = vec![])]
     default_filters: Vec<DefaultFilter>,
+    #[builder(default = 0)]
+    retries: i32,
+    #[builder(default = None)]
+    schedule_timeout: Option<String>,
 }
 
 impl<I, O> Task<I, O>
@@ -122,14 +126,14 @@ where
             timeout: String::from(""),
             inputs: String::from("{{}}"),
             parents: self.parents.clone(),
-            retries: 0,
+            retries: self.retries.clone(),
             rate_limits: vec![],
             worker_labels: std::collections::HashMap::new(),
             backoff_factor: None,
             backoff_max_seconds: None,
             concurrency: vec![],
             conditions: None,
-            schedule_timeout: None,
+            schedule_timeout: self.schedule_timeout.clone(),
         }
     }
 

@@ -60,9 +60,10 @@ pub async fn create_dag_workflow() -> hatchet_sdk::Workflow<EmptyModel, Workflow
 }
 
 #[tokio::main]
+#[allow(dead_code)]
 async fn main() {
     dotenvy::dotenv().ok();
-    let mut workflow = create_dag_workflow().await;
+    let workflow = create_dag_workflow().await;
 
     let result = workflow.run(EmptyModel, None).await.unwrap();
     println!(

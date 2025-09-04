@@ -17,6 +17,7 @@ mod dynamic_child_spawning;
 use dynamic_child_spawning::create_child_spawning_workflow;
 
 #[tokio::main]
+#[allow(dead_code)]
 async fn main() {
     dotenvy::dotenv().ok();
     let hatchet = Hatchet::from_env().await.unwrap();

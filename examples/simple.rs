@@ -30,10 +30,11 @@ pub async fn create_simple_task() -> hatchet_sdk::Task<SimpleInput, SimpleOutput
 }
 
 #[tokio::main]
+#[allow(dead_code)]
 async fn main() {
     dotenvy::dotenv().ok();
 
-    let mut task = create_simple_task().await;
+    let task = create_simple_task().await;
 
     let input = SimpleInput {
         message: String::from("Hello, world!"),

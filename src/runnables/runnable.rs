@@ -32,9 +32,9 @@ where
                     return Ok(self.extract_output(workflow)?);
                 }
                 WorkflowStatus::Failed => {
-                    return Err(HatchetError::WorkflowFailed {
-                        error_message: workflow.run.error_message.clone(),
-                    });
+                    return Err(HatchetError::WorkflowFailed(
+                        workflow.run.error_message.clone(),
+                    ));
                 }
                 _ => {}
             }

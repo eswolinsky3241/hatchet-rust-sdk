@@ -45,9 +45,8 @@ impl HatchetConfig {
     }
 
     pub fn from_env() -> Result<Self, HatchetError> {
-        let token = env::var("HATCHET_CLIENT_TOKEN").map_err(|_| HatchetError::MissingEnvVar {
-            var: String::from("HATCHET_CLIENT_TOKEN"),
-        })?;
+        let token = env::var("HATCHET_CLIENT_TOKEN")
+            .map_err(|_| HatchetError::MissingEnvVar(String::from("HATCHET_CLIENT_TOKEN")))?;
 
         let tls_strategy =
             std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or(String::from("tls"));

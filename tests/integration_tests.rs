@@ -117,9 +117,7 @@ async fn test_run_returns_error_if_job_fails() {
         )
         .await;
 
-    let _err = HatchetError::WorkflowFailed {
-        error_message: "Task execution failed: Test failed".to_string(),
-    };
+    let _err = HatchetError::WorkflowFailed("Task execution failed: Test failed".to_string());
 
     assert!(matches!(output, Err(_err)));
     worker_handle.abort()
@@ -140,7 +138,7 @@ async fn test_dynamically_spawn_child_workflow() {
         .await
         .unwrap();
 
-    let mut child_task = hatchet
+    let child_task = hatchet
         .task(
             "child_task",
             async move |_input: hatchet_sdk::EmptyModel,
@@ -154,7 +152,7 @@ async fn test_dynamically_spawn_child_workflow() {
 
     let child_task_clone = child_task.clone();
 
-    let mut parent_task = hatchet
+    let parent_task = hatchet
         .task(
             "parent_task",
             async move |_input: hatchet_sdk::EmptyModel,
@@ -235,7 +233,7 @@ async fn test_dag_workflow() {
         .unwrap()
         .add_parent(&parent_task);
 
-    let mut dag_workflow = hatchet
+    let dag_workflow = hatchet
         .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>("parent-workflow")
         .build()
         .unwrap()
