@@ -13,8 +13,8 @@ Tasks have input and output types, which should implement the `Serialize` and `D
 With your task defined, you can import it wherever you need to use it and invoke it with the `run` method.
 <div class="warning">NOTE: You must first register the task on a worker before you can run it.</div>
 
-```rust
-use hatchet_sdk::{Context, Hatchet, Runnable};
+```rust no_run
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -34,27 +34,25 @@ async fn simple_task_func(input: SimpleInput, ctx: Context) -> anyhow::Result<Si
     })
 }
 
-let hatchet: Hatchet = Hatchet::from_env().await.unwrap();
-
-let simple_task: hatchet_sdk::Task<SimpleInput, SimpleOutput> = hatchet
-    .task("simple-task", simple_task_func)
-    .build()
-    .unwrap();
-
-simple_task
-
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
 
+    let hatchet: Hatchet = Hatchet::from_env().await.unwrap();
+
+    let simple_task = hatchet
+        .task("simple-task", simple_task_func)
+        .build()
+        .unwrap();
 
     let input = SimpleInput {
         message: String::from("Hello, world!"),
     };
+
     // Run the task asynchronously, immediately returning the run ID
-    let run_id = simple_task.run_no_wait(EmptyModel, None).await.unwrap();
+    let run_id = simple_task.run_no_wait(&input, None).await.unwrap();
     // Run the task synchronously, waiting for a worker to complete it and return the result
-    let result = simple_task.run(EmptyModel, None).await.unwrap();
+    let result = simple_task.run(&input, None).await.unwrap();
     println!("Result: {}", result.transformed_message);
 }
 
@@ -64,24 +62,22 @@ Workers are responsible for executing individual tasks.
 ### Declaring a Worker
 Declare a worker by calling the worker method on the Hatchet client. Tasks and workflows can be added to the worker. When the worker starts
 it will register the tasks with the Hatchet engine, allowing them to be triggered and assigned.
-```rust
-use hatchet_sdk::{Hatchet, Register};
+```rust no_run
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Register};
 
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
     let hatchet = Hatchet::from_env().await.unwrap();
 
-    async fn simple_task_func(input: SimpleInput, ctx: Context) -> anyhow::Result<SimpleOutput> {
+    async fn simple_task_func(input: EmptyModel, ctx: Context) -> anyhow::Result<serde_json::Value> {
         ctx.log("Starting simple task").await?;
-        Ok(SimpleOutput {
-            transformed_message: input.message.to_lowercase(),
-        })
+        Ok(serde_json::json!({"message": "success"}))
     }
 
     let hatchet: Hatchet = Hatchet::from_env().await.unwrap();
 
-    let simple_task: hatchet_sdk::Task<SimpleInput, SimpleOutput> = hatchet
+    let simple_task = hatchet
         .task("simple-task", simple_task_func)
         .build()
         .unwrap();
@@ -105,74 +101,72 @@ The power of Hatchet’s workflow design comes from connecting tasks into a DAG 
 Tasks can specify dependencies (parents) which must complete successfully before the task can start.
 ### Running a Workflow
 You can run workflows directly or enqueue them for asynchronous execution.
-```rust
+```rust no_run
 use anyhow;
 use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 struct FirstTaskOutput {
     output: String,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 struct SecondTaskOutput {
     first_step_result: String,
     final_result: String,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct WorkflowOutput {
     first_task: FirstTaskOutput,
     second_task: SecondTaskOutput,
 }
 
-let hatchet = Hatchet::from_env().await.unwrap();
-
-let first_task = hatchet
-    .task(
-        "first_task",
-        async move |_input: EmptyModel, _ctx: Context| -> anyhow::Result<FirstTaskOutput> {
-            Ok(FirstTaskOutput {
-                output: "Hello World".to_string(),
-            })
-        },
-    )
-    .build()
-    .unwrap();
-
-let second_task = hatchet
-    .task(
-        "second_task",
-        async move |_input: EmptyModel, ctx: Context| -> anyhow::Result<SecondTaskOutput> {
-            let first_result = ctx.parent_output("first_task").await?;
-            Ok(SecondTaskOutput {
-                first_step_result: first_result.get("output").unwrap().to_string(),
-                final_result: "Completed".to_string(),
-            })
-        },
-    )
-    .build()
-    .unwrap()
-    .add_parent(&first_task);
-
-let workflow = hatchet
-    .workflow::<EmptyModel, WorkflowOutput>("dag-workflow")
-    .build()
-    .unwrap()
-    .add_task(&first_task)
-    .add_task(&second_task);
-
-
 #[tokio::main]
-#[allow(dead_code)]
 async fn main() {
     dotenvy::dotenv().ok();
 
+    let hatchet = Hatchet::from_env().await.unwrap();
+
+    let first_task = hatchet
+        .task(
+            "first_task",
+            async move |_input: EmptyModel, _ctx: Context| -> anyhow::Result<FirstTaskOutput> {
+                Ok(FirstTaskOutput {
+                    output: "Hello World".to_string(),
+                })
+            },
+        )
+        .build()
+        .unwrap();
+
+    let second_task = hatchet
+        .task(
+            "second_task",
+            async move |_input: EmptyModel, ctx: Context| -> anyhow::Result<SecondTaskOutput> {
+                let first_result = ctx.parent_output("first_task").await?;
+                Ok(SecondTaskOutput {
+                    first_step_result: first_result.get("output").unwrap().to_string(),
+                    final_result: "Completed".to_string(),
+                })
+            },
+        )
+        .build()
+        .unwrap()
+        .add_parent(&first_task);
+
+    let workflow = hatchet
+        .workflow::<EmptyModel, WorkflowOutput>("dag-workflow")
+        .build()
+        .unwrap()
+        .add_task(&first_task)
+        .add_task(&second_task);
+
     // Run the workflow asynchronously, immediately returning the run ID
-    let run_id = workflow.run_no_wait(EmptyModel, None).await.unwrap();
+    let run_id = workflow.run_no_wait(&EmptyModel, None).await.unwrap();
     // Run the workflow synchronously, waiting for a worker to complete it and return the result
-    let result = workflow.run(EmptyModel, None).await.unwrap();
+    let result = workflow.run(&EmptyModel, None).await.unwrap();
     println!(
         "First task result: {}",
         serde_json::to_string(&result.first_task).unwrap()
