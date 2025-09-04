@@ -1,12 +1,12 @@
 use hatchet_sdk::{Context, Hatchet, Runnable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct SimpleInput {
     pub message: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct SimpleOutput {
     pub transformed_message: String,
 }
