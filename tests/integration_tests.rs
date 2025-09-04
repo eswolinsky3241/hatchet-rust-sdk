@@ -19,7 +19,7 @@ async fn test_run_returns_job_output() {
         .await
         .unwrap();
 
-    let mut task = hatchet
+    let task = hatchet
         .task(
             "step1",
             async move |input: SimpleInput,
@@ -80,7 +80,7 @@ async fn test_run_returns_error_if_job_fails() {
         .await
         .unwrap();
 
-    let mut task = hatchet
+    let task = hatchet
         .task(
             "step1",
             async move |_input: SimpleInput,
