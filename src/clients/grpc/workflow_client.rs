@@ -26,7 +26,6 @@ impl WorkflowClient {
         update_task_execution_context(&mut trigger_workflow_request);
         let mut request = tonic::Request::new(trigger_workflow_request);
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
-
         let mut client = self.client.lock().await;
         let response = client.trigger_workflow(request).await?;
         Ok(response.into_inner())
