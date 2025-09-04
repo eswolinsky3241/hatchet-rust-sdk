@@ -85,10 +85,13 @@ where
     async fn trigger(
         &self,
         input: &I,
-        options: TriggerWorkflowOptions,
+        options: &TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
         let input_json =
             serde_json::to_value(input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
+
+        let additional_metadata = options.additional_metadata.clone().map(|v| v.to_string());
+        let desired_worker_id = options.desired_worker_id.clone();
 
         let response = self
             .client
@@ -101,8 +104,8 @@ where
                     parent_step_run_id: None,
                     child_index: None,
                     child_key: None,
-                    additional_metadata: options.additional_metadata.map(|v| v.to_string()),
-                    desired_worker_id: None,
+                    additional_metadata,
+                    desired_worker_id,
                     priority: None,
                 },
             )
@@ -151,9 +154,11 @@ where
     async fn run_no_wait(
         &self,
         input: &I,
-        options: Option<TriggerWorkflowOptions>,
+        options: Option<&TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError> {
-        Ok(self.trigger(input, options.unwrap_or_default()).await?)
+        Ok(self
+            .trigger(input, options.unwrap_or(&TriggerWorkflowOptions::default()))
+            .await?)
     }
 }
 
