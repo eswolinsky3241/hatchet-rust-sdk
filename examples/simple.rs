@@ -1,61 +1,44 @@
-use hatchet_sdk::{Context, Hatchet, Register, Runnable};
+use hatchet_sdk::{Context, Hatchet, Runnable};
 use serde::{Deserialize, Serialize};
 
-#[tokio::main]
-async fn main() {
-    dotenvy::dotenv().ok();
-    let hatchet = Hatchet::from_env().await.unwrap();
+#[derive(Serialize, Deserialize)]
+pub struct SimpleInput {
+    pub message: String,
+}
 
-    // Define your input and output types
-    #[derive(Clone, Serialize, Deserialize)]
-    struct SimpleInput {
-        message: String,
+#[derive(Serialize, Deserialize)]
+pub struct SimpleOutput {
+    pub transformed_message: String,
+}
+
+pub async fn create_simple_task() -> hatchet_sdk::Task<SimpleInput, SimpleOutput> {
+    async fn simple_task_func(input: SimpleInput, ctx: Context) -> anyhow::Result<SimpleOutput> {
+        ctx.log("Starting simple task").await?;
+        Ok(SimpleOutput {
+            transformed_message: input.message.to_lowercase(),
+        })
     }
 
-    #[derive(Clone, Serialize, Deserialize)]
-    struct SimpleOutput {
-        transformed_message: String,
-    }
+    let hatchet: Hatchet = Hatchet::from_env().await.unwrap();
 
-    let mut task = hatchet
-        .task(
-            "simple-task",
-            async move |input: SimpleInput,
-                        ctx: Context|
-                        -> Result<SimpleOutput, hatchet_sdk::HatchetError> {
-                ctx.log("Starting simple task").await?;
-                Ok(SimpleOutput {
-                    transformed_message: input.message.to_lowercase(),
-                })
-            },
-        )
+    let simple_task = hatchet
+        .task("simple-task", simple_task_func)
         .build()
         .unwrap();
 
-    let hatchet_clone = hatchet.clone();
-    let task_clone = task.clone();
+    simple_task
+}
 
-    // Spawn a worker to run the task in a separate thread
-    let worker_handle = tokio::spawn(async move {
-        let mut worker = hatchet_clone
-            .worker("simple-worker")
-            .max_runs(5)
-            .build()
-            .unwrap()
-            .add_task_or_workflow(task_clone);
+#[tokio::main]
+#[allow(dead_code)]
+async fn main() {
+    dotenvy::dotenv().ok();
 
-        worker.start().await.unwrap()
-    });
+    let task = create_simple_task().await;
 
-    // Wait for the worker to register the workflow with Hatchet
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-    // Run the task synchronously
     let input = SimpleInput {
         message: String::from("Hello, world!"),
     };
-    let result = task.run(input, None).await.unwrap();
+    let result = task.run(&input, None).await.unwrap();
     println!("Result: {}", result.transformed_message);
-
-    worker_handle.abort();
 }

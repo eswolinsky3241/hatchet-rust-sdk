@@ -52,8 +52,7 @@ impl Worker {
     /// let my_workflow = hatchet.workflow("my-workflow")
     ///     .build()
     ///     .unwrap()
-    ///     .add_task(my_task)
-    ///     .unwrap();
+    ///     .add_task(&my_task)
     ///
     ///     let worker = hatchet.worker("my-worker").build().unwrap();
     ///     worker.add_task_or_workflow(my_workflow);
@@ -84,10 +83,9 @@ impl Worker {
     ///         workflow::<EmptyModel, EmptyModel>("my-workflow")
     ///         .build()
     ///         .unwrap()
-    ///         .add_task(hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
+    ///         .add_task(&hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///             Ok(EmptyModel)
     ///         }))
-    ///         .unwrap();
     ///
     ///     let mut worker = hatchet.worker("my-worker")
     ///         .max_runs(5)
@@ -136,9 +134,10 @@ impl Worker {
 
         tokio::try_join!(
             async {
+                const HEARTBEAT_INTERVAL: u64 = 4;
                 loop {
                     self.client.dispatcher_client.heartbeat(&worker_id).await?;
-                    tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(HEARTBEAT_INTERVAL)).await;
                 }
                 #[allow(unreachable_code)]
                 Ok::<(), HatchetError>(())
@@ -188,27 +187,26 @@ where
     I: Serialize + Send + Sync + 'static,
     O: DeserializeOwned + Send + Sync + 'static,
 {
-    fn add_task_or_workflow(mut self, workflow: Workflow<I, O>) -> Self {
+    fn add_task_or_workflow(mut self, workflow: &Workflow<I, O>) -> Self {
         self.workflows.push(workflow.to_proto());
 
-        for task in workflow.executable_tasks {
+        for task in &workflow.executable_tasks {
             let fully_qualified_name = format!("{}:{}", workflow.name, task.name());
             self.tasks
                 .lock()
                 .unwrap()
-                .insert(fully_qualified_name, Arc::from(task));
+                .insert(fully_qualified_name, Arc::from(task.clone()));
         }
         self
     }
 }
 
-impl<I, O, E> Register<Task<I, O, E>, I, O> for Worker
+impl<I, O> Register<Task<I, O>, I, O> for Worker
 where
     I: DeserializeOwned + Serialize + Send + Sync + 'static,
     O: Serialize + DeserializeOwned + Send + Sync + 'static,
-    E: std::error::Error + Send + Sync + 'static,
 {
-    fn add_task_or_workflow(mut self, workflow: Task<I, O, E>) -> Self {
+    fn add_task_or_workflow(mut self, workflow: &Task<I, O>) -> Self {
         let workflow_proto = workflow.to_standalone_workflow_proto();
         self.workflows.push(workflow_proto);
 
@@ -226,5 +224,5 @@ where
     I: Serialize + Send + Sync + 'static,
     O: DeserializeOwned + Send + Sync + 'static,
 {
-    fn add_task_or_workflow(self, workflow: T) -> Self;
+    fn add_task_or_workflow(self, workflow: &T) -> Self;
 }

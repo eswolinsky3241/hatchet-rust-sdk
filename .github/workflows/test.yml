@@ -26,6 +26,10 @@ jobs:
       - name: Install protoc
         run: |
           DEBIAN_FRONTEND=noninteractive sudo apt-get update && sudo apt-get install -y protobuf-compiler
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Check formatting
+
       - name: Run tests
         run: cargo test --verbose

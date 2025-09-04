@@ -41,26 +41,22 @@ where
     I: Serialize + Send + Sync,
     O: DeserializeOwned + Send + Sync,
 {
-    pub fn add_task<P, E>(mut self, task: Task<I, P, E>) -> Result<Self, HatchetError>
+    pub fn add_task<P>(mut self, task: &Task<I, P>) -> Self
     where
         I: serde::de::DeserializeOwned + Send + 'static,
         P: serde::Serialize + Send + 'static,
-        E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
     {
         if self
             .tasks
             .iter()
             .any(|existing_task| existing_task.readable_id == task.name)
         {
-            return Err(HatchetError::DuplicateTask {
-                task_name: task.name.clone(),
-                workflow_name: self.name.clone(),
-            });
+            panic!("Duplicate tasks registered to workflow: {}", task.name);
         }
 
         self.tasks.push(task.to_task_proto(&self.name));
         self.executable_tasks.push(task.into_executable());
-        Ok(self)
+        self
     }
 
     pub(crate) fn to_proto(&self) -> CreateWorkflowVersionRequest {
@@ -87,12 +83,12 @@ where
     }
 
     async fn trigger(
-        &mut self,
-        input: I,
+        &self,
+        input: &I,
         options: TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
         let input_json =
-            serde_json::to_value(&input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
+            serde_json::to_value(input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
 
         let response = self
             .client
@@ -153,8 +149,8 @@ where
     }
 
     async fn run_no_wait(
-        &mut self,
-        input: I,
+        &self,
+        input: &I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError> {
         Ok(self.trigger(input, options.unwrap_or_default()).await?)

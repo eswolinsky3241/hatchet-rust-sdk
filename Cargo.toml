@@ -3,7 +3,7 @@ name = "hatchet-sdk"
 description = "Rust SDK for Hatchet"
 authors = ["Ethan Wolinsky"]
 license = "Apache-2.0"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2024"
 readme = "README.md"
 
@@ -13,6 +13,7 @@ worker = []
 
 [dependencies]
 
+anyhow = "1.0.99"
 async-trait = "0.1.88"
 base64 = "0.22"
 derive_builder = "0.20.2"
@@ -43,7 +44,6 @@ uuid = { version = "^1.8", features = ["serde", "v4"] }
 tonic-build = { version = "0.13.1", features = ["prost"] }
 
 [dev-dependencies]
-anyhow = "1.0.99"
 dotenvy = "0.15.7"
 testcontainers = "0.25.0"
 
@@ -58,3 +58,11 @@ path = "examples/worker.rs"
 [[example]]
 name = "dag"
 path = "examples/dag.rs"
+
+[[example]]
+name = "error"
+path = "examples/error.rs"
+
+[[example]]
+name = "dynamic_child_spawning"
+path = "examples/dynamic_child_spawning.rs"

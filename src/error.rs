@@ -2,54 +2,38 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error)]
 pub enum HatchetError {
-    #[error("Missing required environment variable \"{var}\".")]
-    MissingEnvVar { var: String },
-    #[error("Token should have three parts.")]
+    #[error("missing required environment variable \"{0}\"")]
+    MissingEnvVar(String),
+    #[error("token should have three parts")]
     InvalidTokenFormat,
-    #[error("Error decoding token: {0}.")]
+    #[error("{0}")]
     Base64DecodeError(#[from] base64::DecodeError),
     #[error("Error decoding JSON: {0}")]
     JsonDecodeError(String),
+    #[error("Error encoding JSON: {0}")]
+    JsonEncode(String),
     #[error("Missing required field in JWT payload: {0}")]
     MissingTokenField(&'static str),
-    #[error("Error sending API request: {0}")]
-    ApiRequestError(String),
-    #[error("Hatchet request failed:\nurl: {method} {url}\nstatus: {status}\ncontents: {body}")]
-    HttpError {
-        url: String,
-        method: reqwest::Method,
-        status: reqwest::StatusCode,
-        body: String,
-    },
-    #[error("Error encoding JSON")]
-    JsonEncode(String),
     #[error("Invalid authorization header in gRPC request: {0}")]
     InvalidAuthHeader(String),
     #[error("Unable to connect to gRPC server: {0}")]
     GrpcConnect(String),
-    #[error("Error calling gRPC service: {0}")]
-    GrpcCall(tonic::Status),
     #[error("Response missing output")]
     MissingOutput,
-    #[error("Workflow failed:\n{error_message}")]
-    WorkflowFailed { error_message: String },
-    #[error("Invalid gRPC URI: {0}")]
+    #[error("{0}")]
+    WorkflowFailed(String),
+    #[error("invalid gRPC URI: {0}")]
     InvalidUri(String),
-    #[error("No tasks found in workflow.")]
+    #[error("no tasks found in workflow")]
     MissingTasks,
     #[error("{0}")]
     SystemTimeError(#[from] std::time::SystemTimeError),
-    #[error("Unrecognized action received: {action}")]
-    UnrecognizedAction { action: String },
-    #[error("Task not found: {task_name}")]
+    #[error("unrecognized action received: {0}")]
+    UnrecognizedAction(String),
+    #[error("task not found: {task_name}")]
     TaskNotFound { task_name: String },
     #[error("Parent task not found: {parent_step_name}")]
     ParentTaskNotFound { parent_step_name: String },
-    #[error("Duplicate task name '{task_name}' in workflow '{workflow_name}'")]
-    DuplicateTask {
-        task_name: String,
-        workflow_name: String,
-    },
     #[error("Invalid gRPC address: {0}")]
     InvalidGrpcAddress(String),
     #[error("Invalid TLS strategy: '{0}'. Valid options are 'none' or 'tls'")]

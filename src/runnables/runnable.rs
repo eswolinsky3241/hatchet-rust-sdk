@@ -15,8 +15,8 @@ where
     async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError>;
 
     async fn run(
-        &mut self,
-        input: I,
+        &self,
+        input: &I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<O, HatchetError> {
         let run_id = self.run_no_wait(input, options).await?;
@@ -32,9 +32,9 @@ where
                     return Ok(self.extract_output(workflow)?);
                 }
                 WorkflowStatus::Failed => {
-                    return Err(HatchetError::WorkflowFailed {
-                        error_message: workflow.run.error_message.clone(),
-                    });
+                    return Err(HatchetError::WorkflowFailed(
+                        workflow.run.error_message.clone(),
+                    ));
                 }
                 _ => {}
             }
@@ -44,8 +44,8 @@ where
     }
 
     async fn run_no_wait(
-        &mut self,
-        input: I,
+        &self,
+        input: &I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError>;
 }

@@ -1,3 +1,10 @@
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
+
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+
 use super::ExtractRunnableOutput;
 use super::workflow::DefaultFilter;
 use crate::Hatchet;
@@ -6,11 +13,6 @@ use crate::context::Context;
 use crate::error::HatchetError;
 use crate::features::runs::models::GetWorkflowRunResponse;
 use crate::runnables::TriggerWorkflowOptions;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
 
 pub type TaskResult = Pin<Box<dyn Future<Output = Result<serde_json::Value, TaskError>> + Send>>;
 
@@ -18,7 +20,7 @@ pub type TaskResult = Pin<Box<dyn Future<Output = Result<serde_json::Value, Task
 pub enum TaskError {
     InputDeserialization(serde_json::Error),
     OutputSerialization(serde_json::Error),
-    Execution(Box<dyn std::error::Error + Send + Sync>),
+    Execution(anyhow::Error),
 }
 
 impl std::fmt::Display for TaskError {
@@ -26,7 +28,14 @@ impl std::fmt::Display for TaskError {
         match self {
             TaskError::InputDeserialization(e) => write!(f, "Failed to deserialize input: {}", e),
             TaskError::OutputSerialization(e) => write!(f, "Failed to serialize output: {}", e),
-            TaskError::Execution(e) => write!(f, "Task execution failed: {}", e),
+            TaskError::Execution(e) => {
+                let error_message = format!("Task execution failed: {}", e);
+                if std::env::var("RUST_BACKTRACE").is_ok_and(|v| v != "0") {
+                    write!(f, "{}\n\n{}", error_message, e.backtrace())
+                } else {
+                    write!(f, "{}", error_message)
+                }
+            }
         }
     }
 }
@@ -50,11 +59,12 @@ dyn_clone::clone_trait_object!(ExecutableTask);
 
 #[derive(Clone, derive_builder::Builder)]
 #[builder(pattern = "owned")]
-pub struct Task<I, O, E> {
+pub struct Task<I, O> {
     client: Hatchet,
     pub(crate) name: String,
-    handler:
-        Arc<dyn Fn(I, Context) -> Pin<Box<dyn Future<Output = Result<O, E>> + Send>> + Send + Sync>,
+    handler: Arc<
+        dyn Fn(I, Context) -> Pin<Box<dyn Future<Output = anyhow::Result<O>> + Send>> + Send + Sync,
+    >,
     #[builder(default = vec![])]
     parents: Vec<String>,
     #[builder(default = String::from(""))]
@@ -69,22 +79,25 @@ pub struct Task<I, O, E> {
     cron_triggers: Vec<String>,
     #[builder(default = vec![])]
     default_filters: Vec<DefaultFilter>,
+    #[builder(default = 0)]
+    retries: i32,
+    #[builder(default = None)]
+    schedule_timeout: Option<String>,
 }
 
-impl<I, O, E> Task<I, O, E>
+impl<I, O> Task<I, O>
 where
     I: Serialize + for<'de> Deserialize<'de> + Send + 'static,
     O: Serialize + Send + 'static,
-    E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
 {
-    pub fn add_parent<J, P, F>(mut self, parent: &Task<J, P, F>) -> Self {
+    pub fn add_parent<J, P>(mut self, parent: &Task<J, P>) -> Self {
         self.parents.push(parent.name.clone());
         self
     }
 
-    pub(crate) fn into_executable(self) -> Box<dyn ExecutableTask> {
-        let handler = self.handler;
-        let name = self.name;
+    pub(crate) fn into_executable(&self) -> Box<dyn ExecutableTask> {
+        let handler = self.handler.clone();
+        let name = self.name.clone();
 
         Box::new(TypeErasedTask {
             name: name.clone(),
@@ -97,7 +110,7 @@ where
 
                         let result = handler(typed_input, ctx)
                             .await
-                            .map_err(|e| TaskError::Execution(e.into()))?;
+                            .map_err(TaskError::Execution)?;
 
                         serde_json::to_value(result).map_err(TaskError::OutputSerialization)
                     }) as TaskResult
@@ -113,14 +126,14 @@ where
             timeout: String::from(""),
             inputs: String::from("{{}}"),
             parents: self.parents.clone(),
-            retries: 0,
+            retries: self.retries.clone(),
             rate_limits: vec![],
             worker_labels: std::collections::HashMap::new(),
             backoff_factor: None,
             backoff_max_seconds: None,
             concurrency: vec![],
             conditions: None,
-            schedule_timeout: None,
+            schedule_timeout: self.schedule_timeout.clone(),
         }
     }
 
@@ -149,8 +162,8 @@ where
     }
 
     async fn trigger(
-        &mut self,
-        input: I,
+        &self,
+        input: &I,
         options: TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
         let input_json =
@@ -177,11 +190,10 @@ where
     }
 }
 
-impl<I, O, E> ExtractRunnableOutput<O> for Task<I, O, E>
+impl<I, O> ExtractRunnableOutput<O> for Task<I, O>
 where
     I: Serialize + DeserializeOwned + Send + Sync + 'static,
     O: Serialize + DeserializeOwned + Send + Sync + 'static,
-    E: std::error::Error + Send + Sync + 'static,
 {
     fn extract_output(&self, workflow: GetWorkflowRunResponse) -> Result<O, HatchetError> {
         let task_output = workflow
@@ -197,18 +209,17 @@ where
 }
 
 #[async_trait::async_trait]
-impl<I, O, E> super::Runnable<I, O> for Task<I, O, E>
+impl<I, O> super::Runnable<I, O> for Task<I, O>
 where
     I: Serialize + DeserializeOwned + Send + Sync + 'static,
     O: Serialize + DeserializeOwned + Send + Sync + 'static,
-    E: std::error::Error + Send + Sync + 'static,
 {
     async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
         self.client.workflow_rest_client.get(&run_id).await
     }
     async fn run_no_wait(
-        &mut self,
-        input: I,
+        &self,
+        input: &I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError> {
         Ok(self.trigger(input, options.unwrap_or_default()).await?)
