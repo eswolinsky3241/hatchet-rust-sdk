@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 use super::ExtractRunnableOutput;
 use super::TriggerWorkflowOptions;
 use super::workflow::DefaultFilter;
+use crate::Context;
+use crate::GetWorkflowRunResponse;
 use crate::Hatchet;
+use crate::HatchetError;
 use crate::clients::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
-use crate::context::Context;
-use crate::error::HatchetError;
-use crate::features::runs::models::GetWorkflowRunResponse;
 
 pub type TaskResult = Pin<Box<dyn Future<Output = Result<serde_json::Value, TaskError>> + Send>>;
 

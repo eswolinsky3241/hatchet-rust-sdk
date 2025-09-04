@@ -1,12 +1,12 @@
 use super::ExtractRunnableOutput;
 use super::TriggerWorkflowOptions;
 use super::{ExecutableTask, Task};
+use crate::GetWorkflowRunResponse;
+use crate::Hatchet;
+use crate::HatchetError;
 use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
-use crate::clients::hatchet::Hatchet;
-use crate::error::HatchetError;
-use crate::features::runs::models::GetWorkflowRunResponse;
 use derive_builder::Builder;
 use serde::Serialize;
 use serde::de::DeserializeOwned;

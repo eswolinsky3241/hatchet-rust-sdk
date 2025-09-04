@@ -1,7 +1,7 @@
 use super::TriggerWorkflowOptions;
+use crate::GetWorkflowRunResponse;
+use crate::WorkflowStatus;
 use crate::error::HatchetError;
-use crate::features::runs::models::GetWorkflowRunResponse;
-use crate::features::runs::models::WorkflowStatus;
 use serde::Serialize;
 
 use serde::de::DeserializeOwned;

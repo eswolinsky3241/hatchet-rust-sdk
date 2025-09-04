@@ -1,8 +1,8 @@
 use super::grpc::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
-use crate::clients::rest::apis::configuration::Configuration;
-use crate::config::{HatchetConfig, TlsStrategy};
-use crate::error::HatchetError;
-use crate::features::runs::RunsClient;
+use crate::Configuration;
+use crate::HatchetError;
+use crate::RunsClient;
+use crate::{HatchetConfig, TlsStrategy};
 use std::sync::Arc;
 use tonic::transport::{Channel, ClientTlsConfig};
 

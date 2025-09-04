@@ -1,6 +1,6 @@
-use crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest;
-use crate::clients::grpc::v1::workflows::admin_service_client::AdminServiceClient;
-use crate::error::HatchetError;
+use super::v1::workflows::CreateWorkflowVersionRequest;
+use super::v1::workflows::admin_service_client::AdminServiceClient;
+use crate::HatchetError;
 
 #[derive(Clone, Debug)]
 pub(crate) struct AdminClient {

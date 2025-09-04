@@ -1,7 +1,7 @@
-use crate::clients::grpc::v0::workflows::workflow_service_client::WorkflowServiceClient;
-use crate::clients::grpc::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
-use crate::error::HatchetError;
-use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
+use super::v0::workflows::workflow_service_client::WorkflowServiceClient;
+use super::v0::workflows::{TriggerWorkflowRequest, TriggerWorkflowResponse};
+use crate::HatchetError;
+use crate::{EXECUTION_CONTEXT, ExecutionContext};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
