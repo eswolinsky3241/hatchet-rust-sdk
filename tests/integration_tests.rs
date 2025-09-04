@@ -53,7 +53,7 @@ async fn test_run_returns_job_output() {
     assert_eq!(
         "uppercase",
         task.run(
-            SimpleInput {
+            &SimpleInput {
                 message: "UPPERCASE".to_string()
             },
             None
@@ -110,7 +110,7 @@ async fn test_run_returns_error_if_job_fails() {
 
     let output = task
         .run(
-            SimpleInput {
+            &SimpleInput {
                 message: "UPPERCASE".to_string(),
             },
             None,
@@ -158,7 +158,10 @@ async fn test_dynamically_spawn_child_workflow() {
             async move |_input: hatchet_sdk::EmptyModel,
                         _ctx: hatchet_sdk::Context|
                         -> anyhow::Result<serde_json::Value> {
-                Ok(child_task.run(hatchet_sdk::EmptyModel, None).await.unwrap())
+                Ok(child_task
+                    .run(&hatchet_sdk::EmptyModel, None)
+                    .await
+                    .unwrap())
             },
         )
         .build()
@@ -183,7 +186,7 @@ async fn test_dynamically_spawn_child_workflow() {
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     let output = parent_task
-        .run(hatchet_sdk::EmptyModel, None)
+        .run(&hatchet_sdk::EmptyModel, None)
         .await
         .unwrap();
 
@@ -257,7 +260,7 @@ async fn test_dag_workflow() {
     // Give worker time to register task
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    let output = dag_workflow.run(hatchet_sdk::EmptyModel, None).await;
+    let output = dag_workflow.run(&hatchet_sdk::EmptyModel, None).await;
 
     assert_eq!(
         "Parent said: \"I am your father\"",

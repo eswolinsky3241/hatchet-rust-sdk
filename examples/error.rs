@@ -25,7 +25,7 @@ pub async fn create_error_task() -> hatchet_sdk::Task<EmptyModel, EmptyModel> {
 async fn main() {
     dotenvy::dotenv().ok();
     let error_task = create_error_task().await;
-    match error_task.run(EmptyModel, None).await {
+    match error_task.run(&EmptyModel, None).await {
         Ok(_) => (),
         Err(error) => {
             println!("Error: {}", error);

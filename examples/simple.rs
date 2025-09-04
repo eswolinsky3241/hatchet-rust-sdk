@@ -21,7 +21,7 @@ pub async fn create_simple_task() -> hatchet_sdk::Task<SimpleInput, SimpleOutput
 
     let hatchet: Hatchet = Hatchet::from_env().await.unwrap();
 
-    let simple_task: hatchet_sdk::Task<SimpleInput, SimpleOutput> = hatchet
+    let simple_task = hatchet
         .task("simple-task", simple_task_func)
         .build()
         .unwrap();
@@ -39,6 +39,6 @@ async fn main() {
     let input = SimpleInput {
         message: String::from("Hello, world!"),
     };
-    let result = task.run(input, None).await.unwrap();
+    let result = task.run(&input, None).await.unwrap();
     println!("Result: {}", result.transformed_message);
 }

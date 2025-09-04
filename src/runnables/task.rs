@@ -163,7 +163,7 @@ where
 
     async fn trigger(
         &self,
-        input: I,
+        input: &I,
         options: TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
         let input_json =
@@ -219,7 +219,7 @@ where
     }
     async fn run_no_wait(
         &self,
-        input: I,
+        input: &I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError> {
         Ok(self.trigger(input, options.unwrap_or_default()).await?)

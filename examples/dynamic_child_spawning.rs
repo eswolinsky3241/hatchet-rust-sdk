@@ -49,7 +49,7 @@ pub async fn create_child_spawning_workflow() -> (
                     }));
                     let handle = async move {
                         let result = workflow_clone
-                            .run(ChildInput { a: i.to_string() }, Some(options))
+                            .run(&ChildInput { a: i.to_string() }, Some(options))
                             .await
                             .unwrap()
                             .get("child_task")
@@ -83,6 +83,6 @@ async fn main() {
     let (parent_workflow, _child_workflow) = create_child_spawning_workflow().await;
 
     let input = ParentInput { n: 10 };
-    let result = parent_workflow.run(input, None).await.unwrap();
+    let result = parent_workflow.run(&input, None).await.unwrap();
     println!("Result: {}", result.to_string());
 }

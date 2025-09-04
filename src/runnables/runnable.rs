@@ -16,7 +16,7 @@ where
 
     async fn run(
         &self,
-        input: I,
+        input: &I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<O, HatchetError> {
         let run_id = self.run_no_wait(input, options).await?;
@@ -45,7 +45,7 @@ where
 
     async fn run_no_wait(
         &self,
-        input: I,
+        input: &I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError>;
 }

@@ -2,18 +2,18 @@ use anyhow;
 use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 struct FirstTaskOutput {
     output: String,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 struct SecondTaskOutput {
     first_step_result: String,
     final_result: String,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct WorkflowOutput {
     first_task: FirstTaskOutput,
     second_task: SecondTaskOutput,
@@ -65,7 +65,7 @@ async fn main() {
     dotenvy::dotenv().ok();
     let workflow = create_dag_workflow().await;
 
-    let result = workflow.run(EmptyModel, None).await.unwrap();
+    let result = workflow.run(&EmptyModel, None).await.unwrap();
     println!(
         "First task result: {}",
         serde_json::to_string(&result.first_task).unwrap()

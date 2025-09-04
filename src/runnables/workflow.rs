@@ -84,11 +84,11 @@ where
 
     async fn trigger(
         &self,
-        input: I,
+        input: &I,
         options: TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
         let input_json =
-            serde_json::to_value(&input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
+            serde_json::to_value(input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
 
         let response = self
             .client
@@ -150,7 +150,7 @@ where
 
     async fn run_no_wait(
         &self,
-        input: I,
+        input: &I,
         options: Option<TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError> {
         Ok(self.trigger(input, options.unwrap_or_default()).await?)
