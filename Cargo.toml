@@ -3,7 +3,7 @@ name = "hatchet-sdk"
 description = "Rust SDK for Hatchet"
 authors = ["Ethan Wolinsky"]
 license = "Apache-2.0"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2024"
 readme = "README.md"
 
