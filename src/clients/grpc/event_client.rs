@@ -1,21 +1,25 @@
 use crate::clients::grpc::v0::events::{PutLogRequest, events_service_client};
 use crate::utils::proto_timestamp_now;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub(crate) struct EventClient {
-    client: events_service_client::EventsServiceClient<tonic::transport::Channel>,
+    client: Arc<Mutex<events_service_client::EventsServiceClient<tonic::transport::Channel>>>,
     api_token: String,
 }
 
 impl EventClient {
     pub(crate) fn new(channel: tonic::transport::Channel, api_token: String) -> Self {
-        let client = events_service_client::EventsServiceClient::new(channel);
+        let client = Arc::new(Mutex::new(events_service_client::EventsServiceClient::new(
+            channel,
+        )));
         Self { client, api_token }
     }
 }
 
 impl EventClient {
-    pub async fn put_log(
+    pub(crate) async fn put_log(
         &mut self,
         step_run_id: &str,
         message: String,
@@ -31,7 +35,8 @@ impl EventClient {
 
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
 
-        self.client.put_log(request).await?;
+        let mut client = self.client.lock().await;
+        client.put_log(request).await?;
         Ok(())
     }
 }
