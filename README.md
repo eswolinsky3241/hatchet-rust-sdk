@@ -1,4 +1,4 @@
- # 🪓 Hatchet SDK for Rust.
+ # 🪓 Hatchet SDK for Rust
 
 This is an unofficial Rust SDK for [Hatchet](https://hatchet.run), a distributed, fault-tolerant task queue.
 This crate allows you to integrate Hatchet into your Rust applications.
