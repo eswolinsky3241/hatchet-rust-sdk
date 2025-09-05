@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        hatchet_version: ["0.67.0", "0.68.0", "0.69.0", "0.71.0", "latest"]
+        hatchet_version: ["v0.67.0", "v0.68.0", "v0.69.0", "v0.71.0", "latest"]
     env:
       TEST_HATCHET_LITE_VERSION: ${{ matrix.hatchet_version }}
     steps:
