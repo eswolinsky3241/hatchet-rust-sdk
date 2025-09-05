@@ -25,8 +25,6 @@ jobs:
       TEST_HATCHET_LITE_VERSION: ${{ matrix.hatchet_version }}
     name: "Test - Hatchet Version: ${{ matrix.hatchet_version }}"
     steps:
-      - name: Cache
-        uses: Swatinem/rust-cache@v2
       - name: Install protoc
         run: |
           PB_REL="https://github.com/protocolbuffers/protobuf/releases"
@@ -34,5 +32,7 @@ jobs:
           unzip protoc-30.2-linux-x86_64.zip -d $HOME/.local
           export PATH="$PATH:$HOME/.local/bin"
       - uses: actions/checkout@v5
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
       - name: Run tests
         run: cargo test --verbose
