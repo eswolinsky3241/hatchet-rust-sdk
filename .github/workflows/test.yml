@@ -32,7 +32,10 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
       - name: Install protoc
         run: |
-          DEBIAN_FRONTEND=noninteractive sudo apt-get update && sudo apt-get install -y protobuf-compiler
+          PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+          curl -LO $PB_REL/download/v30.2/protoc-30.2-linux-x86_64.zip
+          unzip protoc-30.2-linux-x86_64.zip -d $HOME/.local
+          export PATH="$PATH:$HOME/.local/bin"
       - uses: actions/checkout@v4
       - name: Run tests
         run: cargo test --verbose
