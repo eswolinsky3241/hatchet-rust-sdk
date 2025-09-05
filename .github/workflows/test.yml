@@ -15,6 +15,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         hatchet_version: ["v0.67.0", "v0.68.0", "v0.69.0", "v0.71.0", "latest"]
     env:
