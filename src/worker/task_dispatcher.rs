@@ -49,9 +49,11 @@ impl TaskDispatcher {
         let task = self
             .registry
             .lock()
-            .unwrap()
+            .expect("failed to acquire lock on task runs")
             .get(&message.action_id)
-            .unwrap()
+            .ok_or(HatchetError::TaskNotFound {
+                task_name: message.action_id.clone(),
+            })?
             .clone();
 
         let token = CancellationToken::new();
@@ -124,9 +126,10 @@ impl TaskDispatcher {
                 })
                 .await
         });
+
         self.task_runs
             .lock()
-            .unwrap()
+            .expect("failed to acquire lock on task runs")
             .insert(step_run_id, (handle, token));
 
         Ok(())
@@ -137,7 +140,12 @@ impl TaskDispatcher {
         message: dispatcher::AssignedAction,
     ) -> Result<(), crate::HatchetError> {
         let step_run_id = message.step_run_id.clone();
-        if let Some((handle, token)) = self.task_runs.lock().unwrap().remove(&step_run_id) {
+        if let Some((handle, token)) = self
+            .task_runs
+            .lock()
+            .expect("failed to acquire lock on task runs")
+            .remove(&step_run_id)
+        {
             token.cancel();
             handle.abort();
         }
@@ -161,7 +169,7 @@ impl TaskDispatcher {
             event_timestamp: Some(crate::utils::proto_timestamp_now()?),
             event_type,
             event_payload,
-            retry_count: None,
+            retry_count: Some(message.retry_count.clone()),
             should_not_retry: None,
         };
 

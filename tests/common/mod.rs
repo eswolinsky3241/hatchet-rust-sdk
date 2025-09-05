@@ -19,8 +19,6 @@ pub struct SimpleOutput {
     pub transformed_message: String,
 }
 
-
-
 pub(crate) async fn start_containers_and_get_token() -> (
     ContainerAsync<GenericImage>,
     ContainerAsync<GenericImage>,
@@ -104,5 +102,5 @@ pub(crate) async fn start_containers_and_get_token() -> (
 fn get_hatchet_lite_version() -> String {
     use std::env;
 
-    env::var("TEST_HATCHET_LITE_VERSION").unwrap_or_else(|_| "latest".to_string())
+    env::var("TEST_HATCHET_LITE_VERSION").unwrap_or("latest".to_string())
 }

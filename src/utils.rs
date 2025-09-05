@@ -1,7 +1,6 @@
+use prost_types::Timestamp;
 use std::cell::RefCell;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-use prost_types::Timestamp;
 use tonic::Request;
 use tonic::metadata::MetadataValue;
 

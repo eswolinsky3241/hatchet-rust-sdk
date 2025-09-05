@@ -1,11 +1,10 @@
-use tonic::Request;
-
-use crate::clients::grpc::v0::dispatcher::dispatcher_client::DispatcherClient as DispatcherGrpcClient;
-use crate::clients::grpc::v0::dispatcher::{
+use super::v0::dispatcher::dispatcher_client::DispatcherClient as DispatcherGrpcClient;
+use super::v0::dispatcher::{
     AssignedAction, HeartbeatRequest, StepActionEvent, WorkerListenRequest, WorkerRegisterRequest,
     WorkerRegisterResponse,
 };
-use crate::error::HatchetError;
+use crate::HatchetError;
+use tonic::Request;
 
 #[derive(Clone, Debug)]
 pub(crate) struct DispatcherClient {

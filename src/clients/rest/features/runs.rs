@@ -1,6 +1,6 @@
-use crate::clients::rest::apis::configuration::Configuration;
-use crate::clients::rest::apis::workflow_runs_api::v1_workflow_run_get;
-use crate::error::HatchetError;
+use super::super::apis::workflow_runs_api::v1_workflow_run_get;
+use crate::Configuration;
+use crate::HatchetError;
 use models::*;
 use std::sync::Arc;
 

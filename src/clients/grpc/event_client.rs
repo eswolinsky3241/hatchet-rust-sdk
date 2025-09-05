@@ -1,5 +1,5 @@
-use crate::clients::grpc::v0::events::{PutLogRequest, events_service_client};
-use crate::utils::proto_timestamp_now;
+use super::v0::events::{PutLogRequest, events_service_client};
+use crate::proto_timestamp_now;
 
 #[derive(Debug, Clone)]
 pub(crate) struct EventClient {

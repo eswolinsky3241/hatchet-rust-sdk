@@ -1,6 +1,6 @@
 [package]
 name = "hatchet-sdk"
-description = "Rust SDK for Hatchet"
+description = "This is an unofficial Rust SDK for Hatchet, a distributed, fault-tolerant task queue."
 authors = ["Ethan Wolinsky"]
 license = "Apache-2.0"
 version = "0.1.0-alpha.4"
@@ -12,7 +12,6 @@ client = []
 worker = []
 
 [dependencies]
-
 anyhow = "1.0.99"
 async-trait = "0.1.88"
 base64 = "0.22"
@@ -23,12 +22,10 @@ prost = "0.13"
 prost-types = "0.13"
 reqwest = { version = "0.12.22", features = ["json", "multipart"] }
 rustls = { version = "0.23.31", features = ["ring"] }
-rustls-native-certs = "0.8.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 tokio = "1.46.1"
-tokio-stream = "0.1.17"
 tokio-util = "0.7.15"
 tonic = { version = "0.13", features = [
     "channel",

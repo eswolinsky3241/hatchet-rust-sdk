@@ -4,6 +4,16 @@ This is an unofficial Rust SDK for [Hatchet](https://hatchet.run), a distributed
 This crate allows you to integrate Hatchet into your Rust applications.
 ## Setup
 We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
+## Hatchet Version Compatibility
+This library is tested against the following Hatchet version:
+| Version    | Compatible |
+| :------: | :-------: |
+| v0.67.0  | ❌ |
+| v0.68.0  | ✅ |
+| v0.69.0  | ✅ |
+| v0.70.0  | ✅ |
+| v0.71.0  | ✅ |
+
 ## Declaring Your First Task
 ### Defining a task
 Start by declaring a task with a name. The task object can be built with optional configuration options.

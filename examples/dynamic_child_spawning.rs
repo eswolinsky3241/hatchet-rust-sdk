@@ -1,4 +1,4 @@
-use hatchet_sdk::{Context, Hatchet, Runnable, TriggerWorkflowOptions};
+use hatchet_sdk::{Context, Hatchet, Runnable, TriggerWorkflowOptionsBuilder};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -43,13 +43,15 @@ pub async fn create_child_spawning_workflow() -> (
                 let mut child_tasks = vec![];
                 for i in 0..input.n {
                     let workflow_clone = child_workflow_clone.clone();
-                    let mut options = TriggerWorkflowOptions::default();
-                    options.additional_metadata = Some(serde_json::json!({
-                        "child_index": i.to_string(),
-                    }));
+                    let options = TriggerWorkflowOptionsBuilder::default()
+                        .additional_metadata(Some(serde_json::json!({
+                            "child_index": i.to_string(),
+                        })))
+                        .build()
+                        .unwrap();
                     let handle = async move {
                         let result = workflow_clone
-                            .run(&ChildInput { a: i.to_string() }, Some(options))
+                            .run(&ChildInput { a: i.to_string() }, Some(&options))
                             .await
                             .unwrap()
                             .get("child_task")

@@ -1,7 +1,7 @@
-use super::workflow::TriggerWorkflowOptions;
+use super::TriggerWorkflowOptions;
+use crate::GetWorkflowRunResponse;
+use crate::WorkflowStatus;
 use crate::error::HatchetError;
-use crate::features::runs::models::GetWorkflowRunResponse;
-use crate::features::runs::models::WorkflowStatus;
 use serde::Serialize;
 
 use serde::de::DeserializeOwned;
@@ -17,7 +17,7 @@ where
     async fn run(
         &self,
         input: &I,
-        options: Option<TriggerWorkflowOptions>,
+        options: Option<&TriggerWorkflowOptions>,
     ) -> Result<O, HatchetError> {
         let run_id = self.run_no_wait(input, options).await?;
 
@@ -46,7 +46,7 @@ where
     async fn run_no_wait(
         &self,
         input: &I,
-        options: Option<TriggerWorkflowOptions>,
+        options: Option<&TriggerWorkflowOptions>,
     ) -> Result<String, HatchetError>;
 }
 

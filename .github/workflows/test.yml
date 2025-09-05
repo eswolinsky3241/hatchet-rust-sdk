@@ -14,6 +14,13 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        hatchet_version: ["v0.68.0", "v0.69.0", "v0.70.0", "v0.71.0", "latest"]
+    env:
+      TEST_HATCHET_LITE_VERSION: ${{ matrix.hatchet_version }}
+    name: "Test - Hatchet Version: ${{ matrix.hatchet_version }}"
     steps:
       - name: Cache
         uses: actions/cache@v4
@@ -26,10 +33,6 @@ jobs:
       - name: Install protoc
         run: |
           DEBIAN_FRONTEND=noninteractive sudo apt-get update && sudo apt-get install -y protobuf-compiler
-      - uses: actions/checkout@v5
-      - name: Cache
-        uses: Swatinem/rust-cache@v2
-      - name: Check formatting
-
+      - uses: actions/checkout@v4
       - name: Run tests
         run: cargo test --verbose
