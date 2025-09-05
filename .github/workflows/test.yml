@@ -1,6 +1,9 @@
 name: Test
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     types:
       - opened
@@ -12,7 +15,39 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: "Unit Tests"
+    steps:
+      - name: Install protoc
+        run: |
+          PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+          curl -LO $PB_REL/download/v30.2/protoc-30.2-linux-x86_64.zip
+          unzip protoc-30.2-linux-x86_64.zip -d $HOME/.local
+          export PATH="$PATH:$HOME/.local/bin"
+      - uses: actions/checkout@v5
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Run unit tests
+        run: cargo test --lib --verbose
+
+  doc-tests:
+    runs-on: ubuntu-latest
+    name: "Doc Tests"
+    steps:
+      - name: Install protoc
+        run: |
+          PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+          curl -LO $PB_REL/download/v30.2/protoc-30.2-linux-x86_64.zip
+          unzip protoc-30.2-linux-x86_64.zip -d $HOME/.local
+          export PATH="$PATH:$HOME/.local/bin"
+      - uses: actions/checkout@v5
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Run doc tests
+        run: cargo test --doc --verbose
+
+  integration-tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,19 +55,16 @@ jobs:
         hatchet_version: ["v0.68.0", "v0.69.0", "v0.70.0", "v0.71.0", "latest"]
     env:
       TEST_HATCHET_LITE_VERSION: ${{ matrix.hatchet_version }}
-    name: "Test - Hatchet Version: ${{ matrix.hatchet_version }}"
+    name: "Integration Tests - Hatchet Version: ${{ matrix.hatchet_version }}"
     steps:
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
       - name: Install protoc
         run: |
-          DEBIAN_FRONTEND=noninteractive sudo apt-get update && sudo apt-get install -y protobuf-compiler
-      - uses: actions/checkout@v4
-      - name: Run tests
-        run: cargo test --verbose
+          PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+          curl -LO $PB_REL/download/v30.2/protoc-30.2-linux-x86_64.zip
+          unzip protoc-30.2-linux-x86_64.zip -d $HOME/.local
+          export PATH="$PATH:$HOME/.local/bin"
+      - uses: actions/checkout@v5
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Run integration tests
+        run: cargo test --test integration_tests --verbose

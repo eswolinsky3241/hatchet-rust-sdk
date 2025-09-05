@@ -5,7 +5,7 @@ This crate allows you to integrate Hatchet into your Rust applications.
 ## Setup
 We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
 ## Hatchet Version Compatibility
-This library is tested against the following Hatchet version:
+This library is tested against the following Hatchet versions:
 | Version    | Compatible |
 | :------: | :-------: |
 | v0.67.0  | ❌ |
