@@ -21,3 +21,10 @@ pub use utils::EmptyModel;
 pub(crate) use utils::proto_timestamp_now;
 pub(crate) use utils::{EXECUTION_CONTEXT, ExecutionContext};
 pub use worker::{Register, Worker};
+
+pub mod anyhow {
+    pub use anyhow::{Error, Result};
+}
+pub use serde;
+pub use serde_json;
+pub use tokio;

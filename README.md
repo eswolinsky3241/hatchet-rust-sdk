@@ -24,15 +24,19 @@ With your task defined, you can import it wherever you need to use it and invoke
 <div class="warning">NOTE: You must first register the task on a worker before you can run it.</div>
 
 ```rust no_run
-use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable};
-use serde::{Deserialize, Serialize};
+use hatchet_sdk::anyhow;
+use hatchet_sdk::serde::*;
+use hatchet_sdk::tokio;
+use hatchet_sdk::{Context, Hatchet, Runnable};
 
 #[derive(Serialize, Deserialize)]
+#[serde(crate = "hatchet_sdk::serde")]
 pub struct SimpleInput {
     pub message: String,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(crate = "hatchet_sdk::serde")]
 pub struct SimpleOutput {
     pub transformed_message: String,
 }
@@ -60,7 +64,7 @@ async fn main() {
     };
 
     // Run the task asynchronously, immediately returning the run ID
-    let run_id = simple_task.run_no_wait(&input, None).await.unwrap();
+    let _run_id = simple_task.run_no_wait(&input, None).await.unwrap();
     // Run the task synchronously, waiting for a worker to complete it and return the result
     let result = simple_task.run(&input, None).await.unwrap();
     println!("Result: {}", result.transformed_message);
@@ -73,19 +77,20 @@ Workers are responsible for executing individual tasks.
 Declare a worker by calling the worker method on the Hatchet client. Tasks and workflows can be added to the worker. When the worker starts
 it will register the tasks with the Hatchet engine, allowing them to be triggered and assigned.
 ```rust no_run
-use hatchet_sdk::{Context, EmptyModel, Hatchet, Register};
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Register, anyhow, serde_json, tokio};
 
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
     let hatchet = Hatchet::from_env().await.unwrap();
 
-    async fn simple_task_func(input: EmptyModel, ctx: Context) -> anyhow::Result<serde_json::Value> {
+    async fn simple_task_func(
+        _input: EmptyModel,
+        ctx: Context,
+    ) -> anyhow::Result<serde_json::Value> {
         ctx.log("Starting simple task").await?;
         Ok(serde_json::json!({"message": "success"}))
     }
-
-    let hatchet: Hatchet = Hatchet::from_env().await.unwrap();
 
     let simple_task = hatchet
         .task("simple-task", simple_task_func)
@@ -101,7 +106,6 @@ async fn main() {
         .await
         .unwrap();
 }
-
 ```
 ## Declarative Workflow Design (DAGs)
 Hatchet workflows are designed in a Directed Acyclic Graph (DAG) format,
@@ -112,22 +116,24 @@ Tasks can specify dependencies (parents) which must complete successfully before
 ### Running a Workflow
 You can run workflows directly or enqueue them for asynchronous execution.
 ```rust no_run
-use anyhow;
-use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable};
-use serde::{Deserialize, Serialize};
+use hatchet_sdk::serde::{Deserialize, Serialize};
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable, anyhow, serde_json, tokio};
 
 #[derive(Serialize, Deserialize)]
+#[serde(crate = "hatchet_sdk::serde")]
 struct FirstTaskOutput {
     output: String,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(crate = "hatchet_sdk::serde")]
 struct SecondTaskOutput {
     first_step_result: String,
     final_result: String,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(crate = "hatchet_sdk::serde")]
 pub struct WorkflowOutput {
     first_task: FirstTaskOutput,
     second_task: SecondTaskOutput,
@@ -174,7 +180,7 @@ async fn main() {
         .add_task(&second_task);
 
     // Run the workflow asynchronously, immediately returning the run ID
-    let run_id = workflow.run_no_wait(&EmptyModel, None).await.unwrap();
+    let _run_id = workflow.run_no_wait(&EmptyModel, None).await.unwrap();
     // Run the workflow synchronously, waiting for a worker to complete it and return the result
     let result = workflow.run(&EmptyModel, None).await.unwrap();
     println!(
@@ -186,6 +192,5 @@ async fn main() {
         serde_json::to_string(&result.second_task).unwrap()
     );
 }
-
 ```
 
