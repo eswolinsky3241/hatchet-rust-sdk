@@ -23,4 +23,4 @@ jobs:
           version=${{ github.event.release.tag_name }}
           version_no_leading_v=${version#v}
           cargo set-version $version_no_leading_v
-          cargo publish
+          cargo publish --allow-dirty
