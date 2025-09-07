@@ -12,6 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     name: "Publish to crates.io"
     steps:
+      - name: Install protoc
+        run: |
+          PB_REL="https://github.com/protocolbuffers/protobuf/releases"
+          curl -LO $PB_REL/download/v30.2/protoc-30.2-linux-x86_64.zip
+          unzip protoc-30.2-linux-x86_64.zip -d $HOME/.local
+          export PATH="$PATH:$HOME/.local/bin"
       - uses: actions/checkout@v5
       - name: Cache
         uses: Swatinem/rust-cache@v2
