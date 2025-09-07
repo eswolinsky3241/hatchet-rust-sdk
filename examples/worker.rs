@@ -1,4 +1,4 @@
-use hatchet_sdk::{Hatchet, Register};
+use hatchet_sdk::{Hatchet, Register, tokio};
 
 #[path = "simple.rs"]
 mod simple;

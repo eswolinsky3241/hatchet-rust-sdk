@@ -1,19 +1,22 @@
-use anyhow;
-use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable};
-use serde::{Deserialize, Serialize};
+use hatchet_sdk::anyhow;
+use hatchet_sdk::serde::{Deserialize, Serialize};
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable, serde_json, tokio};
 
 #[derive(Serialize, Deserialize)]
+#[serde(crate = "hatchet_sdk::serde")]
 struct FirstTaskOutput {
     output: String,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(crate = "hatchet_sdk::serde")]
 struct SecondTaskOutput {
     first_step_result: String,
     final_result: String,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(crate = "hatchet_sdk::serde")]
 pub struct WorkflowOutput {
     first_task: FirstTaskOutput,
     second_task: SecondTaskOutput,

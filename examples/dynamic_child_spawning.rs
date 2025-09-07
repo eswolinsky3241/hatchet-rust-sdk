@@ -1,12 +1,16 @@
-use hatchet_sdk::{Context, Hatchet, Runnable, TriggerWorkflowOptionsBuilder};
-use serde::{Deserialize, Serialize};
+use hatchet_sdk::serde::{Deserialize, Serialize};
+use hatchet_sdk::{
+    Context, Hatchet, Runnable, TriggerWorkflowOptionsBuilder, anyhow, serde_json, tokio,
+};
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "hatchet_sdk::serde")]
 pub struct ParentInput {
     n: i32,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "hatchet_sdk::serde")]
 pub struct ChildInput {
     a: String,
 }

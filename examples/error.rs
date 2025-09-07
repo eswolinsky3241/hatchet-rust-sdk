@@ -1,5 +1,5 @@
-use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable};
-use thiserror::Error;
+use hatchet_sdk::thiserror::Error;
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable, anyhow, tokio};
 
 #[derive(Error, Debug)]
 pub enum MyCustomError {
