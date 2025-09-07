@@ -25,9 +25,6 @@ pub use worker::{Register, Worker};
 pub mod anyhow {
     pub use anyhow::{Error, Result};
 }
-pub mod thiserror {
-    pub use thiserror::Error;
-}
 pub use serde;
 pub use serde_json;
 pub use tokio;
