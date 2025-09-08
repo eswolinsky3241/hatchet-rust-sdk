@@ -38,7 +38,6 @@ async fn test_run_returns_job_output() {
         WorkerBuilder::default()
             .name(String::from("test-worker"))
             .client(hatchet.clone())
-            .max_runs(5)
             .build()
             .unwrap()
             .add_task_or_workflow(&task_clone)
@@ -96,7 +95,6 @@ async fn test_run_returns_error_if_job_fails() {
     let worker_handle = tokio::spawn(async move {
         hatchet
             .worker("test-worker")
-            .max_runs(5)
             .build()
             .unwrap()
             .add_task_or_workflow(&task_clone)
@@ -172,7 +170,6 @@ async fn test_dynamically_spawn_child_workflow() {
         hatchet_sdk::worker::worker::WorkerBuilder::default()
             .name(String::from("test-worker"))
             .client(hatchet.clone())
-            .max_runs(5)
             .build()
             .unwrap()
             .add_task_or_workflow(&task_clone)
@@ -248,7 +245,6 @@ async fn test_dag_workflow() {
         hatchet_sdk::worker::worker::WorkerBuilder::default()
             .name(String::from("test-worker"))
             .client(hatchet.clone())
-            .max_runs(5)
             .build()
             .unwrap()
             .add_task_or_workflow(&dag_workflow_clone)

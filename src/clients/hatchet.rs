@@ -201,7 +201,7 @@ impl Hatchet {
     /// #[tokio::main]
     /// async fn main() {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
-    ///     let worker = hatchet.worker("my-worker").max_runs(5).build();
+    ///     let worker = hatchet.worker("my-worker").slots(5).build();
     /// }
     /// ```
     pub fn worker(&self, name: &str) -> crate::worker::worker::WorkerBuilder {
