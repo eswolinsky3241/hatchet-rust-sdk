@@ -255,7 +255,7 @@ impl Hatchet {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     let worker = hatchet.worker("my-worker")
     ///     .slots(5)
-    ///     .labels(HashMap::from([(String::from("env"), String::from("dev"))]))
+    ///     .labels(std::collections::HashMap::from([(String::from("env"), String::from("dev"))]))
     ///     .build()
     ///     .unwrap();
     /// }
