@@ -18,7 +18,7 @@ pub struct Worker {
     pub name: String,
     client: Hatchet,
     #[builder(default = 100)]
-    max_runs: i32,
+    slots: i32,
     #[builder(default = Arc::new(Mutex::new(HashMap::new())))]
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     #[builder(default = vec![])]
@@ -26,10 +26,10 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(name: &str, client: Hatchet, max_runs: i32) -> Result<Self, HatchetError> {
+    pub fn new(name: &str, client: Hatchet, slots: i32) -> Result<Self, HatchetError> {
         Ok(Self {
             name: name.to_string(),
-            max_runs,
+            slots,
             client,
             tasks: Arc::new(Mutex::new(HashMap::new())),
             workflows: vec![],
@@ -88,7 +88,7 @@ impl Worker {
     ///         }))
     ///
     ///     let mut worker = hatchet.worker("my-worker")
-    ///         .max_runs(5)
+    ///         .slots(5)
     ///         .build()
     ///         .unwrap()
     ///         .add_task_or_workflow(my_workflow);
@@ -104,12 +104,12 @@ impl Worker {
             }
         }
         let worker_id = Arc::new(
-            Self::register_worker(&mut self.client, &self.name, actions, self.max_runs).await?,
+            Self::register_worker(&mut self.client, &self.name, actions, self.slots).await?,
         );
         self.register_workflows().await;
 
         let (action_tx, mut action_rx) =
-            mpsc::channel::<dispatcher::AssignedAction>(self.max_runs as usize);
+            mpsc::channel::<dispatcher::AssignedAction>(self.slots as usize);
 
         let dispatcher = Arc::new(tokio::sync::Mutex::new(
             crate::worker::task_dispatcher::TaskDispatcher {
@@ -161,13 +161,13 @@ impl Worker {
         client: &mut Hatchet,
         name: &str,
         actions: Vec<String>,
-        max_runs: i32,
+        slots: i32,
     ) -> Result<String, HatchetError> {
         let registration = WorkerRegisterRequest {
             worker_name: name.to_string(),
             actions: actions,
             services: vec![],
-            max_runs: Some(max_runs),
+            max_runs: Some(slots),
             labels: HashMap::new(),
             webhook_id: None,
             runtime_info: None,
