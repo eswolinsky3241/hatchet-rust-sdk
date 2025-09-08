@@ -11,6 +11,8 @@ use derive_builder::Builder;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
+/// A workflow is a collection of tasks that can be executed by a worker, often forming a directed acyclic graph (DAG).
+/// See [Hatchet.workflow()](crate::Hatchet::workflow()) for more information.
 #[derive(Clone, Builder)]
 #[builder(pattern = "owned")]
 pub struct Workflow<I, O> {

@@ -138,8 +138,19 @@ impl Hatchet {
         .await
     }
 
-    /// Create a new workflow.
+    /// Create a new workflow. A workflow is a collection of tasks that can be executed by a worker, often forming a directed acyclic graph (DAG).
     ///
+    /// ### Required parameters:
+    /// * `name` - The name of the workflow.
+    ///
+    /// ### Optional builder parameters:
+    /// * `description` - An optional description for the workflow.
+    /// * `version` - A version for the workflow.
+    /// * `default_priority` - The priority of the workflow. Higher values will cause this workflow to have priority in scheduling.
+    /// * `on_events` - A list of event triggers for the workflow - events which cause the workflow to be run.
+    /// * `cron_triggers` - A list of cron triggers for the workflow.
+    ///
+    /// ### Examples:
     /// ```no_run
     /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
     /// #[tokio::main]
