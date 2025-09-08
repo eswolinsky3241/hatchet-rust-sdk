@@ -36,13 +36,16 @@ pub(crate) fn duration_to_expr(duration: Duration) -> String {
 
     let seconds = duration.as_secs();
 
-    if seconds % HOUR == 0 {
-        format!("{}h", seconds / HOUR)
-    } else if seconds % MINUTE == 0 {
-        format!("{}m", seconds / MINUTE)
-    } else {
-        format!("{}s", seconds)
+    if seconds == 0 {
+        return String::from("0s");
     }
+    if seconds % HOUR == 0 {
+        return format!("{}h", seconds / HOUR);
+    }
+    if seconds % MINUTE == 0 {
+        return format!("{}m", seconds / MINUTE);
+    }
+    format!("{}s", seconds)
 }
 
 #[derive(Clone, Debug)]
