@@ -23,19 +23,11 @@ pub struct Worker {
     tasks: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     #[builder(default = vec![])]
     workflows: Vec<crate::clients::grpc::v1::workflows::CreateWorkflowVersionRequest>,
+    #[builder(default = HashMap::new())]
+    labels: HashMap<String, String>,
 }
 
 impl Worker {
-    pub fn new(name: &str, client: Hatchet, slots: i32) -> Result<Self, HatchetError> {
-        Ok(Self {
-            name: name.to_string(),
-            slots,
-            client,
-            tasks: Arc::new(Mutex::new(HashMap::new())),
-            workflows: vec![],
-        })
-    }
-
     /// Register a workflow with this worker. When the worker starts, it will register the workflow with Hatchet.
     /// Hatchet will then assign runs of the workflow to this worker.
     ///
@@ -103,8 +95,16 @@ impl Worker {
                 actions.push(task.action.clone());
             }
         }
+
         let worker_id = Arc::new(
-            Self::register_worker(&mut self.client, &self.name, actions, self.slots).await?,
+            Self::register_worker(
+                &mut self.client,
+                &self.name,
+                actions,
+                self.slots,
+                self.labels.clone(),
+            )
+            .await?,
         );
         self.register_workflows().await;
 
@@ -162,13 +162,25 @@ impl Worker {
         name: &str,
         actions: Vec<String>,
         slots: i32,
+        labels: HashMap<String, String>,
     ) -> Result<String, HatchetError> {
         let registration = WorkerRegisterRequest {
             worker_name: name.to_string(),
             actions: actions,
             services: vec![],
             max_runs: Some(slots),
-            labels: HashMap::new(),
+            labels: labels
+                .into_iter()
+                .map(|(k, v)| {
+                    (
+                        k,
+                        dispatcher::WorkerLabels {
+                            str_value: Some(v),
+                            int_value: None,
+                        },
+                    )
+                })
+                .collect(),
             webhook_id: None,
             runtime_info: None,
         };
