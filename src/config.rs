@@ -10,7 +10,7 @@ pub(crate) enum TlsStrategy {
 }
 
 #[derive(Debug, Clone)]
-pub struct HatchetConfig {
+pub(crate) struct HatchetConfig {
     pub(crate) api_token: String,
     pub(crate) grpc_address: String,
     pub(crate) server_url: String,

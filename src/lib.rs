@@ -12,7 +12,7 @@ pub(crate) use clients::GetWorkflowRunResponse;
 pub use clients::RunsClient;
 pub(crate) use clients::WorkflowStatus;
 pub use clients::hatchet::Hatchet;
-pub use config::HatchetConfig;
+pub(crate) use config::HatchetConfig;
 pub(crate) use config::TlsStrategy;
 pub use context::Context;
 pub use error::HatchetError;
