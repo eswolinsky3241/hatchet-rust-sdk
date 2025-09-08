@@ -12,6 +12,8 @@ use crate::error::HatchetError;
 use crate::runnables::*;
 use crate::worker::action_listener::ActionListener;
 
+/// A worker is a container for tasks that can be executed by a worker.
+/// See [Hatchet.worker()](crate::Hatchet::worker()) for more information.
 #[derive(derive_builder::Builder)]
 #[builder(pattern = "owned")]
 pub struct Worker {

@@ -225,14 +225,28 @@ impl Hatchet {
             .client(self.clone())
     }
 
-    /// Create a new worker.
+    /// Returns a builder for a new worker. A worker is a container for tasks that can be executed by a worker.
+    /// Provide a worker name and a number of slots. The slots parameter is the number of tasks that can be executed by the worker concurrently.
+    /// The worker will be registered with Hatchet and will start executing tasks when started.
     ///
+    /// ### Required parameters:
+    /// * `name` - The name of the worker.
+    /// * `slots` - The number of slots for the worker.
+    ///
+    /// ### Optional builder parameters:
+    /// * `labels` - A map of labels for the worker.
+    ///
+    /// ### Examples:
     /// ```no_run
     /// use hatchet_sdk::{Hatchet};
     /// #[tokio::main]
     /// async fn main() {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
-    ///     let worker = hatchet.worker("my-worker").slots(5).build();
+    ///     let worker = hatchet.worker("my-worker")
+    ///     .slots(5)
+    ///     .labels(HashMap::from([(String::from("env"), String::from("dev"))]))
+    ///     .build()
+    ///     .unwrap();
     /// }
     /// ```
     pub fn worker(&self, name: &str) -> crate::worker::worker::WorkerBuilder {
