@@ -1,7 +1,6 @@
-use crate::GetWorkflowRunResponse;
-use crate::Hatchet;
-use crate::HatchetError;
 use tokio::sync::mpsc;
+
+use crate::{GetWorkflowRunResponse, Hatchet, HatchetError};
 
 /// The context object is used to interact with the Hatchet API from within a task.
 #[derive(Debug)]

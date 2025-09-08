@@ -1,7 +1,9 @@
-use crate::HatchetError;
+use std::env;
+
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use std::env;
+
+use crate::HatchetError;
 
 #[derive(Clone, Debug)]
 pub(crate) enum TlsStrategy {

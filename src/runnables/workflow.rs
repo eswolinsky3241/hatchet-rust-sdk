@@ -1,15 +1,12 @@
-use super::ExtractRunnableOutput;
-use super::TriggerWorkflowOptions;
-use super::{ExecutableTask, Task};
-use crate::GetWorkflowRunResponse;
-use crate::Hatchet;
-use crate::HatchetError;
-use crate::clients::grpc::v1::workflows::{
-    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
-};
 use derive_builder::Builder;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+
+use super::{ExecutableTask, ExtractRunnableOutput, Task, TriggerWorkflowOptions};
+use crate::clients::grpc::v1::workflows::{
+    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
+};
+use crate::{GetWorkflowRunResponse, Hatchet, HatchetError};
 
 /// A workflow is a collection of tasks that can be executed by a worker, often forming a directed acyclic graph (DAG).
 /// See [Hatchet.workflow()](crate::Hatchet::workflow()) for more information.

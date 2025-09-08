@@ -1,10 +1,9 @@
-use super::grpc::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
-use crate::Configuration;
-use crate::HatchetError;
-use crate::RunsClient;
-use crate::{HatchetConfig, TlsStrategy};
 use std::sync::Arc;
+
 use tonic::transport::{Channel, ClientTlsConfig};
+
+use super::grpc::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
+use crate::{Configuration, HatchetConfig, HatchetError, RunsClient, TlsStrategy};
 
 /// The main client for interacting with the Hatchet API.
 #[derive(Clone, Debug)]
