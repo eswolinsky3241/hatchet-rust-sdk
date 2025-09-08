@@ -1,5 +1,6 @@
 use prost_types::Timestamp;
 use std::cell::RefCell;
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tonic::Request;
 use tonic::metadata::MetadataValue;
@@ -26,6 +27,22 @@ pub(crate) fn add_grpc_auth_header<T>(
     )?;
     request.metadata_mut().insert("authorization", token_header);
     Ok(())
+}
+
+/// Converts a std::time::Duration to a string expression.
+pub(crate) fn duration_to_expr(duration: Duration) -> String {
+    const HOUR: u64 = 3600;
+    const MINUTE: u64 = 60;
+
+    let seconds = duration.as_secs();
+
+    if seconds % HOUR == 0 {
+        format!("{}h", seconds / HOUR)
+    } else if seconds % MINUTE == 0 {
+        format!("{}m", seconds / MINUTE)
+    } else {
+        format!("{}s", seconds)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -114,5 +131,34 @@ mod tests {
         let json = serde_json::json!({});
         let empty_model: EmptyModel = serde_json::from_value(json).unwrap();
         assert_eq!(format!("{:?}", empty_model), "EmptyModel");
+    }
+
+    #[test]
+    fn test_duration_to_expr_hours() {
+        assert_eq!(duration_to_expr(Duration::from_secs(3600)), "1h");
+        assert_eq!(duration_to_expr(Duration::from_secs(7200)), "2h");
+        assert_eq!(duration_to_expr(Duration::from_secs(18000)), "5h");
+    }
+
+    #[test]
+    fn test_duration_to_expr_minutes() {
+        assert_eq!(duration_to_expr(Duration::from_secs(60)), "1m");
+        assert_eq!(duration_to_expr(Duration::from_secs(120)), "2m");
+        assert_eq!(duration_to_expr(Duration::from_secs(300)), "5m");
+        assert_eq!(duration_to_expr(Duration::from_secs(3540)), "59m");
+    }
+
+    #[test]
+    fn test_duration_to_expr_seconds() {
+        assert_eq!(duration_to_expr(Duration::from_secs(1)), "1s");
+        assert_eq!(duration_to_expr(Duration::from_secs(30)), "30s");
+        assert_eq!(duration_to_expr(Duration::from_secs(45)), "45s");
+        assert_eq!(duration_to_expr(Duration::from_secs(59)), "59s");
+        assert_eq!(duration_to_expr(Duration::from_secs(3661)), "3661s");
+    }
+
+    #[test]
+    fn test_duration_to_expr_zero() {
+        assert_eq!(duration_to_expr(Duration::from_secs(0)), "0s");
     }
 }

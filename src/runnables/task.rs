@@ -13,6 +13,7 @@ use crate::GetWorkflowRunResponse;
 use crate::Hatchet;
 use crate::HatchetError;
 use crate::clients::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
+use crate::utils::duration_to_expr;
 
 pub type TaskResult = Pin<Box<dyn Future<Output = Result<serde_json::Value, TaskError>> + Send>>;
 
@@ -57,6 +58,8 @@ pub trait ExecutableTask: Send + Sync + dyn_clone::DynClone {
 
 dyn_clone::clone_trait_object!(ExecutableTask);
 
+/// A task is a unit of work that can be executed by a worker.
+/// See [Hatchet.task()](crate::Hatchet::task()) for more information.
 #[derive(Clone, derive_builder::Builder)]
 #[builder(pattern = "owned")]
 pub struct Task<I, O> {
@@ -81,8 +84,10 @@ pub struct Task<I, O> {
     default_filters: Vec<DefaultFilter>,
     #[builder(default = 0)]
     retries: i32,
-    #[builder(default = None)]
-    schedule_timeout: Option<String>,
+    #[builder(default = std::time::Duration::from_secs(300))]
+    schedule_timeout: std::time::Duration,
+    #[builder(default = std::time::Duration::from_secs(60))]
+    execution_timeout: std::time::Duration,
 }
 
 impl<I, O> Task<I, O>
@@ -123,7 +128,7 @@ where
         CreateTaskOpts {
             readable_id: self.name.clone(),
             action: format!("{workflow_name}:{}", &self.name),
-            timeout: String::from(""),
+            timeout: duration_to_expr(self.execution_timeout.clone()),
             inputs: String::from("{{}}"),
             parents: self.parents.clone(),
             retries: self.retries.clone(),
@@ -133,7 +138,7 @@ where
             backoff_max_seconds: None,
             concurrency: vec![],
             conditions: None,
-            schedule_timeout: self.schedule_timeout.clone(),
+            schedule_timeout: Some(duration_to_expr(self.schedule_timeout.clone())),
         }
     }
 
