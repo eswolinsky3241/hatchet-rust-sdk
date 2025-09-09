@@ -3,10 +3,15 @@
 This is an unofficial Rust SDK for [Hatchet](https://hatchet.run), a distributed, fault-tolerant task queue.
 This crate allows you to integrate Hatchet into your Rust applications.
 ## Setup
+### Install `protoc`
+This crate uses `tonic` to generate gRPC client stubs from Hatchet's protobuf files. To build the library, you'll need to install the Protocol Buffer Compiler (`protoc`). See the [installation instructions](https://protobuf.dev/installation/) for your operating system.
+
+### Add crate to dependencies
 Add the SDK as a dependency to your Rust project with Cargo:
 ```shell
 cargo add hatchet-sdk
 ```
+### Hatchet authentication
 We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application for local development.
 ## Hatchet Version Compatibility
 This library is tested against the following Hatchet versions:
