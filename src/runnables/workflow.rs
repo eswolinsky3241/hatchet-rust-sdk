@@ -60,7 +60,7 @@ where
 
     pub(crate) fn to_proto(&self) -> CreateWorkflowVersionRequest {
         CreateWorkflowVersionRequest {
-            name: self.name.clone(),
+            name: self.name.clone().to_lowercase(),
             description: self.description.clone(),
             version: self.version.clone(),
             event_triggers: self.on_events.clone(),
@@ -97,7 +97,7 @@ where
             .workflow_client
             .trigger_workflow(
                 crate::clients::grpc::v0::workflows::TriggerWorkflowRequest {
-                    name: self.name.clone(),
+                    name: self.name.clone().to_lowercase(),
                     input: input_json.to_string(),
                     parent_id: None,
                     parent_step_run_id: None,
