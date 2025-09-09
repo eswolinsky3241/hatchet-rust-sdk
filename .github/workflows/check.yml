@@ -10,7 +10,10 @@ on:
       - reopened
       - ready_for_review
       - synchronize
-
+    paths:
+      - src/**
+      - tests/**
+      - Cargo.toml
 env:
   CARGO_TERM_COLOR: always
 
