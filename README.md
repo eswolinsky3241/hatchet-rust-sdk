@@ -4,10 +4,10 @@ This is an unofficial Rust SDK for [Hatchet](https://hatchet.run), a distributed
 This crate allows you to integrate Hatchet into your Rust applications.
 ## Setup
 Add the SDK as a dependency to your Rust project with Cargo:
-```
+```shell
 cargo add hatchet-sdk
 ```
-We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application.
+We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application for local development.
 ## Hatchet Version Compatibility
 This library is tested against the following Hatchet versions:
 | Version    | Compatible |
