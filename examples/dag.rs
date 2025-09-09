@@ -1,6 +1,5 @@
-use hatchet_sdk::anyhow;
 use hatchet_sdk::serde::{Deserialize, Serialize};
-use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable, serde_json, tokio};
+use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable, anyhow, serde_json, tokio};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "hatchet_sdk::serde")]

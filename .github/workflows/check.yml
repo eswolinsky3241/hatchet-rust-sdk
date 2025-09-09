@@ -1,4 +1,4 @@
-name: Test
+name: CI Checks
 
 on:
   push:
@@ -15,9 +15,20 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  rustfmt:
+    runs-on: ubuntu-latest
+    name: "Check formatting"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Run rustfmt
+        run: cargo fmt --check
+
   unit-tests:
     runs-on: ubuntu-latest
     name: "Unit Tests"
+    needs: rustfmt
     steps:
       - name: Install protoc
         run: |
@@ -34,6 +45,7 @@ jobs:
   doc-tests:
     runs-on: ubuntu-latest
     name: "Doc Tests"
+    needs: rustfmt
     steps:
       - name: Install protoc
         run: |
@@ -49,6 +61,10 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
+    needs:
+      - rustfmt
+      - unit-tests
+      - doc-tests
     strategy:
       fail-fast: false
       matrix:

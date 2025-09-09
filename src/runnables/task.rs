@@ -5,14 +5,11 @@ use std::sync::Arc;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use super::ExtractRunnableOutput;
-use super::TriggerWorkflowOptions;
 use super::workflow::DefaultFilter;
-use crate::Context;
-use crate::GetWorkflowRunResponse;
-use crate::Hatchet;
-use crate::HatchetError;
+use super::{ExtractRunnableOutput, TriggerWorkflowOptions};
 use crate::clients::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
+use crate::utils::duration_to_expr;
+use crate::{Context, GetWorkflowRunResponse, Hatchet, HatchetError};
 
 pub type TaskResult = Pin<Box<dyn Future<Output = Result<serde_json::Value, TaskError>> + Send>>;
 
@@ -57,6 +54,8 @@ pub trait ExecutableTask: Send + Sync + dyn_clone::DynClone {
 
 dyn_clone::clone_trait_object!(ExecutableTask);
 
+/// A task is a unit of work that can be executed by a worker.
+/// See [Hatchet.task()](crate::Hatchet::task()) for more information.
 #[derive(Clone, derive_builder::Builder)]
 #[builder(pattern = "owned")]
 pub struct Task<I, O> {
@@ -81,8 +80,10 @@ pub struct Task<I, O> {
     default_filters: Vec<DefaultFilter>,
     #[builder(default = 0)]
     retries: i32,
-    #[builder(default = None)]
-    schedule_timeout: Option<String>,
+    #[builder(default = std::time::Duration::from_secs(300))]
+    schedule_timeout: std::time::Duration,
+    #[builder(default = std::time::Duration::from_secs(60))]
+    execution_timeout: std::time::Duration,
 }
 
 impl<I, O> Task<I, O>
@@ -123,7 +124,7 @@ where
         CreateTaskOpts {
             readable_id: self.name.clone(),
             action: format!("{workflow_name}:{}", &self.name),
-            timeout: String::from(""),
+            timeout: duration_to_expr(self.execution_timeout.clone()),
             inputs: String::from("{{}}"),
             parents: self.parents.clone(),
             retries: self.retries.clone(),
@@ -133,14 +134,14 @@ where
             backoff_max_seconds: None,
             concurrency: vec![],
             conditions: None,
-            schedule_timeout: self.schedule_timeout.clone(),
+            schedule_timeout: Some(duration_to_expr(self.schedule_timeout.clone())),
         }
     }
 
     pub(crate) fn to_standalone_workflow_proto(&self) -> CreateWorkflowVersionRequest {
         let task_proto = self.to_task_proto(&self.name);
         CreateWorkflowVersionRequest {
-            name: self.name.clone(),
+            name: self.name.clone().to_lowercase(),
             description: self.description.clone(),
             version: self.version.clone(),
             event_triggers: self.on_events.clone(),
@@ -177,7 +178,7 @@ where
             .workflow_client
             .trigger_workflow(
                 crate::clients::grpc::v0::workflows::TriggerWorkflowRequest {
-                    name: self.name.clone(),
+                    name: self.name.clone().to_lowercase(),
                     input: input_json.to_string(),
                     parent_id: None,
                     parent_step_run_id: None,

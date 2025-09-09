@@ -7,24 +7,18 @@ pub mod runnables;
 pub mod utils;
 pub mod worker;
 
-pub(crate) use clients::Configuration;
-pub(crate) use clients::GetWorkflowRunResponse;
 pub use clients::RunsClient;
-pub(crate) use clients::WorkflowStatus;
 pub use clients::hatchet::Hatchet;
-pub use config::HatchetConfig;
-pub(crate) use config::TlsStrategy;
+pub(crate) use clients::{Configuration, GetWorkflowRunResponse, WorkflowStatus};
+pub(crate) use config::{HatchetConfig, TlsStrategy};
 pub use context::Context;
 pub use error::HatchetError;
 pub use runnables::{Runnable, Task, TriggerWorkflowOptionsBuilder, Workflow};
 pub use utils::EmptyModel;
-pub(crate) use utils::proto_timestamp_now;
-pub(crate) use utils::{EXECUTION_CONTEXT, ExecutionContext};
+pub(crate) use utils::{EXECUTION_CONTEXT, ExecutionContext, proto_timestamp_now};
 pub use worker::{Register, Worker};
 
 pub mod anyhow {
     pub use anyhow::{Error, Result};
 }
-pub use serde;
-pub use serde_json;
-pub use tokio;
+pub use {serde, serde_json, tokio};

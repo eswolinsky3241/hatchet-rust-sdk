@@ -1,16 +1,15 @@
-use super::ExtractRunnableOutput;
-use super::TriggerWorkflowOptions;
-use super::{ExecutableTask, Task};
-use crate::GetWorkflowRunResponse;
-use crate::Hatchet;
-use crate::HatchetError;
-use crate::clients::grpc::v1::workflows::{
-    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
-};
 use derive_builder::Builder;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
+use super::{ExecutableTask, ExtractRunnableOutput, Task, TriggerWorkflowOptions};
+use crate::clients::grpc::v1::workflows::{
+    CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
+};
+use crate::{GetWorkflowRunResponse, Hatchet, HatchetError};
+
+/// A workflow is a collection of tasks that can be executed by a worker, often forming a directed acyclic graph (DAG).
+/// See [Hatchet.workflow()](crate::Hatchet::workflow()) for more information.
 #[derive(Clone, Builder)]
 #[builder(pattern = "owned")]
 pub struct Workflow<I, O> {
@@ -61,7 +60,7 @@ where
 
     pub(crate) fn to_proto(&self) -> CreateWorkflowVersionRequest {
         CreateWorkflowVersionRequest {
-            name: self.name.clone(),
+            name: self.name.clone().to_lowercase(),
             description: self.description.clone(),
             version: self.version.clone(),
             event_triggers: self.on_events.clone(),
@@ -98,7 +97,7 @@ where
             .workflow_client
             .trigger_workflow(
                 crate::clients::grpc::v0::workflows::TriggerWorkflowRequest {
-                    name: self.name.clone(),
+                    name: self.name.clone().to_lowercase(),
                     input: input_json.to_string(),
                     parent_id: None,
                     parent_step_run_id: None,

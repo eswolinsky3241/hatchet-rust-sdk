@@ -1,7 +1,9 @@
-use crate::HatchetError;
+use std::env;
+
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use std::env;
+
+use crate::HatchetError;
 
 #[derive(Clone, Debug)]
 pub(crate) enum TlsStrategy {
@@ -10,7 +12,7 @@ pub(crate) enum TlsStrategy {
 }
 
 #[derive(Debug, Clone)]
-pub struct HatchetConfig {
+pub(crate) struct HatchetConfig {
     pub(crate) api_token: String,
     pub(crate) grpc_address: String,
     pub(crate) server_url: String,

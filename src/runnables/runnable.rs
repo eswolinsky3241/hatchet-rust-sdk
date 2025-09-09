@@ -1,10 +1,9 @@
-use super::TriggerWorkflowOptions;
-use crate::GetWorkflowRunResponse;
-use crate::WorkflowStatus;
-use crate::error::HatchetError;
 use serde::Serialize;
-
 use serde::de::DeserializeOwned;
+
+use super::TriggerWorkflowOptions;
+use crate::error::HatchetError;
+use crate::{GetWorkflowRunResponse, WorkflowStatus};
 
 #[async_trait::async_trait]
 pub trait Runnable<I, O>: ExtractRunnableOutput<O> + Send + Sync

@@ -1,10 +1,9 @@
-use super::grpc::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
-use crate::Configuration;
-use crate::HatchetError;
-use crate::RunsClient;
-use crate::{HatchetConfig, TlsStrategy};
 use std::sync::Arc;
+
 use tonic::transport::{Channel, ClientTlsConfig};
+
+use super::grpc::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
+use crate::{Configuration, HatchetConfig, HatchetError, RunsClient, TlsStrategy};
 
 /// The main client for interacting with the Hatchet API.
 #[derive(Clone, Debug)]
@@ -138,8 +137,19 @@ impl Hatchet {
         .await
     }
 
-    /// Create a new workflow.
+    /// Create a new workflow. A workflow is a collection of tasks that can be executed by a worker, often forming a directed acyclic graph (DAG).
     ///
+    /// ### Required parameters:
+    /// * `name` - The name of the workflow.
+    ///
+    /// ### Optional builder parameters:
+    /// * `description` - An optional description for the workflow.
+    /// * `version` - A version for the workflow.
+    /// * `default_priority` - The priority of the workflow. Higher values will cause this workflow to have priority in scheduling.
+    /// * `on_events` - A list of event triggers for the workflow - events which cause the workflow to be run.
+    /// * `cron_triggers` - A list of cron triggers for the workflow.
+    ///
+    /// ### Examples:
     /// ```no_run
     /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
     /// #[tokio::main]
@@ -163,8 +173,29 @@ impl Hatchet {
             .client(self.clone())
     }
 
-    /// Create a new task.
+    /// Returns a builder for a new task. A task is a unit of work that can be executed by a worker.
+    /// Provide a task name and a handler function that will be executed by the worker. The handler
+    /// is an async function or closure that accepts two arguments, the task input and a task context.
+    /// The handler should return an `anyhow::Result` containing the task output.
+    /// The input and output types should be serializable and deserializable.
     ///
+    /// ### Required parameters:
+    /// * `name` - The name of the task.
+    /// * `handler` - The function handler.
+    ///
+    /// ### Optional builder parameters:
+    /// * `description` - An optional description for the task.
+    /// * `version` - A version for the task.
+    /// * `on_events` - A list of event triggers for the task - events which cause the task to be run.
+    /// * `cron_triggers` - A list of cron triggers for the task.
+    /// * `default_priority` - The priority of the task. Higher values will cause this task to have priority in scheduling.
+    /// * `default_filters` - A list of filters to create when the task is created.
+    /// * `retries` - The number of times to retry the task before failing.
+    /// * `schedule_timeout` - The maximum time allowed for scheduling the task. Defaults to five minutes.
+    /// * `execution_timeout` - The maximum time allowed for executing the task. Defaults to one minute.
+    ///
+    ///
+    /// ### Examples:
     /// ```no_run
     /// use hatchet_sdk::{Context, Hatchet, EmptyModel};
     /// #[tokio::main]
@@ -172,7 +203,17 @@ impl Hatchet {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
     ///     let task = hatchet.task("my-task", async move |input: EmptyModel, _ctx: Context| -> anyhow::Result<EmptyModel> {
     ///         Ok(EmptyModel)
-    ///     });
+    ///     })
+    ///     .description(String::from("My task description"))
+    ///     .version(String::from("1.0.0"))
+    ///     .on_events(vec![String::from("my-event:trigger")])
+    ///     .cron_triggers(vec![String::from("0 0 * * *")])
+    ///     .default_priority(10)
+    ///     .schedule_timeout(std::time::Duration::from_secs(300))
+    ///     .execution_timeout(std::time::Duration::from_secs(60))
+    ///     .retries(3)
+    ///     .build()
+    ///     .unwrap();
     /// }
     ///
     /// ```
@@ -194,14 +235,28 @@ impl Hatchet {
             .client(self.clone())
     }
 
-    /// Create a new worker.
+    /// Returns a builder for a new worker. A worker is a container for tasks that can be executed by a worker.
+    /// Provide a worker name and a number of slots. The slots parameter is the number of tasks that can be executed by the worker concurrently.
+    /// The worker will be registered with Hatchet and will start executing tasks when started.
     ///
+    /// ### Required parameters:
+    /// * `name` - The name of the worker.
+    /// * `slots` - The number of slots for the worker.
+    ///
+    /// ### Optional builder parameters:
+    /// * `labels` - A map of labels for the worker.
+    ///
+    /// ### Examples:
     /// ```no_run
     /// use hatchet_sdk::{Hatchet};
     /// #[tokio::main]
     /// async fn main() {
     ///     let hatchet = Hatchet::from_env().await.unwrap();
-    ///     let worker = hatchet.worker("my-worker").slots(5).build();
+    ///     let worker = hatchet.worker("my-worker")
+    ///     .slots(5)
+    ///     .labels(std::collections::HashMap::from([(String::from("env"), String::from("dev"))]))
+    ///     .build()
+    ///     .unwrap();
     /// }
     /// ```
     pub fn worker(&self, name: &str) -> crate::worker::worker::WorkerBuilder {
