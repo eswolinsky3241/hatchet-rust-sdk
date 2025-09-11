@@ -49,7 +49,7 @@ async fn test_run_returns_job_output() {
     // Give worker time to register task
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    let options = TriggerWorkflowOptionsBuilder::default()
+    let options = hatchet_sdk::TriggerWorkflowOptionsBuilder::default()
         .additional_metadata(Some(serde_json::json!({
             "environment": "dev",
         })))
