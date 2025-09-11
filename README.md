@@ -36,7 +36,7 @@ With your task defined, you can import it wherever you need to use it and invoke
 use hatchet_sdk::anyhow;
 use hatchet_sdk::serde::*;
 use hatchet_sdk::tokio;
-use hatchet_sdk::{Context, Hatchet, Runnable};
+use hatchet_sdk::{Context, Hatchet, Runnable, TriggerWorkflowOptionsBuilder};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "hatchet_sdk::serde")]
