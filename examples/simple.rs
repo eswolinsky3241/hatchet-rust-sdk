@@ -1,4 +1,4 @@
-use hatchet_sdk::{Context, Hatchet, Runnable};
+use hatchet_sdk::{Context, Hatchet, Runnable, TriggerWorkflowOptionsBuilder};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -36,9 +36,16 @@ async fn main() {
 
     let task = create_simple_task().await;
 
+    let options = TriggerWorkflowOptionsBuilder::default()
+        .additional_metadata(Some(serde_json::json!({
+            "environment": "dev",
+        })))
+        .build()
+        .unwrap();
+
     let input = SimpleInput {
         message: String::from("Hello, world!"),
     };
-    let result = task.run(&input, None).await.unwrap();
+    let result = task.run(&input, Some(&options)).await.unwrap();
     println!("Result: {}", result.transformed_message);
 }

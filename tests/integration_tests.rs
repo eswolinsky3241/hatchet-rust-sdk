@@ -49,13 +49,20 @@ async fn test_run_returns_job_output() {
     // Give worker time to register task
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
+    let options = TriggerWorkflowOptionsBuilder::default()
+        .additional_metadata(Some(serde_json::json!({
+            "environment": "dev",
+        })))
+        .build()
+        .unwrap();
+
     assert_eq!(
         "uppercase",
         task.run(
             &SimpleInput {
                 message: "UPPERCASE".to_string()
             },
-            None
+            Some(&options)
         )
         .await
         .unwrap()
