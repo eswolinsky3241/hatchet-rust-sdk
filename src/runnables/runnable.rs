@@ -35,6 +35,9 @@ where
                         workflow.run.error_message.clone(),
                     ));
                 }
+                WorkflowStatus::Cancelled => {
+                    return Err(HatchetError::WorkflowCancelled);
+                }
                 _ => {}
             }
 

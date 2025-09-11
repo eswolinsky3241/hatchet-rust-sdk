@@ -36,7 +36,7 @@ With your task defined, you can import it wherever you need to use it and invoke
 use hatchet_sdk::anyhow;
 use hatchet_sdk::serde::*;
 use hatchet_sdk::tokio;
-use hatchet_sdk::{Context, Hatchet, Runnable};
+use hatchet_sdk::{Context, Hatchet, Runnable, TriggerWorkflowOptionsBuilder};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "hatchet_sdk::serde")]
@@ -72,10 +72,17 @@ async fn main() {
         message: String::from("Hello, world!"),
     };
 
+    let options = TriggerWorkflowOptionsBuilder::default()
+        .additional_metadata(Some(serde_json::json!({
+            "environment": "dev",
+        })))
+        .build()
+        .unwrap();
+
     // Run the task asynchronously, immediately returning the run ID
-    let _run_id = simple_task.run_no_wait(&input, None).await.unwrap();
+    let _run_id = simple_task.run_no_wait(&input, Some(&options)).await.unwrap();
     // Run the task synchronously, waiting for a worker to complete it and return the result
-    let result = simple_task.run(&input, None).await.unwrap();
+    let result = simple_task.run(&input, Some(&options)).await.unwrap();
     println!("Result: {}", result.transformed_message);
 }
 
