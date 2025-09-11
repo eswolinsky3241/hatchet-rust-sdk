@@ -8,10 +8,6 @@ version = "0.0.0"
 edition = "2024"
 readme = "README.md"
 
-[features]
-client = []
-worker = []
-
 [dependencies]
 anyhow = "1.0.99"
 async-trait = "0.1.88"
