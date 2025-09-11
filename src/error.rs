@@ -22,6 +22,8 @@ pub enum HatchetError {
     MissingOutput,
     #[error("{0}")]
     WorkflowFailed(String),
+    #[error("workflow cancelled")]
+    WorkflowCancelled,
     #[error("invalid gRPC URI: {0}")]
     InvalidUri(String),
     #[error("no tasks found in workflow")]
