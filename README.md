@@ -40,13 +40,13 @@ use hatchet_sdk::{Context, Hatchet, Runnable, TriggerWorkflowOptionsBuilder};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "hatchet_sdk::serde")]
-pub struct SimpleInput {
+struct SimpleInput {
     pub message: String,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "hatchet_sdk::serde")]
-pub struct SimpleOutput {
+struct SimpleOutput {
     pub transformed_message: String,
 }
 
