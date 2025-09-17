@@ -21,8 +21,6 @@ impl Context {
 
         tokio::spawn(async move {
             while let Some(message) = rx.recv().await {
-                tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
-
                 client_clone
                     .event_client
                     .put_log(&step_run_id_clone, message)
