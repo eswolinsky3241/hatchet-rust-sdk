@@ -28,8 +28,22 @@ impl TaskDispatcher {
         message: dispatcher::AssignedAction,
     ) -> Result<(), crate::HatchetError> {
         match message.action_type().as_str_name() {
-            "START_STEP_RUN" => Ok(self.handle_start_step_run(worker_id, message).await?),
-            "CANCEL_STEP_RUN" => Ok(self.handle_cancel_step_run(message).await?),
+            "START_STEP_RUN" => {
+                log::debug!(
+                    "start step run: {}/{}",
+                    message.action_id,
+                    message.step_run_id
+                );
+                Ok(self.handle_start_step_run(worker_id, message).await?)
+            }
+            "CANCEL_STEP_RUN" => {
+                log::info!(
+                    "cancel step run: {}/{}",
+                    message.action_id,
+                    message.step_run_id
+                );
+                Ok(self.handle_cancel_step_run(message).await?)
+            }
             _ => Err(HatchetError::UnrecognizedAction(
                 message.action_type().as_str_name().to_string(),
             )),
@@ -90,9 +104,28 @@ impl TaskDispatcher {
                         .await;
 
                     let event_payload = match &result {
-                        Ok(Ok(output)) => (2, output.to_string()),
-                        Ok(Err(e)) => (3, e.to_string()),
+                        Ok(Ok(output)) => {
+                            log::info!(
+                                "finished step run {}/{}",
+                                message.action_id,
+                                message.step_run_id
+                            );
+                            (2, output.to_string())
+                        }
+                        Ok(Err(e)) => {
+                            log::error!(
+                                "error returned in action ({}, retry={})",
+                                message.action_id,
+                                message.retry_count
+                            );
+                            (3, e.to_string())
+                        }
                         Err(panic_payload) => {
+                            log::error!(
+                                "panic raised in action ({}, retry={})",
+                                message.action_id,
+                                message.retry_count
+                            );
                             let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
                                 s.to_string()
                             } else if let Some(s) = panic_payload.downcast_ref::<String>() {
