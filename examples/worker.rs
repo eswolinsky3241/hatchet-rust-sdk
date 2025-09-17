@@ -20,6 +20,10 @@ use dynamic_child_spawning::create_child_spawning_workflow;
 #[allow(dead_code)]
 async fn main() {
     dotenvy::dotenv().ok();
+    env_logger::Builder::new()
+        .filter_module("hatchet_sdk", log::LevelFilter::Debug)
+        .init();
+
     let hatchet = Hatchet::from_env().await.unwrap();
 
     let simple_task = create_simple_task().await;

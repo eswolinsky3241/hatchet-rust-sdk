@@ -91,12 +91,14 @@ impl Worker {
     /// }
     /// ```
     pub async fn start(&mut self) -> Result<(), HatchetError> {
+        log::info!("STARTING HATCHET...");
         let mut actions = vec![];
         for workflow in &self.workflows {
             for task in &workflow.tasks {
                 actions.push(task.action.clone());
             }
         }
+        log::debug!("{} waiting for actions: {:?}", self.name, actions);
 
         let worker_id = Arc::new(
             Self::register_worker(
@@ -127,6 +129,7 @@ impl Worker {
 
         let worker_id_clone = worker_id.clone();
         tokio::spawn(async move {
+            log::debug!("starting action listener");
             action_listener
                 .lock()
                 .await
@@ -138,6 +141,7 @@ impl Worker {
             async {
                 const HEARTBEAT_INTERVAL: u64 = 4;
                 loop {
+                    log::debug!("sending heartbeat");
                     self.client.dispatcher_client.heartbeat(&worker_id).await?;
                     tokio::time::sleep(tokio::time::Duration::from_secs(HEARTBEAT_INTERVAL)).await;
                 }
