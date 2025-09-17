@@ -1,5 +1,4 @@
 use hatchet_sdk::{Hatchet, Register, tokio};
-use log::LevelFilter;
 
 #[path = "simple.rs"]
 mod simple;
@@ -22,7 +21,7 @@ use dynamic_child_spawning::create_child_spawning_workflow;
 async fn main() {
     dotenvy::dotenv().ok();
     env_logger::Builder::new()
-        .filter_module("hatchet_sdk", LevelFilter::Debug)
+        .filter_module("hatchet_sdk", log::LevelFilter::Debug)
         .init();
 
     let hatchet = Hatchet::from_env().await.unwrap();
