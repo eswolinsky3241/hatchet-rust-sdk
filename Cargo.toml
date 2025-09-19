@@ -2,6 +2,7 @@
 name = "hatchet-sdk"
 description = "This is an unofficial Rust SDK for Hatchet, a distributed, fault-tolerant task queue."
 authors = ["Ethan Wolinsky"]
+repository = "https://github.com/eswolinsky3241/hatchet-rust-sdk"
 license = "Apache-2.0"
 # Version is dynamically set to GitHub release tag
 version = "0.0.0"
