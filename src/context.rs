@@ -30,7 +30,7 @@ impl Context {
         });
         Self {
             logger_tx: tx,
-            client: client,
+            client,
             workflow_run_id,
             step_run_id,
         }

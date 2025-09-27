@@ -51,14 +51,12 @@ pub async fn create_dag_workflow() -> hatchet_sdk::Workflow<EmptyModel, Workflow
         .unwrap()
         .add_parent(&first_task);
 
-    let workflow = hatchet
+    hatchet
         .workflow::<EmptyModel, WorkflowOutput>("dag-workflow")
         .build()
         .unwrap()
         .add_task(&first_task)
-        .add_task(&second_task);
-
-    workflow
+        .add_task(&second_task)
 }
 
 #[tokio::main]

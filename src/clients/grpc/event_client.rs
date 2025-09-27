@@ -23,7 +23,7 @@ impl EventClient {
         let mut request = tonic::Request::new(PutLogRequest {
             step_run_id: step_run_id.to_string(),
             created_at: Some(proto_timestamp_now()?),
-            message: message,
+            message,
             level: None,
             metadata: String::from(""),
             task_retry_count: None,
