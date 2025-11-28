@@ -26,7 +26,7 @@ impl HatchetConfig {
             return Err(HatchetError::InvalidTokenFormat);
         }
 
-        let payload_json = Self::decode_token(&parts[1])?;
+        let payload_json = Self::decode_token(parts[1])?;
 
         let (grpc_address, server_url) = Self::parse_token(payload_json)?;
 
@@ -51,7 +51,7 @@ impl HatchetConfig {
         let tls_strategy =
             std::env::var("HATCHET_CLIENT_TLS_STRATEGY").unwrap_or(String::from("tls"));
 
-        Ok(Self::new(&token, &tls_strategy)?)
+        Self::new(&token, &tls_strategy)
     }
 
     fn decode_token(token_payload: &str) -> Result<serde_json::Value, HatchetError> {
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn test_token_decoded_into_config() {
         let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
-        let token = format!("header.{}.sig", payload.to_string());
+        let token = format!("header.{}.sig", payload);
         let config = HatchetConfig::new(&token, "tls").unwrap();
         assert_eq!(config.server_url, "https://hatchet.com");
         assert_eq!(config.grpc_address, "engine.hatchet.com");
@@ -106,7 +106,7 @@ mod tests {
     #[test]
     fn test_invalid_tls_strategy_raises_error() {
         let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
-        let token = format!("header.{}.sig", payload.to_string());
+        let token = format!("header.{}.sig", payload);
         let config = HatchetConfig::new(&token, "bad_strategy");
         assert!(matches!(config, Err(HatchetError::InvalidTlsStrategy(_))));
     }

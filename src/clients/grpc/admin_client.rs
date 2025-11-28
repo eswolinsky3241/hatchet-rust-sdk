@@ -25,7 +25,7 @@ impl AdminClient {
         self.client
             .put_workflow(request)
             .await
-            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()));
+            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()))?;
         Ok(())
     }
 }

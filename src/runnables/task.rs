@@ -124,17 +124,17 @@ where
         CreateTaskOpts {
             readable_id: self.name.clone(),
             action: format!("{workflow_name}:{}", &self.name),
-            timeout: duration_to_expr(self.execution_timeout.clone()),
+            timeout: duration_to_expr(self.execution_timeout),
             inputs: String::from("{{}}"),
             parents: self.parents.clone(),
-            retries: self.retries.clone(),
+            retries: self.retries,
             rate_limits: vec![],
             worker_labels: std::collections::HashMap::new(),
             backoff_factor: None,
             backoff_max_seconds: None,
             concurrency: vec![],
             conditions: None,
-            schedule_timeout: Some(duration_to_expr(self.schedule_timeout.clone())),
+            schedule_timeout: Some(duration_to_expr(self.schedule_timeout)),
         }
     }
 
@@ -168,7 +168,7 @@ where
         options: &TriggerWorkflowOptions,
     ) -> Result<String, HatchetError> {
         let input_json =
-            serde_json::to_value(&input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
+            serde_json::to_value(input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
 
         let additional_metadata = options.additional_metadata.clone().map(|v| v.to_string());
         let desired_worker_id = options.desired_worker_id.clone();
@@ -206,10 +206,10 @@ where
             .iter()
             .find(|task| task.action_id == Some(format!("{}:{}", &self.name, &self.name)))
             .and_then(|task| task.output.clone())
-            .ok_or_else(|| HatchetError::MissingOutput)?;
+            .ok_or(HatchetError::MissingOutput)?;
 
-        Ok(serde_json::from_value(task_output)
-            .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))?)
+        serde_json::from_value(task_output)
+            .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))
     }
 }
 
@@ -220,7 +220,7 @@ where
     O: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
-        self.client.workflow_rest_client.get(&run_id).await
+        self.client.workflow_rest_client.get(run_id).await
     }
     async fn run_no_wait(
         &self,

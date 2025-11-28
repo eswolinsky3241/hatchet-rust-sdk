@@ -38,7 +38,7 @@ impl WorkflowClient {
 fn update_task_execution_context(request: &mut TriggerWorkflowRequest) {
     if let Ok(ctx) = EXECUTION_CONTEXT.try_with(|c| c.clone()) {
         let ctx_inner: ExecutionContext = ctx.into_inner();
-        request.child_index = Some(ctx_inner.child_index.clone());
+        request.child_index = Some(ctx_inner.child_index);
         request.parent_id = Some(ctx_inner.workflow_run_id.clone());
         request.parent_step_run_id = Some(ctx_inner.step_run_id.clone());
         EXECUTION_CONTEXT.with(|ctx| {

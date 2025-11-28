@@ -39,10 +39,10 @@ pub(crate) fn duration_to_expr(duration: Duration) -> String {
     if seconds == 0 {
         return String::from("0s");
     }
-    if seconds % HOUR == 0 {
+    if seconds.is_multiple_of(HOUR) {
         return format!("{}h", seconds / HOUR);
     }
-    if seconds % MINUTE == 0 {
+    if seconds.is_multiple_of(MINUTE) {
         return format!("{}m", seconds / MINUTE);
     }
     format!("{}s", seconds)

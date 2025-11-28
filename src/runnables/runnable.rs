@@ -28,7 +28,7 @@ where
             match workflow.run.status {
                 WorkflowStatus::Running => {}
                 WorkflowStatus::Completed => {
-                    return Ok(self.extract_output(workflow)?);
+                    return self.extract_output(workflow);
                 }
                 WorkflowStatus::Failed => {
                     return Err(HatchetError::WorkflowFailed(
