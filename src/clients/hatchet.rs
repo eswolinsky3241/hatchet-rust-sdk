@@ -91,13 +91,13 @@ impl Hatchet {
             TlsStrategy::Tls => "tls",
         };
 
-        Ok(Self::from_token(
+        Self::from_token(
             &config.server_url,
             &config.grpc_address,
             &config.api_token,
-            &tls_strategy,
+            tls_strategy,
         )
-        .await?)
+        .await
     }
 
     pub async fn from_token(
@@ -107,7 +107,7 @@ impl Hatchet {
         tls_strategy: &str,
     ) -> Result<Self, HatchetError> {
         let config = HatchetConfig::new(token, tls_strategy)?;
-        let channel = Self::create_channel(&grpc_broadcast_address, &config.tls_strategy).await?;
+        let channel = Self::create_channel(grpc_broadcast_address, &config.tls_strategy).await?;
 
         let admin_client = AdminClient::new(channel.clone(), config.api_token.clone());
         let workflow_client = WorkflowClient::new(channel.clone(), config.api_token.clone());

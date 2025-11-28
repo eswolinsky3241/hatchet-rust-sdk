@@ -172,7 +172,7 @@ impl Worker {
     ) -> Result<String, HatchetError> {
         let registration = WorkerRegisterRequest {
             worker_name: name.to_string(),
-            actions: actions,
+            actions,
             services: vec![],
             max_runs: Some(slots),
             labels: labels
@@ -196,7 +196,7 @@ impl Worker {
             .register_worker(registration)
             .await?;
 
-        Ok(response.worker_id)
+        Ok(response.into_inner().worker_id)
     }
 }
 

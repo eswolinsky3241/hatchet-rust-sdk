@@ -5,6 +5,7 @@ use super::v0::dispatcher::{
 };
 use crate::HatchetError;
 use tonic::Request;
+use tonic::Response;
 
 #[derive(Clone, Debug)]
 pub(crate) struct DispatcherClient {
@@ -26,17 +27,23 @@ impl DispatcherClient {
     ) -> Result<(), HatchetError> {
         let mut request = Request::new(event);
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
-        self.client.send_step_action_event(request).await?;
+        self.client
+            .send_step_action_event(request)
+            .await
+            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()))?;
         Ok(())
     }
 
     pub async fn register_worker(
         &mut self,
         registration: WorkerRegisterRequest,
-    ) -> Result<WorkerRegisterResponse, HatchetError> {
+    ) -> Result<Response<WorkerRegisterResponse>, HatchetError> {
         let mut request = Request::new(registration);
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
-        Ok(self.client.register(request).await?.into_inner())
+        self.client
+            .register(request)
+            .await
+            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()))
     }
 
     pub async fn heartbeat(&mut self, worker_id: &str) -> Result<(), HatchetError> {
@@ -46,7 +53,10 @@ impl DispatcherClient {
         };
         let mut request = Request::new(heartbeat);
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
-        self.client.heartbeat(request).await?;
+        self.client
+            .heartbeat(request)
+            .await
+            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()))?;
         Ok(())
     }
 
@@ -58,6 +68,11 @@ impl DispatcherClient {
             worker_id: worker_id.to_string(),
         });
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
-        Ok(self.client.listen_v2(request).await?.into_inner())
+        Ok(self
+            .client
+            .listen_v2(request)
+            .await
+            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()))?
+            .into_inner())
     }
 }

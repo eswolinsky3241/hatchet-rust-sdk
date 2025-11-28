@@ -1,4 +1,5 @@
 use super::v0::events::{PutLogRequest, events_service_client};
+use crate::HatchetError;
 use crate::proto_timestamp_now;
 
 #[derive(Debug, Clone)]
@@ -23,7 +24,7 @@ impl EventClient {
         let mut request = tonic::Request::new(PutLogRequest {
             step_run_id: step_run_id.to_string(),
             created_at: Some(proto_timestamp_now()?),
-            message: message,
+            message,
             level: None,
             metadata: String::from(""),
             task_retry_count: None,
@@ -31,7 +32,10 @@ impl EventClient {
 
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
 
-        self.client.put_log(request).await?;
+        self.client
+            .put_log(request)
+            .await
+            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()))?;
         Ok(())
     }
 }

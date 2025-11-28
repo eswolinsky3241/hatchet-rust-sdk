@@ -127,16 +127,16 @@ where
         let mut task_outputs = serde_json::Map::new();
 
         for task in &workflow.tasks {
-            if let (Some(action_id), Some(output)) = (&task.action_id, &task.output) {
-                if let Some(task_name) = self.safely_get_action_name(action_id) {
-                    task_outputs.insert(task_name, output.clone());
-                }
+            if let (Some(action_id), Some(output)) = (&task.action_id, &task.output)
+                && let Some(task_name) = self.safely_get_action_name(action_id)
+            {
+                task_outputs.insert(task_name, output.clone());
             }
         }
 
         let output_value = serde_json::Value::Object(task_outputs);
-        Ok(serde_json::from_value(output_value)
-            .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))?)
+        serde_json::from_value(output_value)
+            .map_err(|e| HatchetError::JsonDecodeError(e.to_string()))
     }
 }
 
@@ -147,7 +147,7 @@ where
     O: DeserializeOwned + Send + Sync + 'static,
 {
     async fn get_run(&self, run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
-        self.client.workflow_rest_client.get(&run_id).await
+        self.client.workflow_rest_client.get(run_id).await
     }
 
     async fn run_no_wait(

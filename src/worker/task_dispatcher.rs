@@ -13,12 +13,14 @@ use crate::error::HatchetError;
 use crate::runnables::ExecutableTask;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 
+type TaskRun =
+    Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>;
+
 #[derive(Clone)]
 pub(crate) struct TaskDispatcher {
     pub(crate) registry: Arc<Mutex<HashMap<String, Arc<dyn ExecutableTask>>>>,
     pub(crate) client: Hatchet,
-    pub(crate) task_runs:
-        Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>,
+    pub(crate) task_runs: TaskRun,
 }
 
 impl TaskDispatcher {
@@ -202,7 +204,7 @@ impl TaskDispatcher {
             event_timestamp: Some(crate::utils::proto_timestamp_now()?),
             event_type,
             event_payload,
-            retry_count: Some(message.retry_count.clone()),
+            retry_count: Some(message.retry_count),
             should_not_retry: None,
         };
 

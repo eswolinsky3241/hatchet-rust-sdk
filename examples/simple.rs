@@ -21,12 +21,10 @@ pub async fn create_simple_task() -> hatchet_sdk::Task<SimpleInput, SimpleOutput
 
     let hatchet: Hatchet = Hatchet::from_env().await.unwrap();
 
-    let simple_task = hatchet
+    hatchet
         .task("simple-task", simple_task_func)
         .build()
-        .unwrap();
-
-    simple_task
+        .unwrap()
 }
 
 #[tokio::main]
