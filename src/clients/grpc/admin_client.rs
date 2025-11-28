@@ -22,7 +22,10 @@ impl AdminClient {
     ) -> Result<(), HatchetError> {
         let mut request = tonic::Request::new(workflow);
         crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
-        self.client.put_workflow(request).await?;
+        self.client
+            .put_workflow(request)
+            .await
+            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()));
         Ok(())
     }
 }

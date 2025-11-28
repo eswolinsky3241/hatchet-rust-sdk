@@ -196,7 +196,7 @@ impl Worker {
             .register_worker(registration)
             .await?;
 
-        Ok(response.worker_id)
+        Ok(response.into_inner().worker_id)
     }
 }
 

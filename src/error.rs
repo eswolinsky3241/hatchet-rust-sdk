@@ -40,8 +40,8 @@ pub enum HatchetError {
     InvalidGrpcAddress(String),
     #[error("Invalid TLS strategy: '{0}'. Valid options are 'none' or 'tls'")]
     InvalidTlsStrategy(String),
-    #[error("gRPC request returned error with status {0}")]
-    GrpcErrorStatus(#[from] tonic::Status),
+    #[error("gRPC request returned error: {0}")]
+    GrpcErrorStatus(String),
     #[error("Error installing default crypto provider")]
     CryptoProvider,
     #[error("{0}")]
