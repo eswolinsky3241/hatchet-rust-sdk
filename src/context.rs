@@ -96,6 +96,12 @@ impl Context {
         Ok(())
     }
 
+    /// Get the workflow run id for this task context
+    pub fn workflow_run_id(&self) -> &str { &self.workflow_run_id }
+
+    /// Get the step run id for this task context
+    pub fn step_run_id(&self) -> &str { &self.workflow_run_id }
+
     async fn get_current_workflow(&self) -> Result<GetWorkflowRunResponse, HatchetError> {
         self.client
             .workflow_rest_client
