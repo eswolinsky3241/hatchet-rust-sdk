@@ -22,9 +22,7 @@ pub async fn create_schema_workflow() -> hatchet_sdk::Workflow<SchemaInput, AddO
     let task = hatchet
         .task(
             "add",
-            async move |input: SchemaInput,
-                        _context: Context|
-                        -> anyhow::Result<AddOutput> {
+            async move |input: SchemaInput, _context: Context| -> anyhow::Result<AddOutput> {
                 Ok(AddOutput {
                     value: input.first + input.second,
                 })
