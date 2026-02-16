@@ -22,6 +22,12 @@ This library is tested against the following Hatchet versions:
 | v0.69.0  | ✅ |
 | v0.70.0  | ✅ |
 | v0.71.0  | ✅ |
+| v0.72.0  | ✅ |
+| v0.73.0  | ✅ |
+| v0.74.0  | ✅ |
+| v0.75.0  | ✅ |
+| v0.77.0  | ✅ |
+| v0.78.0  | ✅ |
 
 ## Declaring Your First Task
 ### Defining a task
