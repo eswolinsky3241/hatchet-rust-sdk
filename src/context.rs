@@ -8,22 +8,26 @@ pub struct Context {
     logger_tx: mpsc::Sender<String>,
     client: Hatchet,
     workflow_run_id: String,
-    step_run_id: String,
+    task_run_external_id: String,
 }
 
 impl Context {
-    pub(crate) async fn new(client: Hatchet, workflow_run_id: &str, step_run_id: &str) -> Self {
+    pub(crate) async fn new(
+        client: Hatchet,
+        workflow_run_id: &str,
+        task_run_external_id: &str,
+    ) -> Self {
         let mut client_clone = client.clone();
         let (tx, mut rx) = mpsc::channel::<String>(100);
-        let step_run_id = step_run_id.to_string();
+        let task_run_external_id = task_run_external_id.to_string();
         let workflow_run_id = workflow_run_id.to_string();
-        let step_run_id_clone = step_run_id.clone();
+        let task_run_external_id_clone = task_run_external_id.clone();
 
         tokio::spawn(async move {
             while let Some(message) = rx.recv().await {
                 client_clone
                     .event_client
-                    .put_log(&step_run_id_clone, message)
+                    .put_log(&task_run_external_id_clone, message)
                     .await?;
             }
             Ok::<(), HatchetError>(())
@@ -32,7 +36,7 @@ impl Context {
             logger_tx: tx,
             client,
             workflow_run_id,
-            step_run_id,
+            task_run_external_id,
         }
     }
 
@@ -53,7 +57,7 @@ impl Context {
         let current_task = workflow_run
             .tasks
             .iter()
-            .find(|task| task.task_external_id == self.step_run_id)
+            .find(|task| task.task_external_id == self.task_run_external_id)
             .ok_or_else(|| HatchetError::ParentTaskNotFound {
                 parent_step_name: parent_step_name.to_string(),
             })?;
@@ -75,7 +79,7 @@ impl Context {
         let current_task = workflow_run
             .tasks
             .iter()
-            .find(|task| task.task_external_id == self.step_run_id)
+            .find(|task| task.task_external_id == self.task_run_external_id)
             .unwrap();
 
         Ok(current_task.input.triggers.filter_payload.clone())

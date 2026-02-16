@@ -34,7 +34,7 @@ impl TaskDispatcher {
                 log::debug!(
                     "start step run: {}/{}",
                     message.action_id,
-                    message.step_run_id
+                    message.task_run_external_id
                 );
                 Ok(self.handle_start_step_run(worker_id, message).await?)
             }
@@ -42,7 +42,7 @@ impl TaskDispatcher {
                 log::info!(
                     "cancel step run: {}/{}",
                     message.action_id,
-                    message.step_run_id
+                    message.task_run_external_id
                 );
                 Ok(self.handle_cancel_step_run(message).await?)
             }
@@ -57,7 +57,7 @@ impl TaskDispatcher {
         worker_id: Arc<String>,
         message: dispatcher::AssignedAction,
     ) -> Result<(), crate::HatchetError> {
-        let step_run_id = message.step_run_id.clone();
+        let task_run_external_id = message.task_run_external_id.clone();
 
         self.send_step_action_event(&worker_id, &message, 1, String::from(""))
             .await?;
@@ -77,14 +77,14 @@ impl TaskDispatcher {
 
         let execution_context = ExecutionContext {
             workflow_run_id: message.workflow_run_id.clone(),
-            step_run_id: message.step_run_id.clone(),
+            task_run_external_id: message.task_run_external_id.clone(),
             child_index: 0,
         };
 
         let context = Context::new(
             self.client.clone(),
             &message.workflow_run_id,
-            &message.step_run_id,
+            &message.task_run_external_id,
         )
         .await;
 
@@ -110,7 +110,7 @@ impl TaskDispatcher {
                             log::info!(
                                 "finished step run {}/{}",
                                 message.action_id,
-                                message.step_run_id
+                                message.task_run_external_id
                             );
                             (2, output.to_string())
                         }
@@ -143,8 +143,8 @@ impl TaskDispatcher {
                         worker_id: worker_id.to_string(),
                         job_id: message.job_id.clone(),
                         job_run_id: message.job_run_id.clone(),
-                        step_id: message.step_id.clone(),
-                        step_run_id: message.step_run_id.clone(),
+                        task_id: message.task_id.clone(),
+                        task_run_external_id: message.task_run_external_id.clone(),
                         action_id: message.action_id.clone(),
                         event_timestamp: Some(crate::utils::proto_timestamp_now()?),
                         event_type: event_payload.0,
@@ -165,7 +165,7 @@ impl TaskDispatcher {
         self.task_runs
             .lock()
             .expect("failed to acquire lock on task runs")
-            .insert(step_run_id, (handle, token));
+            .insert(task_run_external_id, (handle, token));
 
         Ok(())
     }
@@ -174,12 +174,12 @@ impl TaskDispatcher {
         &self,
         message: dispatcher::AssignedAction,
     ) -> Result<(), crate::HatchetError> {
-        let step_run_id = message.step_run_id.clone();
+        let task_run_external_id = message.task_run_external_id.clone();
         if let Some((handle, token)) = self
             .task_runs
             .lock()
             .expect("failed to acquire lock on task runs")
-            .remove(&step_run_id)
+            .remove(&task_run_external_id)
         {
             token.cancel();
             handle.abort();
@@ -198,8 +198,8 @@ impl TaskDispatcher {
             worker_id: worker_id.to_string(),
             job_id: message.job_id.clone(),
             job_run_id: message.job_run_id.clone(),
-            step_id: message.step_id.clone(),
-            step_run_id: message.step_run_id.clone(),
+            task_id: message.task_id.clone(),
+            task_run_external_id: message.task_run_external_id.clone(),
             action_id: message.action_id.clone(),
             event_timestamp: Some(crate::utils::proto_timestamp_now()?),
             event_type,

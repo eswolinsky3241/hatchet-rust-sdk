@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct StepRunListArchives200ResponseRowsInner {
     #[serde(rename = "stepRunId")]
-    pub step_run_id: String,
+    pub task_run_external_id: String,
     #[serde(rename = "order")]
     pub order: i32,
     #[serde(rename = "input", skip_serializing_if = "Option::is_none")]
@@ -51,13 +51,13 @@ pub struct StepRunListArchives200ResponseRowsInner {
 
 impl StepRunListArchives200ResponseRowsInner {
     pub fn new(
-        step_run_id: String,
+        task_run_external_id: String,
         order: i32,
         retry_count: i32,
         created_at: String,
     ) -> StepRunListArchives200ResponseRowsInner {
         StepRunListArchives200ResponseRowsInner {
-            step_run_id,
+            task_run_external_id,
             order,
             input: None,
             output: None,

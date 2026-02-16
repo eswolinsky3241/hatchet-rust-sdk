@@ -51,7 +51,7 @@ pub(crate) fn duration_to_expr(duration: Duration) -> String {
 #[derive(Clone, Debug)]
 pub(crate) struct ExecutionContext {
     pub(crate) workflow_run_id: String,
-    pub(crate) step_run_id: String,
+    pub(crate) task_run_external_id: String,
     pub(crate) child_index: i32,
 }
 

@@ -84,6 +84,8 @@ pub struct Task<I, O> {
     schedule_timeout: std::time::Duration,
     #[builder(default = std::time::Duration::from_secs(60))]
     execution_timeout: std::time::Duration,
+    #[builder(default)]
+    input_json_schema: Option<serde_json::Value>,
 }
 
 impl<I, O> Task<I, O>
@@ -159,6 +161,10 @@ where
                 .into_iter()
                 .map(|f| f.to_proto())
                 .collect(),
+            input_json_schema: self
+                .input_json_schema
+                .as_ref()
+                .map(|value| serde_json::to_vec(value).expect("must be serializable")),
         }
     }
 
@@ -181,7 +187,7 @@ where
                     name: self.name.clone().to_lowercase(),
                     input: input_json.to_string(),
                     parent_id: None,
-                    parent_step_run_id: None,
+                    parent_task_run_external_id: None,
                     child_index: None,
                     child_key: None,
                     additional_metadata,

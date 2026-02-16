@@ -20,7 +20,7 @@ pub struct StepRunListEvents200ResponseRowsInner {
     #[serde(rename = "timeLastSeen")]
     pub time_last_seen: String,
     #[serde(rename = "stepRunId", skip_serializing_if = "Option::is_none")]
-    pub step_run_id: Option<String>,
+    pub task_run_external_id: Option<String>,
     #[serde(rename = "workflowRunId", skip_serializing_if = "Option::is_none")]
     pub workflow_run_id: Option<String>,
     #[serde(rename = "reason")]
@@ -49,7 +49,7 @@ impl StepRunListEvents200ResponseRowsInner {
             id,
             time_first_seen,
             time_last_seen,
-            step_run_id: None,
+            task_run_external_id: None,
             workflow_run_id: None,
             reason,
             severity,
