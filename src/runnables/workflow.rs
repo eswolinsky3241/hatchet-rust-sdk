@@ -31,6 +31,7 @@ pub struct Workflow<I, O> {
     cron_triggers: Vec<String>,
     #[builder(default = vec![])]
     default_filters: Vec<DefaultFilter>,
+    #[builder(default)]
     input_json_schema: Option<serde_json::Value>,
     #[builder(default = std::marker::PhantomData)]
     _phantom: std::marker::PhantomData<(I, O)>,

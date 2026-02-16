@@ -16,6 +16,10 @@ use error::create_error_task;
 mod dynamic_child_spawning;
 use dynamic_child_spawning::create_child_spawning_workflow;
 
+#[path = "input_json_schema.rs"]
+mod input_json_schema;
+use input_json_schema::create_schema_workflow;
+
 #[tokio::main]
 #[allow(dead_code)]
 async fn main() {
@@ -30,6 +34,7 @@ async fn main() {
     let dag_workflow = create_dag_workflow().await;
     let error_task = create_error_task().await;
     let (parent_workflow, child_workflow) = create_child_spawning_workflow().await;
+    let schema_workflow = create_schema_workflow().await;
 
     hatchet
         .worker("example-worker")
@@ -40,6 +45,7 @@ async fn main() {
         .add_task_or_workflow(&error_task)
         .add_task_or_workflow(&parent_workflow)
         .add_task_or_workflow(&child_workflow)
+        .add_task_or_workflow(&schema_workflow)
         .start()
         .await
         .unwrap();
