@@ -181,6 +181,15 @@ V1WorkflowRunDisplayNameList:
     - pagination
     - rows
 
+V1WorkflowRunExternalIdList:
+  type: array
+  items:
+    type: string
+    format: uuid
+    minLength: 36
+    maxLength: 36
+  description: The list of external IDs
+
 V1TaskEventList:
   properties:
     pagination:
@@ -281,6 +290,7 @@ V1TaskEventType:
     - CREATED
     - QUEUED
     - SKIPPED
+    - COULD_NOT_SEND_TO_WORKER
 
 V1TaskRunMetrics:
   type: array

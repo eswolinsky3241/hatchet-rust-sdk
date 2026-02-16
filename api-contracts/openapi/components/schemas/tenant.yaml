@@ -17,9 +17,9 @@ Tenant:
     version:
       $ref: "#/TenantVersion"
       description: The version of the tenant.
-    uiVersion:
-      $ref: "#/TenantUIVersion"
-      description: The UI of the tenant.
+    environment:
+      $ref: "#/TenantEnvironment"
+      description: The environment type of the tenant.
   required:
     - metadata
     - name
@@ -67,6 +67,14 @@ TenantAlertingSettings:
     - maxAlertingFrequency
   type: object
 
+# IMPORTANT: keep values in sync with sql/schema/v0.sql#TenantEnvironment
+TenantEnvironment:
+  enum:
+    - "local"
+    - "development"
+    - "production"
+  type: string
+
 CreateTenantRequest:
   properties:
     name:
@@ -79,12 +87,16 @@ CreateTenantRequest:
       description: The slug of the tenant.
       x-oapi-codegen-extra-tags:
         validate: "required,hatchetName"
-    uiVersion:
-      $ref: "#/TenantUIVersion"
-      description: The UI version of the tenant. Defaults to V0.
     engineVersion:
       $ref: "#/TenantVersion"
       description: The engine version of the tenant. Defaults to V0.
+    environment:
+      $ref: "#/TenantEnvironment"
+      description: The environment type of the tenant.
+    onboardingData:
+      type: object
+      description: Additional onboarding data to store with the tenant.
+      additionalProperties: true
   required:
     - name
     - slug
@@ -118,9 +130,6 @@ UpdateTenantRequest:
     version:
       $ref: "#/TenantVersion"
       description: The version of the tenant.
-    uiVersion:
-      $ref: "#/TenantUIVersion"
-      description: The UI of the tenant.
   type: object
 
 TenantResource:
@@ -128,10 +137,10 @@ TenantResource:
     - "WORKER"
     - "WORKER_SLOT"
     - "EVENT"
-    - "WORKFLOW_RUN"
     - "TASK_RUN"
     - "CRON"
     - "SCHEDULE"
+    - "INCOMING_WEBHOOK"
   type: string
 
 TenantResourceLimit:
@@ -384,3 +393,48 @@ TenantStepRunQueueMetrics:
   properties:
     queues:
       type: object
+
+TaskStats:
+  type: object
+  additionalProperties:
+    $ref: "#/TaskStat"
+
+TaskStat:
+  properties:
+    queued:
+      $ref: "#/TaskStatusStat"
+    running:
+      $ref: "#/TaskStatusStat"
+  type: object
+
+TaskStatusStat:
+  properties:
+    total:
+      type: integer
+      format: int64
+    queues:
+      type: object
+      additionalProperties:
+        type: integer
+        format: int64
+    concurrency:
+      type: array
+      items:
+        $ref: "#/ConcurrencyStat"
+    oldest:
+      type: string
+      format: date-time
+  type: object
+
+ConcurrencyStat:
+  properties:
+    expression:
+      type: string
+    type:
+      type: string
+    keys:
+      type: object
+      additionalProperties:
+        type: integer
+        format: int64
+  type: object
