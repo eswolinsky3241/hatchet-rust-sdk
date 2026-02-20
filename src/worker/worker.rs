@@ -174,7 +174,7 @@ impl Worker {
             worker_name: name.to_string(),
             actions,
             services: vec![],
-            max_runs: Some(slots),
+            slots: Some(slots),
             labels: labels
                 .into_iter()
                 .map(|(k, v)| {

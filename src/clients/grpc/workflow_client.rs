@@ -40,7 +40,7 @@ fn update_task_execution_context(request: &mut TriggerWorkflowRequest) {
         let ctx_inner: ExecutionContext = ctx.into_inner();
         request.child_index = Some(ctx_inner.child_index);
         request.parent_id = Some(ctx_inner.workflow_run_id.clone());
-        request.parent_step_run_id = Some(ctx_inner.step_run_id.clone());
+        request.parent_task_run_external_id = Some(ctx_inner.task_run_external_id.clone());
         EXECUTION_CONTEXT.with(|ctx| {
             let mut ctx = ctx.borrow_mut();
             ctx.child_index += 1;

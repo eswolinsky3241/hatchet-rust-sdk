@@ -1,5 +1,6 @@
 use hatchet_sdk::worker::worker::WorkerBuilder;
 use hatchet_sdk::{Hatchet, HatchetError, Register, Runnable};
+use serde::{Deserialize, Serialize};
 
 mod common;
 use common::{SimpleInput, SimpleOutput};
@@ -274,5 +275,80 @@ async fn test_dag_workflow() {
             .get("output")
             .unwrap()
     );
+    worker_handle.abort()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+struct AddInput {
+    first: i64,
+    second: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AddOutput {
+    value: i64,
+}
+
+// Verifies that workflows with input_json_schema can be registered and executed.
+#[tokio::test]
+async fn test_workflow_with_input_json_schema() {
+    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
+    let server_url = format!(
+        "http://localhost:{}",
+        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
+    );
+    let grpc_broadcast_address = format!(
+        "localhost:{}",
+        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
+    );
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
+
+    let schema = schemars::schema_for!(AddInput);
+    let schema_value = serde_json::to_value(schema).unwrap();
+
+    let task = hatchet
+        .task(
+            "add",
+            async move |input: AddInput,
+                        _context: hatchet_sdk::Context|
+                        -> anyhow::Result<AddOutput> {
+                Ok(AddOutput {
+                    value: input.first + input.second,
+                })
+            },
+        )
+        .input_json_schema(Some(schema_value))
+        .build()
+        .unwrap();
+
+    let task_clone: hatchet_sdk::Task<AddInput, AddOutput> = task.clone();
+    let worker_handle = tokio::spawn(async move {
+        hatchet
+            .worker("test-worker")
+            .build()
+            .unwrap()
+            .add_task_or_workflow(&task_clone)
+            .start()
+            .await
+            .unwrap()
+    });
+
+    // Give worker time to register workflow.
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    let output = task
+        .run(
+            &AddInput {
+                first: 3,
+                second: 7,
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(10, output.value);
     worker_handle.abort()
 }

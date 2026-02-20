@@ -62,7 +62,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        hatchet_version: ["v0.68.0", "v0.69.0", "v0.70.0", "v0.71.0", "latest"]
+        hatchet_version:
+          - v0.68.0
+          - v0.69.0
+          - v0.70.0
+          - v0.71.0
+          - v0.72.0
+          - v0.73.0
+          - v0.74.0
+          - v0.75.0
+          # no v0.76.0 as it was never released (v0.76 only had -alpha.* releases)
+          - v0.77.0
+          - v0.78.0
+          - latest
     env:
       TEST_HATCHET_LITE_VERSION: ${{ matrix.hatchet_version }}
     name: "Integration Tests - Hatchet Version: ${{ matrix.hatchet_version }}"

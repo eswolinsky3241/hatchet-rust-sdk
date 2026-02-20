@@ -18,11 +18,11 @@ impl EventClient {
 impl EventClient {
     pub async fn put_log(
         &mut self,
-        step_run_id: &str,
+        task_run_external_id: &str,
         message: String,
     ) -> Result<(), crate::HatchetError> {
         let mut request = tonic::Request::new(PutLogRequest {
-            step_run_id: step_run_id.to_string(),
+            task_run_external_id: task_run_external_id.to_string(),
             created_at: Some(proto_timestamp_now()?),
             message,
             level: None,

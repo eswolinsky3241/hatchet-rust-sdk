@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 pub struct WorkerList200ResponseRowsInnerSlotsInner {
     /// The step run id.
     #[serde(rename = "stepRunId")]
-    pub step_run_id: uuid::Uuid,
+    pub task_run_external_id: uuid::Uuid,
     /// The action id.
     #[serde(rename = "actionId")]
     pub action_id: String,
@@ -34,12 +34,12 @@ pub struct WorkerList200ResponseRowsInnerSlotsInner {
 
 impl WorkerList200ResponseRowsInnerSlotsInner {
     pub fn new(
-        step_run_id: uuid::Uuid,
+        task_run_external_id: uuid::Uuid,
         action_id: String,
         workflow_run_id: uuid::Uuid,
     ) -> WorkerList200ResponseRowsInnerSlotsInner {
         WorkerList200ResponseRowsInnerSlotsInner {
-            step_run_id,
+            task_run_external_id,
             action_id,
             started_at: None,
             timeout_at: None,

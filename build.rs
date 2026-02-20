@@ -1,5 +1,5 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_build::configure().compile_protos(
+    tonic_prost_build::configure().compile_protos(
         &[
             "api-contracts/protos/dispatcher/dispatcher.proto",
             "api-contracts/protos/events/events.proto",

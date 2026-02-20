@@ -42,7 +42,7 @@ pub struct WorkflowRunCreate200ResponseJobRunsInnerWorkflowRun {
     #[serde(rename = "parentId", skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<uuid::Uuid>,
     #[serde(rename = "parentStepRunId", skip_serializing_if = "Option::is_none")]
-    pub parent_step_run_id: Option<uuid::Uuid>,
+    pub parent_task_run_external_id: Option<uuid::Uuid>,
     #[serde(rename = "additionalMetadata", skip_serializing_if = "Option::is_none")]
     pub additional_metadata: Option<std::collections::HashMap<String, serde_json::Value>>,
 }
@@ -70,7 +70,7 @@ impl WorkflowRunCreate200ResponseJobRunsInnerWorkflowRun {
             finished_at: None,
             duration: None,
             parent_id: None,
-            parent_step_run_id: None,
+            parent_task_run_external_id: None,
             additional_metadata: None,
         }
     }

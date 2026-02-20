@@ -880,7 +880,7 @@ pub async fn workflow_run_get_metrics(
     event_id: Option<&str>,
     workflow_id: Option<&str>,
     parent_workflow_run_id: Option<&str>,
-    parent_step_run_id: Option<&str>,
+    parent_task_run_external_id: Option<&str>,
     additional_metadata: Option<Vec<String>>,
     created_after: Option<String>,
     created_before: Option<String>,
@@ -890,7 +890,7 @@ pub async fn workflow_run_get_metrics(
     let p_event_id = event_id;
     let p_workflow_id = workflow_id;
     let p_parent_workflow_run_id = parent_workflow_run_id;
-    let p_parent_step_run_id = parent_step_run_id;
+    let p_parent_task_run_external_id = parent_task_run_external_id;
     let p_additional_metadata = additional_metadata;
     let p_created_after = created_after;
     let p_created_before = created_before;
@@ -911,7 +911,7 @@ pub async fn workflow_run_get_metrics(
     if let Some(ref param_value) = p_parent_workflow_run_id {
         req_builder = req_builder.query(&[("parentWorkflowRunId", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_parent_step_run_id {
+    if let Some(ref param_value) = p_parent_task_run_external_id {
         req_builder = req_builder.query(&[("parentStepRunId", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_additional_metadata {
@@ -1054,7 +1054,7 @@ pub async fn workflow_run_list(
     event_id: Option<&str>,
     workflow_id: Option<&str>,
     parent_workflow_run_id: Option<&str>,
-    parent_step_run_id: Option<&str>,
+    parent_task_run_external_id: Option<&str>,
     statuses: Option<Vec<String>>,
     kinds: Option<Vec<String>>,
     additional_metadata: Option<Vec<String>>,
@@ -1072,7 +1072,7 @@ pub async fn workflow_run_list(
     let p_event_id = event_id;
     let p_workflow_id = workflow_id;
     let p_parent_workflow_run_id = parent_workflow_run_id;
-    let p_parent_step_run_id = parent_step_run_id;
+    let p_parent_task_run_external_id = parent_task_run_external_id;
     let p_statuses = statuses;
     let p_kinds = kinds;
     let p_additional_metadata = additional_metadata;
@@ -1105,7 +1105,7 @@ pub async fn workflow_run_list(
     if let Some(ref param_value) = p_parent_workflow_run_id {
         req_builder = req_builder.query(&[("parentWorkflowRunId", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_parent_step_run_id {
+    if let Some(ref param_value) = p_parent_task_run_external_id {
         req_builder = req_builder.query(&[("parentStepRunId", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_statuses {
@@ -1344,7 +1344,7 @@ pub async fn workflow_scheduled_list(
     order_by_direction: Option<&str>,
     workflow_id: Option<&str>,
     parent_workflow_run_id: Option<&str>,
-    parent_step_run_id: Option<&str>,
+    parent_task_run_external_id: Option<&str>,
     additional_metadata: Option<Vec<String>>,
     statuses: Option<Vec<String>>,
 ) -> Result<models::WorkflowScheduledList200Response, Error<WorkflowScheduledListError>> {
@@ -1356,7 +1356,7 @@ pub async fn workflow_scheduled_list(
     let p_order_by_direction = order_by_direction;
     let p_workflow_id = workflow_id;
     let p_parent_workflow_run_id = parent_workflow_run_id;
-    let p_parent_step_run_id = parent_step_run_id;
+    let p_parent_task_run_external_id = parent_task_run_external_id;
     let p_additional_metadata = additional_metadata;
     let p_statuses = statuses;
 
@@ -1385,7 +1385,7 @@ pub async fn workflow_scheduled_list(
     if let Some(ref param_value) = p_parent_workflow_run_id {
         req_builder = req_builder.query(&[("parentWorkflowRunId", &param_value.to_string())]);
     }
-    if let Some(ref param_value) = p_parent_step_run_id {
+    if let Some(ref param_value) = p_parent_task_run_external_id {
         req_builder = req_builder.query(&[("parentStepRunId", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_additional_metadata {
