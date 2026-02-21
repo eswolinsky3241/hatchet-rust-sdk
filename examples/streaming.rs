@@ -22,9 +22,7 @@ async fn main() {
     let task = hatchet
         .task(
             "streaming-task",
-            async move |input: StreamInput,
-                        ctx: Context|
-                        -> anyhow::Result<StreamOutput> {
+            async move |input: StreamInput, ctx: Context| -> anyhow::Result<StreamOutput> {
                 ctx.log("Starting streaming task").await?;
 
                 let chunks = vec![

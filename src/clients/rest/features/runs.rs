@@ -1,8 +1,8 @@
 use super::super::apis::workflow_runs_api::v1_workflow_run_get;
-use crate::clients::grpc::dispatcher_client::DispatcherClient;
-use crate::clients::grpc::v0::dispatcher::ResourceEventType;
 use crate::Configuration;
 use crate::HatchetError;
+use crate::clients::grpc::dispatcher_client::DispatcherClient;
+use crate::clients::grpc::v0::dispatcher::ResourceEventType;
 use futures::stream::Stream;
 use models::*;
 use std::sync::Arc;
@@ -15,7 +15,10 @@ pub struct RunsClient {
 }
 
 impl RunsClient {
-    pub(crate) fn new(configuration: Arc<Configuration>, dispatcher_client: DispatcherClient) -> Self {
+    pub(crate) fn new(
+        configuration: Arc<Configuration>,
+        dispatcher_client: DispatcherClient,
+    ) -> Self {
         Self {
             configuration,
             dispatcher_client,
@@ -57,36 +60,42 @@ impl RunsClient {
     pub async fn subscribe_to_stream(
         &mut self,
         workflow_run_id: &str,
-    ) -> Result<std::pin::Pin<Box<dyn Stream<Item = Result<Vec<u8>, HatchetError>> + Send>>, HatchetError> {
+    ) -> Result<
+        std::pin::Pin<Box<dyn Stream<Item = Result<Vec<u8>, HatchetError>> + Send>>,
+        HatchetError,
+    > {
         let grpc_stream = self
             .dispatcher_client
             .subscribe_to_workflow_events(workflow_run_id)
             .await?;
 
-        Ok(Box::pin(futures::stream::unfold(grpc_stream, |mut stream| async {
-            loop {
-                match stream.message().await {
-                    Ok(Some(event)) => {
-                        if event.hangup {
-                            return None;
+        Ok(Box::pin(futures::stream::unfold(
+            grpc_stream,
+            |mut stream| async {
+                loop {
+                    match stream.message().await {
+                        Ok(Some(event)) => {
+                            if event.hangup {
+                                return None;
+                            }
+                            if event.event_type == ResourceEventType::Stream as i32 {
+                                let payload = event.event_payload.into_bytes();
+                                return Some((Ok(payload), stream));
+                            }
+                            // Skip non-stream events
+                            continue;
                         }
-                        if event.event_type == ResourceEventType::Stream as i32 {
-                            let payload = event.event_payload.into_bytes();
-                            return Some((Ok(payload), stream));
+                        Ok(None) => return None,
+                        Err(e) => {
+                            return Some((
+                                Err(HatchetError::GrpcErrorStatus(e.message().to_string())),
+                                stream,
+                            ));
                         }
-                        // Skip non-stream events
-                        continue;
-                    }
-                    Ok(None) => return None,
-                    Err(e) => {
-                        return Some((
-                            Err(HatchetError::GrpcErrorStatus(e.message().to_string())),
-                            stream,
-                        ));
                     }
                 }
-            }
-        })))
+            },
+        )))
     }
 }
 

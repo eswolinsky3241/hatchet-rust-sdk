@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, Ordering};
 use tokio::sync::mpsc;
 
 use crate::{GetWorkflowRunResponse, Hatchet, HatchetError};
@@ -30,11 +30,7 @@ impl Context {
         let log_task_id = task_run_external_id.clone();
         tokio::spawn(async move {
             while let Some(message) = log_rx.recv().await {
-                if let Err(e) = log_client
-                    .event_client
-                    .put_log(&log_task_id, message)
-                    .await
-                {
+                if let Err(e) = log_client.event_client.put_log(&log_task_id, message).await {
                     log::error!("Failed to send log: {}", e);
                 }
             }
