@@ -1,6 +1,9 @@
 use super::super::apis::workflow_runs_api::v1_workflow_run_get;
+use crate::clients::grpc::dispatcher_client::DispatcherClient;
+use crate::clients::grpc::v0::dispatcher::ResourceEventType;
 use crate::Configuration;
 use crate::HatchetError;
+use futures::stream::Stream;
 use models::*;
 use std::sync::Arc;
 
@@ -8,11 +11,15 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct RunsClient {
     configuration: Arc<Configuration>,
+    dispatcher_client: DispatcherClient,
 }
 
 impl RunsClient {
-    pub fn new(configuration: Arc<Configuration>) -> Self {
-        Self { configuration }
+    pub(crate) fn new(configuration: Arc<Configuration>, dispatcher_client: DispatcherClient) -> Self {
+        Self {
+            configuration,
+            dispatcher_client,
+        }
     }
 
     /// Get a workflow run by its ID.
@@ -30,6 +37,56 @@ impl RunsClient {
             .await
             .map_err(|e| HatchetError::RestApiError(e.to_string()))?;
         Ok(GetWorkflowRunResponse::from(response))
+    }
+
+    /// Subscribe to stream events for a workflow run. Returns an async Stream of byte chunks
+    /// emitted by tasks via `ctx.put_stream()`.
+    ///
+    /// ```no_run
+    /// use hatchet_sdk::Hatchet;
+    /// use futures::StreamExt;
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut hatchet = Hatchet::from_env().await.unwrap();
+    ///     let mut stream = hatchet.workflow_rest_client.subscribe_to_stream("run-id").await.unwrap();
+    ///     while let Some(chunk) = stream.next().await {
+    ///         println!("Got chunk: {:?}", chunk.unwrap());
+    ///     }
+    /// }
+    /// ```
+    pub async fn subscribe_to_stream(
+        &mut self,
+        workflow_run_id: &str,
+    ) -> Result<std::pin::Pin<Box<dyn Stream<Item = Result<Vec<u8>, HatchetError>> + Send>>, HatchetError> {
+        let grpc_stream = self
+            .dispatcher_client
+            .subscribe_to_workflow_events(workflow_run_id)
+            .await?;
+
+        Ok(Box::pin(futures::stream::unfold(grpc_stream, |mut stream| async {
+            loop {
+                match stream.message().await {
+                    Ok(Some(event)) => {
+                        if event.hangup {
+                            return None;
+                        }
+                        if event.event_type == ResourceEventType::Stream as i32 {
+                            let payload = event.event_payload.into_bytes();
+                            return Some((Ok(payload), stream));
+                        }
+                        // Skip non-stream events
+                        continue;
+                    }
+                    Ok(None) => return None,
+                    Err(e) => {
+                        return Some((
+                            Err(HatchetError::GrpcErrorStatus(e.message().to_string())),
+                            stream,
+                        ));
+                    }
+                }
+            }
+        })))
     }
 }
 

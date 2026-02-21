@@ -69,3 +69,7 @@ path = "examples/dynamic_child_spawning.rs"
 [[example]]
 name = "input_json_schema"
 path = "examples/input_json_schema.rs"
+
+[[example]]
+name = "streaming"
+path = "examples/streaming.rs"

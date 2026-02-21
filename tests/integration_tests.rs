@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use hatchet_sdk::worker::worker::WorkerBuilder;
 use hatchet_sdk::{Hatchet, HatchetError, Register, Runnable};
 use serde::{Deserialize, Serialize};
@@ -287,6 +288,98 @@ struct AddInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AddOutput {
     value: i64,
+}
+
+#[tokio::test]
+async fn test_streaming() {
+    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
+    let server_url = format!(
+        "http://localhost:{}",
+        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
+    );
+    let grpc_broadcast_address = format!(
+        "localhost:{}",
+        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
+    );
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
+
+    let expected_chunks: Vec<String> = (0..5).map(|i| format!("chunk-{}", i)).collect();
+    let chunks_to_send = expected_chunks.clone();
+
+    let task = hatchet
+        .task(
+            "stream-step",
+            async move |_input: SimpleInput,
+                        ctx: hatchet_sdk::Context|
+                        -> anyhow::Result<SimpleOutput> {
+                for chunk in &chunks_to_send {
+                    ctx.put_stream(chunk.as_bytes().to_vec()).await?;
+                }
+                Ok(SimpleOutput {
+                    transformed_message: "done".to_string(),
+                })
+            },
+        )
+        .build()
+        .unwrap();
+
+    let task_clone = task.clone();
+    let mut hatchet_consumer = hatchet.clone();
+    let worker_handle = tokio::spawn(async move {
+        WorkerBuilder::default()
+            .name(String::from("test-stream-worker"))
+            .client(hatchet.clone())
+            .build()
+            .unwrap()
+            .add_task_or_workflow(&task_clone)
+            .start()
+            .await
+            .unwrap()
+    });
+
+    // Give worker time to register task
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    // Trigger the task — run_no_wait returns the run ID immediately before the task
+    // is scheduled, so subscribing right after ensures we don't miss any stream events.
+    let run_id = task
+        .run_no_wait(
+            &SimpleInput {
+                message: "test".to_string(),
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    let mut stream = hatchet_consumer
+        .workflow_rest_client
+        .subscribe_to_stream(&run_id)
+        .await
+        .unwrap();
+
+    let mut received_chunks: Vec<String> = Vec::new();
+    let timeout = tokio::time::Duration::from_secs(30);
+    let start = tokio::time::Instant::now();
+
+    while let Ok(Some(chunk)) =
+        tokio::time::timeout(timeout.saturating_sub(start.elapsed()), stream.next()).await
+    {
+        match chunk {
+            Ok(data) => {
+                received_chunks.push(String::from_utf8(data).unwrap());
+                if received_chunks.len() == expected_chunks.len() {
+                    break;
+                }
+            }
+            Err(e) => panic!("Stream error: {}", e),
+        }
+    }
+
+    assert_eq!(expected_chunks, received_chunks);
+    worker_handle.abort();
 }
 
 // Verifies that workflows with input_json_schema can be registered and executed.
