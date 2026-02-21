@@ -20,6 +20,10 @@ use dynamic_child_spawning::create_child_spawning_workflow;
 mod input_json_schema;
 use input_json_schema::create_schema_workflow;
 
+#[path = "streaming.rs"]
+mod streaming;
+use streaming::create_streaming_task;
+
 #[tokio::main]
 #[allow(dead_code)]
 async fn main() {
@@ -35,6 +39,7 @@ async fn main() {
     let error_task = create_error_task().await;
     let (parent_workflow, child_workflow) = create_child_spawning_workflow().await;
     let schema_workflow = create_schema_workflow().await;
+    let streaming_task = create_streaming_task().await;
 
     hatchet
         .worker("example-worker")
@@ -46,6 +51,7 @@ async fn main() {
         .add_task_or_workflow(&parent_workflow)
         .add_task_or_workflow(&child_workflow)
         .add_task_or_workflow(&schema_workflow)
+        .add_task_or_workflow(&streaming_task)
         .start()
         .await
         .unwrap();
