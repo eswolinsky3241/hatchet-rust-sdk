@@ -123,7 +123,8 @@ impl Hatchet {
             bearer_access_token: Some(config.api_token.clone()),
             api_key: None,
         });
-        let workflow_rest_client = RunsClient::new(rest_configuration.clone());
+        let workflow_rest_client =
+            RunsClient::new(rest_configuration.clone(), dispatcher_client.clone());
 
         Self::new(
             server_url.to_string(),

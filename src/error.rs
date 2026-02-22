@@ -48,4 +48,8 @@ pub enum HatchetError {
     RestApiError(String),
     #[error("Error sending message to dispatcher: {0}")]
     DispatchError(String),
+    #[error("Error sending stream event: {0}")]
+    StreamError(String),
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }

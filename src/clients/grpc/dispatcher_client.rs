@@ -1,7 +1,7 @@
 use super::v0::dispatcher::dispatcher_client::DispatcherClient as DispatcherGrpcClient;
 use super::v0::dispatcher::{
-    AssignedAction, HeartbeatRequest, StepActionEvent, WorkerListenRequest, WorkerRegisterRequest,
-    WorkerRegisterResponse,
+    AssignedAction, HeartbeatRequest, StepActionEvent, SubscribeToWorkflowEventsRequest,
+    WorkerListenRequest, WorkerRegisterRequest, WorkerRegisterResponse, WorkflowEvent,
 };
 use crate::HatchetError;
 use tonic::Request;
@@ -71,6 +71,24 @@ impl DispatcherClient {
         Ok(self
             .client
             .listen_v2(request)
+            .await
+            .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()))?
+            .into_inner())
+    }
+
+    pub async fn subscribe_to_workflow_events(
+        &mut self,
+        workflow_run_id: &str,
+    ) -> Result<tonic::Streaming<WorkflowEvent>, HatchetError> {
+        let mut request = Request::new(SubscribeToWorkflowEventsRequest {
+            workflow_run_id: Some(workflow_run_id.to_string()),
+            additional_meta_key: None,
+            additional_meta_value: None,
+        });
+        crate::utils::add_grpc_auth_header(&mut request, &self.api_token)?;
+        Ok(self
+            .client
+            .subscribe_to_workflow_events(request)
             .await
             .map_err(|e| HatchetError::GrpcErrorStatus(e.message().to_string()))?
             .into_inner())
