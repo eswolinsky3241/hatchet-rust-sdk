@@ -16,6 +16,9 @@ pub async fn create_streaming_task() -> hatchet_sdk::Task<StreamInput, StreamOut
     async fn streaming_task_func(input: StreamInput, ctx: Context) -> anyhow::Result<StreamOutput> {
         ctx.log("Starting streaming task").await?;
 
+        // Give the client time to subscribe before streaming
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
         let chunks = vec![
             format!("Processing: {}", input.message),
             "Chunk 1: Hello".to_string(),
@@ -67,8 +70,6 @@ async fn main() {
         .unwrap();
     println!("Run ID: {}", run_id);
 
-    // Subscribe to stream events immediately after getting the run ID.
-    // The task hasn't been scheduled to a worker yet, so we won't miss any events.
     let mut hatchet = Hatchet::from_env().await.unwrap();
     let mut stream = hatchet
         .workflow_rest_client
