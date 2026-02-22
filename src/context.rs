@@ -30,10 +30,12 @@ impl Context {
         let log_task_id = task_run_external_id.clone();
         tokio::spawn(async move {
             while let Some(message) = log_rx.recv().await {
-                if let Err(e) = log_client.event_client.put_log(&log_task_id, message).await {
-                    log::error!("Failed to send log: {}", e);
-                }
+                log_client
+                    .event_client
+                    .put_log(&log_task_id, message)
+                    .await?;
             }
+            Ok::<(), HatchetError>(())
         });
 
         // Stream background drainer
@@ -42,14 +44,12 @@ impl Context {
         let stream_task_id = task_run_external_id.clone();
         tokio::spawn(async move {
             while let Some((message, index)) = stream_rx.recv().await {
-                if let Err(e) = stream_client
+                stream_client
                     .event_client
                     .put_stream_event(&stream_task_id, message, Some(index))
-                    .await
-                {
-                    log::error!("Failed to send stream event: {}", e);
-                }
+                    .await?;
             }
+            Ok::<(), HatchetError>(())
         });
 
         Self {
