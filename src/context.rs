@@ -37,7 +37,6 @@ impl Context {
             Ok::<(), HatchetError>(())
         });
 
-        // Stream background drainer
         let mut stream_client = client.clone();
         let (stream_tx, mut stream_rx) = mpsc::channel::<(Vec<u8>, i64)>(100);
         let stream_task_id = task_run_external_id.clone();
