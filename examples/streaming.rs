@@ -70,8 +70,6 @@ async fn main() {
         .unwrap();
     println!("Run ID: {}", run_id);
 
-    // Subscribe to stream events immediately after getting the run ID.
-    // The task hasn't been scheduled to a worker yet, so we won't miss any events.
     let mut hatchet = Hatchet::from_env().await.unwrap();
     let mut stream = hatchet
         .workflow_rest_client
