@@ -64,38 +64,48 @@ impl RunsClient {
         std::pin::Pin<Box<dyn Stream<Item = Result<Vec<u8>, HatchetError>> + Send>>,
         HatchetError,
     > {
-        let grpc_stream = self
-            .dispatcher_client
-            .subscribe_to_workflow_events(workflow_run_id)
-            .await?;
+        let (tx, rx) = tokio::sync::mpsc::channel::<Result<Vec<u8>, HatchetError>>(100);
 
-        Ok(Box::pin(futures::stream::unfold(
-            grpc_stream,
-            |mut stream| async {
-                loop {
-                    match stream.message().await {
-                        Ok(Some(event)) => {
-                            if event.hangup {
-                                return None;
-                            }
-                            if event.event_type == ResourceEventType::Stream as i32 {
-                                let payload = event.event_payload.into_bytes();
-                                return Some((Ok(payload), stream));
-                            }
-                            // Skip non-stream events
-                            continue;
+        let mut dispatcher = self.dispatcher_client.clone();
+        let run_id = workflow_run_id.to_string();
+
+        tokio::spawn(async move {
+            let grpc_stream = match dispatcher.subscribe_to_workflow_events(&run_id).await {
+                Ok(s) => s,
+                Err(e) => {
+                    let _ = tx.send(Err(e)).await;
+                    return;
+                }
+            };
+
+            let mut grpc_stream = grpc_stream;
+            loop {
+                match grpc_stream.message().await {
+                    Ok(Some(event)) => {
+                        if event.hangup {
+                            break;
                         }
-                        Ok(None) => return None,
-                        Err(e) => {
-                            return Some((
-                                Err(HatchetError::GrpcErrorStatus(e.message().to_string())),
-                                stream,
-                            ));
+                        if event.event_type == ResourceEventType::Stream as i32 {
+                            let payload = event.event_payload.into_bytes();
+                            if tx.send(Ok(payload)).await.is_err() {
+                                break;
+                            }
                         }
                     }
+                    Ok(None) => break,
+                    Err(e) => {
+                        let _ = tx
+                            .send(Err(HatchetError::GrpcErrorStatus(e.message().to_string())))
+                            .await;
+                        break;
+                    }
                 }
-            },
-        )))
+            }
+        });
+
+        Ok(Box::pin(futures::stream::unfold(rx, |mut rx| async {
+            rx.recv().await.map(|item| (item, rx))
+        })))
     }
 }
 
