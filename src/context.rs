@@ -24,7 +24,6 @@ impl Context {
         let task_run_external_id = task_run_external_id.to_string();
         let workflow_run_id = workflow_run_id.to_string();
 
-        // Logger background drainer
         let mut log_client = client.clone();
         let (log_tx, mut log_rx) = mpsc::channel::<String>(100);
         let log_task_id = task_run_external_id.clone();
