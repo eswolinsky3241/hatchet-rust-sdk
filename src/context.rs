@@ -139,7 +139,7 @@ impl Context {
         self.stream_tx
             .send((data.into(), index))
             .await
-            .map_err(|e| HatchetError::InternalError(e.to_string()))?;
+            .map_err(|e| HatchetError::StreamError(e.to_string()))?;
         Ok(())
     }
 
