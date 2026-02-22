@@ -16,6 +16,9 @@ pub async fn create_streaming_task() -> hatchet_sdk::Task<StreamInput, StreamOut
     async fn streaming_task_func(input: StreamInput, ctx: Context) -> anyhow::Result<StreamOutput> {
         ctx.log("Starting streaming task").await?;
 
+        // Give the client time to subscribe before streaming
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
         let chunks = vec![
             format!("Processing: {}", input.message),
             "Chunk 1: Hello".to_string(),
