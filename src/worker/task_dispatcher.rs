@@ -88,8 +88,11 @@ impl TaskDispatcher {
         )
         .await;
 
+        let task_runs_cleanup = self.task_runs.clone();
+        let cleanup_id = task_run_external_id.clone();
+
         let handle = tokio::spawn(async move {
-            EXECUTION_CONTEXT
+            let result = EXECUTION_CONTEXT
                 .scope(execution_context.into(), async move {
                     let raw_json: serde_json::Value = serde_json::from_str(&message.action_payload)
                         .expect("could not parse payload as JSON");
@@ -159,7 +162,17 @@ impl TaskDispatcher {
                         .await?;
                     Ok(())
                 })
-                .await
+                .await;
+
+            // Remove completed task run from tracking map to prevent memory leak.
+            // Without this, every completed task leaves an entry in the HashMap
+            // that is never cleaned up (only cancellations removed entries).
+            task_runs_cleanup
+                .lock()
+                .expect("failed to acquire lock on task runs")
+                .remove(&cleanup_id);
+
+            result
         });
 
         self.task_runs
