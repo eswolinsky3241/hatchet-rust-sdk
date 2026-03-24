@@ -30,7 +30,9 @@ impl ActionListener {
                     }
                     None => return Ok(()),
                 },
-                Err(e) => println!("{e}"),
+                Err(e) => {
+                    return Err(HatchetError::GrpcErrorStatus(e.message().to_string()));
+                }
             };
         }
     }
