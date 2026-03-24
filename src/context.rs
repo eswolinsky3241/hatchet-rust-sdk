@@ -24,11 +24,7 @@ impl std::fmt::Debug for Context {
 }
 
 impl Context {
-    pub(crate) fn new(
-        client: Hatchet,
-        workflow_run_id: &str,
-        task_run_external_id: &str,
-    ) -> Self {
+    pub(crate) fn new(client: Hatchet, workflow_run_id: &str, task_run_external_id: &str) -> Self {
         Self {
             log_tx: OnceLock::new(),
             stream_tx: OnceLock::new(),
