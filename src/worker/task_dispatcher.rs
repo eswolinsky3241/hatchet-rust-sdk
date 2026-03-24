@@ -97,6 +97,11 @@ impl TaskDispatcher {
         // Insert entry BEFORE spawning to prevent a race condition where the
         // spawned task completes and calls remove() before insert() runs,
         // leaving a permanent orphaned entry in the HashMap.
+        //
+        // Note: if a cancellation arrives between this insert and the spawn below,
+        // the entry is removed and the token is cancelled, but there is no JoinHandle
+        // to abort yet. The spawned task will still observe the cancelled token via
+        // cooperative cancellation. This window is narrow and acceptable.
         self.task_runs
             .lock()
             .expect("failed to acquire lock on task runs")

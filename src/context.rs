@@ -46,7 +46,9 @@ impl Context {
             let task_id = self.task_run_external_id.clone();
             tokio::spawn(async move {
                 while let Some(message) = rx.recv().await {
-                    let _ = log_client.event_client.put_log(&task_id, message).await;
+                    if let Err(e) = log_client.event_client.put_log(&task_id, message).await {
+                        log::warn!("failed to send log to hatchet: {e}");
+                    }
                 }
             });
             tx
@@ -60,10 +62,13 @@ impl Context {
             let task_id = self.task_run_external_id.clone();
             tokio::spawn(async move {
                 while let Some((message, index)) = rx.recv().await {
-                    let _ = stream_client
+                    if let Err(e) = stream_client
                         .event_client
                         .put_stream_event(&task_id, message, Some(index))
-                        .await;
+                        .await
+                    {
+                        log::warn!("failed to send stream event to hatchet: {e}");
+                    }
                 }
             });
             tx
