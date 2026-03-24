@@ -13,8 +13,12 @@ use crate::error::HatchetError;
 use crate::runnables::ExecutableTask;
 use crate::utils::{EXECUTION_CONTEXT, ExecutionContext};
 
-type TaskRun =
-    Arc<Mutex<HashMap<String, (JoinHandle<Result<(), HatchetError>>, CancellationToken)>>>;
+pub(crate) struct TaskRunEntry {
+    handle: Option<JoinHandle<Result<(), HatchetError>>>,
+    token: CancellationToken,
+}
+
+type TaskRun = Arc<Mutex<HashMap<String, TaskRunEntry>>>;
 
 #[derive(Clone)]
 pub(crate) struct TaskDispatcher {
@@ -91,6 +95,20 @@ impl TaskDispatcher {
         let task_runs_cleanup = self.task_runs.clone();
         let cleanup_id = task_run_external_id.clone();
 
+        // Insert entry BEFORE spawning to prevent a race condition where the
+        // spawned task completes and calls remove() before insert() runs,
+        // leaving a permanent orphaned entry in the HashMap.
+        self.task_runs
+            .lock()
+            .expect("failed to acquire lock on task runs")
+            .insert(
+                task_run_external_id.clone(),
+                TaskRunEntry {
+                    handle: None,
+                    token: token.clone(),
+                },
+            );
+
         let handle = tokio::spawn(async move {
             let result = EXECUTION_CONTEXT
                 .scope(execution_context.into(), async move {
@@ -165,8 +183,6 @@ impl TaskDispatcher {
                 .await;
 
             // Remove completed task run from tracking map to prevent memory leak.
-            // Without this, every completed task leaves an entry in the HashMap
-            // that is never cleaned up (only cancellations removed entries).
             task_runs_cleanup
                 .lock()
                 .expect("failed to acquire lock on task runs")
@@ -175,10 +191,16 @@ impl TaskDispatcher {
             result
         });
 
-        self.task_runs
+        // Update with the real JoinHandle. The entry may already have been
+        // removed if the task completed before we get here — that's fine.
+        if let Some(entry) = self
+            .task_runs
             .lock()
             .expect("failed to acquire lock on task runs")
-            .insert(task_run_external_id, (handle, token));
+            .get_mut(&task_run_external_id)
+        {
+            entry.handle = Some(handle);
+        }
 
         Ok(())
     }
@@ -188,14 +210,16 @@ impl TaskDispatcher {
         message: dispatcher::AssignedAction,
     ) -> Result<(), crate::HatchetError> {
         let task_run_external_id = message.task_run_external_id.clone();
-        if let Some((handle, token)) = self
+        if let Some(entry) = self
             .task_runs
             .lock()
             .expect("failed to acquire lock on task runs")
             .remove(&task_run_external_id)
         {
-            token.cancel();
-            handle.abort();
+            entry.token.cancel();
+            if let Some(handle) = entry.handle {
+                handle.abort();
+            }
         }
         Ok(())
     }
