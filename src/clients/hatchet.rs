@@ -1,9 +1,14 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use super::grpc::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
 use crate::{Configuration, HatchetConfig, HatchetError, RunsClient, TlsStrategy};
+
+// Match the Go SDK's keepalive settings (pkg/client/client.go).
+const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(10);
+const KEEPALIVE_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// The main client for interacting with the Hatchet API.
 #[derive(Clone, Debug)]
@@ -51,6 +56,9 @@ impl Hatchet {
     async fn create_insecure_channel(grpc_address: &str) -> Result<Channel, HatchetError> {
         let channel = Channel::from_shared(format!("http://{}", grpc_address))
             .map_err(|e| HatchetError::InvalidUri(e.to_string()))?
+            .http2_keep_alive_interval(KEEPALIVE_INTERVAL)
+            .keep_alive_timeout(KEEPALIVE_TIMEOUT)
+            .keep_alive_while_idle(true)
             .connect()
             .await
             .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?;
@@ -73,6 +81,9 @@ impl Hatchet {
             .map_err(|e| HatchetError::InvalidUri(e.to_string()))?
             .tls_config(tls)
             .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?
+            .http2_keep_alive_interval(KEEPALIVE_INTERVAL)
+            .keep_alive_timeout(KEEPALIVE_TIMEOUT)
+            .keep_alive_while_idle(true)
             .connect()
             .await
             .map_err(|e| HatchetError::GrpcConnect(e.to_string()))?;
