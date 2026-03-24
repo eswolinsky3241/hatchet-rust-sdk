@@ -89,8 +89,7 @@ impl TaskDispatcher {
             self.client.clone(),
             &message.workflow_run_id,
             &message.task_run_external_id,
-        )
-        .await;
+        );
 
         let task_runs_cleanup = self.task_runs.clone();
         let cleanup_id = task_run_external_id.clone();
