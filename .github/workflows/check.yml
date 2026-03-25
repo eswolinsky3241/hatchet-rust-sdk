@@ -74,6 +74,11 @@ jobs:
           # no v0.76.0 as it was never released (v0.76 only had -alpha.* releases)
           - v0.77.0
           - v0.78.0
+          - v0.79.0
+          - v0.80.0
+          - v0.81.0
+          - v0.82.0
+          - v0.83.0
           - latest
     env:
       TEST_HATCHET_LITE_VERSION: ${{ matrix.hatchet_version }}

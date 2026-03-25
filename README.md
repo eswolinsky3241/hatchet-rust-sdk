@@ -1,20 +1,30 @@
- # 🪓 Hatchet SDK for Rust
+# 🪓 Hatchet SDK for Rust
 
 This is an unofficial Rust SDK for [Hatchet](https://hatchet.run), a distributed, fault-tolerant task queue.
 This crate allows you to integrate Hatchet into your Rust applications.
+
 ## Setup
+
 ### Install `protoc`
+
 This crate uses `tonic` to generate gRPC client stubs from Hatchet's protobuf files. To build the library, you'll need to install the Protocol Buffer Compiler (`protoc`). See the [installation instructions](https://protobuf.dev/installation/) for your operating system.
 
 ### Add crate to dependencies
+
 Add the SDK as a dependency to your Rust project with Cargo:
+
 ```shell
 cargo add hatchet-sdk
 ```
+
 ### Hatchet authentication
+
 We recommend adding your Hatchet API token to a `.env` file and installing [dotenvy](https://crates.io/crates/dotenvy) to load it in your application for local development.
+
 ## Hatchet Version Compatibility
+
 This library is tested against the following Hatchet versions:
+
 | Version    | Compatible |
 | :------: | :-------: |
 | v0.67.0  | ❌ |
@@ -28,13 +38,21 @@ This library is tested against the following Hatchet versions:
 | v0.75.0  | ✅ |
 | v0.77.0  | ✅ |
 | v0.78.0  | ✅ |
+| v0.79.0  | ✅ |
+| v0.80.0  | ✅ |
+| v0.81.0  | ✅ |
+| v0.82.0  | ✅ |
+| v0.83.0  | ✅ |
 
 ## Declaring Your First Task
+
 ### Defining a task
+
 Start by declaring a task with a name. The task object can be built with optional configuration options.
 Tasks have input and output types, which should implement the `Serialize` and `Deserialize` traits from `serde` for JSON serialization and deserialization.
 
 ### Running a task
+
 With your task defined, you can import it wherever you need to use it and invoke it with the `run` method.
 <div class="warning">NOTE: You must first register the task on a worker before you can run it.</div>
 
@@ -93,11 +111,16 @@ async fn main() {
 }
 
 ```
+
 ## Workers
+
 Workers are responsible for executing individual tasks.
+
 ### Declaring a Worker
+
 Declare a worker by calling the worker method on the Hatchet client. Tasks and workflows can be added to the worker. When the worker starts
 it will register the tasks with the Hatchet engine, allowing them to be triggered and assigned.
+
 ```rust no_run
 use hatchet_sdk::{Context, EmptyModel, Hatchet, Register, anyhow, serde_json, tokio};
 
@@ -129,14 +152,21 @@ async fn main() {
         .unwrap();
 }
 ```
+
 ## Declarative Workflow Design (DAGs)
+
 Hatchet workflows are designed in a Directed Acyclic Graph (DAG) format,
 where each task is a node in the graph, and the dependencies between tasks are the edges.
+
 ### Building a DAG with Task Dependencies
+
 The power of Hatchet’s workflow design comes from connecting tasks into a DAG structure.
 Tasks can specify dependencies (parents) which must complete successfully before the task can start.
+
 ### Running a Workflow
+
 You can run workflows directly or enqueue them for asynchronous execution.
+
 ```rust no_run
 use hatchet_sdk::serde::{Deserialize, Serialize};
 use hatchet_sdk::{Context, EmptyModel, Hatchet, Runnable, anyhow, serde_json, tokio};
@@ -215,4 +245,3 @@ async fn main() {
     );
 }
 ```
-
