@@ -1,63 +1,74 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::{Arc, OnceLock};
 use tokio::sync::mpsc;
 
 use crate::{GetWorkflowRunResponse, Hatchet, HatchetError};
 
 /// The context object is used to interact with the Hatchet API from within a task.
-#[derive(Debug)]
 pub struct Context {
-    logger_tx: mpsc::Sender<String>,
-    stream_tx: mpsc::Sender<(Vec<u8>, i64)>,
+    log_tx: OnceLock<mpsc::Sender<String>>,
+    stream_tx: OnceLock<mpsc::Sender<(Vec<u8>, i64)>>,
     stream_index: Arc<AtomicI64>,
     client: Hatchet,
     workflow_run_id: String,
     task_run_external_id: String,
 }
 
+impl std::fmt::Debug for Context {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Context")
+            .field("workflow_run_id", &self.workflow_run_id)
+            .field("task_run_external_id", &self.task_run_external_id)
+            .finish()
+    }
+}
+
 impl Context {
-    pub(crate) async fn new(
-        client: Hatchet,
-        workflow_run_id: &str,
-        task_run_external_id: &str,
-    ) -> Self {
-        let task_run_external_id = task_run_external_id.to_string();
-        let workflow_run_id = workflow_run_id.to_string();
-
-        let mut log_client = client.clone();
-        let (log_tx, mut log_rx) = mpsc::channel::<String>(100);
-        let log_task_id = task_run_external_id.clone();
-        tokio::spawn(async move {
-            while let Some(message) = log_rx.recv().await {
-                log_client
-                    .event_client
-                    .put_log(&log_task_id, message)
-                    .await?;
-            }
-            Ok::<(), HatchetError>(())
-        });
-
-        let mut stream_client = client.clone();
-        let (stream_tx, mut stream_rx) = mpsc::channel::<(Vec<u8>, i64)>(100);
-        let stream_task_id = task_run_external_id.clone();
-        tokio::spawn(async move {
-            while let Some((message, index)) = stream_rx.recv().await {
-                stream_client
-                    .event_client
-                    .put_stream_event(&stream_task_id, message, Some(index))
-                    .await?;
-            }
-            Ok::<(), HatchetError>(())
-        });
-
+    pub(crate) fn new(client: Hatchet, workflow_run_id: &str, task_run_external_id: &str) -> Self {
         Self {
-            logger_tx: log_tx,
-            stream_tx,
+            log_tx: OnceLock::new(),
+            stream_tx: OnceLock::new(),
             stream_index: Arc::new(AtomicI64::new(0)),
             client,
-            workflow_run_id,
-            task_run_external_id,
+            workflow_run_id: workflow_run_id.to_string(),
+            task_run_external_id: task_run_external_id.to_string(),
         }
+    }
+
+    fn get_or_init_log_tx(&self) -> &mpsc::Sender<String> {
+        self.log_tx.get_or_init(|| {
+            let mut log_client = self.client.clone();
+            let (tx, mut rx) = mpsc::channel::<String>(100);
+            let task_id = self.task_run_external_id.clone();
+            tokio::spawn(async move {
+                while let Some(message) = rx.recv().await {
+                    if let Err(e) = log_client.event_client.put_log(&task_id, message).await {
+                        log::warn!("failed to send log to hatchet: {e}");
+                    }
+                }
+            });
+            tx
+        })
+    }
+
+    fn get_or_init_stream_tx(&self) -> &mpsc::Sender<(Vec<u8>, i64)> {
+        self.stream_tx.get_or_init(|| {
+            let mut stream_client = self.client.clone();
+            let (tx, mut rx) = mpsc::channel::<(Vec<u8>, i64)>(100);
+            let task_id = self.task_run_external_id.clone();
+            tokio::spawn(async move {
+                while let Some((message, index)) = rx.recv().await {
+                    if let Err(e) = stream_client
+                        .event_client
+                        .put_stream_event(&task_id, message, Some(index))
+                        .await
+                    {
+                        log::warn!("failed to send stream event to hatchet: {e}");
+                    }
+                }
+            });
+            tx
+        })
     }
 
     /// Get the output of a parent task in a DAG.
@@ -115,8 +126,10 @@ impl Context {
     /// });
     /// ```
     pub async fn log(&self, message: &str) -> Result<(), HatchetError> {
-        self.logger_tx.send(message.to_string()).await.unwrap();
-
+        self.get_or_init_log_tx()
+            .send(message.to_string())
+            .await
+            .map_err(|e| HatchetError::InternalError(e.to_string()))?;
         Ok(())
     }
 
@@ -134,7 +147,7 @@ impl Context {
     /// ```
     pub async fn put_stream(&self, data: impl Into<Vec<u8>>) -> Result<(), HatchetError> {
         let index = self.stream_index.fetch_add(1, Ordering::SeqCst);
-        self.stream_tx
+        self.get_or_init_stream_tx()
             .send((data.into(), index))
             .await
             .map_err(|e| HatchetError::StreamError(e.to_string()))?;
