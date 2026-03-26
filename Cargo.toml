@@ -73,3 +73,7 @@ path = "examples/input_json_schema.rs"
 [[example]]
 name = "streaming"
 path = "examples/streaming.rs"
+
+[[example]]
+name = "flow_control"
+path = "examples/flow_control.rs"
