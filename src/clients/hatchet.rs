@@ -4,7 +4,10 @@ use std::time::Duration;
 use tonic::transport::{Channel, ClientTlsConfig};
 
 use super::grpc::{AdminClient, DispatcherClient, EventClient, WorkflowClient};
-use crate::{Configuration, HatchetConfig, HatchetError, RunsClient, TlsStrategy};
+use crate::{
+    Configuration, CronsClient, HatchetConfig, HatchetError, RunsClient, SchedulesClient,
+    TlsStrategy,
+};
 
 // Match the Go SDK's keepalive settings (pkg/client/client.go).
 const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(10);
@@ -20,6 +23,8 @@ pub struct Hatchet {
     pub(crate) event_client: EventClient,
     pub(crate) admin_client: AdminClient,
     pub workflow_rest_client: RunsClient,
+    pub crons: CronsClient,
+    pub schedules: SchedulesClient,
 }
 
 impl Hatchet {
@@ -31,6 +36,8 @@ impl Hatchet {
         dispatcher_client: DispatcherClient,
         event_client: EventClient,
         workflow_rest_client: RunsClient,
+        crons: CronsClient,
+        schedules: SchedulesClient,
     ) -> Result<Self, HatchetError> {
         Ok(Self {
             server_url,
@@ -40,6 +47,8 @@ impl Hatchet {
             event_client,
             admin_client,
             workflow_rest_client,
+            crons,
+            schedules,
         })
     }
 
@@ -137,6 +146,9 @@ impl Hatchet {
         let workflow_rest_client =
             RunsClient::new(rest_configuration.clone(), dispatcher_client.clone());
 
+        let crons = CronsClient::new(rest_configuration.clone(), config.tenant_id.clone());
+        let schedules = SchedulesClient::new(rest_configuration.clone(), config.tenant_id.clone());
+
         Self::new(
             server_url.to_string(),
             config.api_token,
@@ -145,6 +157,8 @@ impl Hatchet {
             dispatcher_client,
             event_client,
             workflow_rest_client,
+            crons,
+            schedules,
         )
         .await
     }

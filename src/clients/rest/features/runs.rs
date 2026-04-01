@@ -36,10 +36,10 @@ impl RunsClient {
     /// }
     /// ```
     pub async fn get(&self, workflow_run_id: &str) -> Result<GetWorkflowRunResponse, HatchetError> {
-        let response = v1_workflow_run_get(&self.configuration, workflow_run_id)
+        v1_workflow_run_get(&self.configuration, workflow_run_id)
             .await
-            .map_err(|e| HatchetError::RestApiError(e.to_string()))?;
-        Ok(GetWorkflowRunResponse::from(response))
+            .map(GetWorkflowRunResponse::from)
+            .map_err(HatchetError::from_rest)
     }
 
     /// Subscribe to stream events for a workflow run. Returns an async Stream of byte chunks
