@@ -46,10 +46,18 @@ pub enum HatchetError {
     CryptoProvider,
     #[error("{0}")]
     RestApiError(String),
+    #[error("Invalid cron expression: {0}")]
+    InvalidCronExpression(String),
     #[error("Error sending message to dispatcher: {0}")]
     DispatchError(String),
     #[error("Error sending stream event: {0}")]
     StreamError(String),
     #[error("Internal error: {0}")]
     InternalError(String),
+}
+
+impl HatchetError {
+    pub(crate) fn from_rest<E: std::fmt::Display>(error: E) -> Self {
+        Self::RestApiError(error.to_string())
+    }
 }

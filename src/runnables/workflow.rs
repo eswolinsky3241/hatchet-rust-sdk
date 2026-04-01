@@ -6,6 +6,10 @@ use super::{ExecutableTask, ExtractRunnableOutput, Task, TriggerWorkflowOptions}
 use crate::clients::grpc::v1::workflows::{
     CreateTaskOpts, CreateWorkflowVersionRequest, DefaultFilter as DefaultFilterProto,
 };
+use crate::clients::rest::features::crons::{CreateCronOpts, CronOptions, CronTrigger};
+use crate::clients::rest::features::schedules::{
+    CreateScheduleOpts, ScheduleOptions, ScheduledRun,
+};
 use crate::{GetWorkflowRunResponse, Hatchet, HatchetError};
 
 /// A workflow is a collection of tasks that can be executed by a worker, often forming a directed acyclic graph (DAG).
@@ -85,6 +89,56 @@ where
                 .as_ref()
                 .map(|value| serde_json::to_vec(value).expect("must be serializable")),
         }
+    }
+
+    /// Schedule this workflow to run at a specific future time.
+    /// See [`SchedulesClient::create`](crate::SchedulesClient::create) for the underlying API.
+    pub async fn schedule(
+        &self,
+        trigger_at: chrono::DateTime<chrono::Utc>,
+        input: &I,
+        options: Option<&ScheduleOptions>,
+    ) -> Result<ScheduledRun, HatchetError> {
+        let input_json =
+            serde_json::to_value(input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
+        self.client
+            .schedules
+            .create(
+                &self.name.to_lowercase(),
+                CreateScheduleOpts {
+                    trigger_at,
+                    input: input_json,
+                    additional_metadata: options.and_then(|o| o.additional_metadata.clone()),
+                    priority: options.and_then(|o| o.priority),
+                },
+            )
+            .await
+    }
+
+    /// Create a recurring cron trigger for this workflow.
+    /// See [`CronsClient::create`](crate::CronsClient::create) for the underlying API.
+    pub async fn cron(
+        &self,
+        name: &str,
+        expression: &str,
+        input: &I,
+        options: Option<&CronOptions>,
+    ) -> Result<CronTrigger, HatchetError> {
+        let input_json =
+            serde_json::to_value(input).map_err(|e| HatchetError::JsonEncode(e.to_string()))?;
+        self.client
+            .crons
+            .create(
+                &self.name.to_lowercase(),
+                CreateCronOpts {
+                    name: name.to_string(),
+                    expression: expression.to_string(),
+                    input: input_json,
+                    additional_metadata: options.and_then(|o| o.additional_metadata.clone()),
+                    priority: options.and_then(|o| o.priority),
+                },
+            )
+            .await
     }
 
     async fn trigger(
