@@ -2,7 +2,7 @@ use futures::StreamExt;
 use hatchet_sdk::{HatchetError, Runnable};
 
 mod common;
-use common::{SimpleInput, SimpleOutput, TestHarness};
+use common::{SimpleInput, SimpleOutput, TestHarness, hatchet_version_at_least};
 
 #[tokio::test]
 async fn test_run_returns_job_output() {
@@ -296,4 +296,255 @@ async fn test_workflow_with_input_json_schema() {
         .unwrap();
 
     assert_eq!(10, output.value);
+}
+
+#[tokio::test]
+async fn test_cron_lifecycle() {
+    let t = TestHarness::new("cron-lifecycle").await;
+    let task = t.simple_task("task");
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    let task_name = t.prefixed("task");
+    let cron = t
+        .hatchet
+        .crons
+        .create(
+            &task_name,
+            hatchet_sdk::CreateCronOpts {
+                name: t.prefixed("hourly"),
+                expression: "0 * * * *".to_string(),
+                input: serde_json::json!({"message": "cron-input"}),
+                additional_metadata: Some(serde_json::json!({"env": "test"})),
+                priority: Some(2),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert!(cron.enabled);
+    assert_eq!(cron.priority, Some(2));
+
+    let fetched = t.hatchet.crons.get(&cron.metadata_id).await.unwrap();
+    assert_eq!(fetched.metadata_id, cron.metadata_id);
+
+    let list = t.hatchet.crons.list(Default::default()).await.unwrap();
+    assert!(list.rows.iter().any(|r| r.metadata_id == cron.metadata_id));
+
+    t.hatchet.crons.delete(&cron.metadata_id).await.unwrap();
+
+    let after_delete = t.hatchet.crons.get(&cron.metadata_id).await;
+    assert!(after_delete.is_err());
+
+    let list_after = t.hatchet.crons.list(Default::default()).await.unwrap();
+    assert!(
+        !list_after
+            .rows
+            .iter()
+            .any(|r| r.metadata_id == cron.metadata_id)
+    );
+}
+
+#[tokio::test]
+async fn test_schedule_lifecycle() {
+    let t = TestHarness::new("schedule-lifecycle").await;
+    let task = t.simple_task("task");
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    let task_name = t.prefixed("task");
+    let trigger_at = hatchet_sdk::chrono::Utc::now() + hatchet_sdk::chrono::Duration::hours(1);
+    let scheduled = t
+        .hatchet
+        .schedules
+        .create(
+            &task_name,
+            hatchet_sdk::CreateScheduleOpts {
+                trigger_at,
+                input: serde_json::json!({"message": "scheduled-input"}),
+                additional_metadata: Some(serde_json::json!({"env": "test"})),
+                priority: Some(3),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert!(!scheduled.metadata_id.is_empty());
+    assert_eq!(scheduled.priority, Some(3));
+
+    // schedules.get() returns 500 on Hatchet < v0.75
+    if hatchet_version_at_least(0, 75) {
+        let fetched = t
+            .hatchet
+            .schedules
+            .get(&scheduled.metadata_id)
+            .await
+            .unwrap();
+        assert_eq!(fetched.metadata_id, scheduled.metadata_id);
+    }
+
+    let list = t.hatchet.schedules.list(Default::default()).await.unwrap();
+    assert!(
+        list.rows
+            .iter()
+            .any(|r| r.metadata_id == scheduled.metadata_id)
+    );
+
+    t.hatchet
+        .schedules
+        .delete(&scheduled.metadata_id)
+        .await
+        .unwrap();
+
+    if hatchet_version_at_least(0, 75) {
+        let after_delete = t.hatchet.schedules.get(&scheduled.metadata_id).await;
+        assert!(after_delete.is_err());
+    }
+
+    let list_after = t.hatchet.schedules.list(Default::default()).await.unwrap();
+    assert!(
+        !list_after
+            .rows
+            .iter()
+            .any(|r| r.metadata_id == scheduled.metadata_id)
+    );
+}
+
+#[tokio::test]
+async fn test_task_cron_convenience() {
+    let t = TestHarness::new("cron-conv").await;
+    let task = t.simple_task("task");
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    let cron = task
+        .cron(
+            &t.prefixed("every5"),
+            "*/5 * * * *",
+            &SimpleInput {
+                message: "via-convenience".to_string(),
+            },
+            Some(&hatchet_sdk::CronOptions {
+                additional_metadata: Some(serde_json::json!({"source": "convenience"})),
+                priority: Some(1),
+            }),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cron.priority, Some(1));
+
+    let list = t.hatchet.crons.list(Default::default()).await.unwrap();
+    assert!(list.rows.iter().any(|r| r.metadata_id == cron.metadata_id));
+
+    t.hatchet.crons.delete(&cron.metadata_id).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_task_schedule_convenience() {
+    let t = TestHarness::new("sched-conv").await;
+    let task = t.simple_task("task");
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    let trigger_at = hatchet_sdk::chrono::Utc::now() + hatchet_sdk::chrono::Duration::hours(2);
+    let scheduled = task
+        .schedule(
+            trigger_at,
+            &SimpleInput {
+                message: "via-convenience".to_string(),
+            },
+            Some(&hatchet_sdk::ScheduleOptions {
+                additional_metadata: Some(serde_json::json!({"source": "convenience"})),
+                priority: Some(2),
+            }),
+        )
+        .await
+        .unwrap();
+
+    assert!(!scheduled.metadata_id.is_empty());
+    assert_eq!(scheduled.priority, Some(2));
+
+    let list = t.hatchet.schedules.list(Default::default()).await.unwrap();
+    assert!(
+        list.rows
+            .iter()
+            .any(|r| r.metadata_id == scheduled.metadata_id)
+    );
+
+    t.hatchet
+        .schedules
+        .delete(&scheduled.metadata_id)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn test_workflow_cron_convenience() {
+    let t = TestHarness::new("wf-cron-conv").await;
+
+    let task = t.simple_task("step");
+    let workflow = t
+        .hatchet
+        .workflow::<SimpleInput, SimpleOutput>(&t.prefixed("wf"))
+        .build()
+        .unwrap()
+        .add_task(&task);
+
+    let _worker = t.spawn_worker_for_workflow(&workflow).await;
+
+    let cron = workflow
+        .cron(
+            &t.prefixed("wf-cron"),
+            "0 * * * *",
+            &SimpleInput {
+                message: "workflow-cron".to_string(),
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    let list = t.hatchet.crons.list(Default::default()).await.unwrap();
+    assert!(list.rows.iter().any(|r| r.metadata_id == cron.metadata_id));
+
+    t.hatchet.crons.delete(&cron.metadata_id).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_workflow_schedule_convenience() {
+    let t = TestHarness::new("wf-sched-conv").await;
+
+    let task = t.simple_task("step");
+    let workflow = t
+        .hatchet
+        .workflow::<SimpleInput, SimpleOutput>(&t.prefixed("wf"))
+        .build()
+        .unwrap()
+        .add_task(&task);
+
+    let _worker = t.spawn_worker_for_workflow(&workflow).await;
+
+    let trigger_at = hatchet_sdk::chrono::Utc::now() + hatchet_sdk::chrono::Duration::hours(3);
+    let scheduled = workflow
+        .schedule(
+            trigger_at,
+            &SimpleInput {
+                message: "workflow-schedule".to_string(),
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert!(!scheduled.metadata_id.is_empty());
+
+    let list = t.hatchet.schedules.list(Default::default()).await.unwrap();
+    assert!(
+        list.rows
+            .iter()
+            .any(|r| r.metadata_id == scheduled.metadata_id)
+    );
+
+    t.hatchet
+        .schedules
+        .delete(&scheduled.metadata_id)
+        .await
+        .unwrap();
 }
