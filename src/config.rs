@@ -17,6 +17,7 @@ pub(crate) struct HatchetConfig {
     pub(crate) grpc_address: String,
     pub(crate) server_url: String,
     pub(crate) tls_strategy: TlsStrategy,
+    pub(crate) tenant_id: Option<String>,
 }
 
 impl HatchetConfig {
@@ -28,7 +29,7 @@ impl HatchetConfig {
 
         let payload_json = Self::decode_token(parts[1])?;
 
-        let (grpc_address, server_url) = Self::parse_token(payload_json)?;
+        let (grpc_address, server_url, tenant_id) = Self::parse_token(payload_json)?;
 
         let strategy = match tls_strategy {
             "none" => TlsStrategy::None,
@@ -38,9 +39,10 @@ impl HatchetConfig {
 
         Ok(Self {
             api_token: token.to_string(),
-            grpc_address: grpc_address.to_string(),
-            server_url: server_url.to_string(),
+            grpc_address,
+            server_url,
             tls_strategy: strategy,
+            tenant_id,
         })
     }
 
@@ -61,7 +63,9 @@ impl HatchetConfig {
         Ok(payload_json)
     }
 
-    fn parse_token(payload_json: serde_json::Value) -> Result<(String, String), HatchetError> {
+    fn parse_token(
+        payload_json: serde_json::Value,
+    ) -> Result<(String, String, Option<String>), HatchetError> {
         let grpc_address = payload_json
             .get("grpc_broadcast_address")
             .and_then(|v| v.as_str())
@@ -72,7 +76,12 @@ impl HatchetConfig {
             .and_then(|v| v.as_str())
             .ok_or(HatchetError::MissingTokenField("server_url"))?;
 
-        Ok((grpc_address.to_string(), server_url.to_string()))
+        let tenant_id = payload_json
+            .get("sub")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        Ok((grpc_address.to_string(), server_url.to_string(), tenant_id))
     }
 }
 
@@ -96,16 +105,36 @@ mod tests {
 
     #[test]
     fn test_token_decoded_into_config() {
-        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
+        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20iLCJzdWIiOiJ0ZXN0LXRlbmFudCJ9";
         let token = format!("header.{}.sig", payload);
         let config = HatchetConfig::new(&token, "tls").unwrap();
         assert_eq!(config.server_url, "https://hatchet.com");
         assert_eq!(config.grpc_address, "engine.hatchet.com");
+        assert_eq!(config.tenant_id, Some("test-tenant".to_string()));
+    }
+
+    #[test]
+    fn test_tenant_id_extracted_from_token() {
+        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20iLCJzdWIiOiI3MDdkMDg1NS04MGFiLTRlMWYtYTE1Ni1mMWM0NTQ2Y2JmNTIifQ";
+        let token = format!("header.{}.sig", payload);
+        let config = HatchetConfig::new(&token, "tls").unwrap();
+        assert_eq!(
+            config.tenant_id,
+            Some("707d0855-80ab-4e1f-a156-f1c4546cbf52".to_string())
+        );
+    }
+
+    #[test]
+    fn test_missing_sub_claim_returns_none_tenant() {
+        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
+        let token = format!("header.{}.sig", payload);
+        let config = HatchetConfig::new(&token, "tls").unwrap();
+        assert_eq!(config.tenant_id, None);
     }
 
     #[test]
     fn test_invalid_tls_strategy_raises_error() {
-        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20ifQ";
+        let payload = "eyJzZXJ2ZXJfdXJsIjoiaHR0cHM6Ly9oYXRjaGV0LmNvbSIsImdycGNfYnJvYWRjYXN0X2FkZHJlc3MiOiJlbmdpbmUuaGF0Y2hldC5jb20iLCJzdWIiOiJ0ZXN0LXRlbmFudCJ9";
         let token = format!("header.{}.sig", payload);
         let config = HatchetConfig::new(&token, "bad_strategy");
         assert!(matches!(config, Err(HatchetError::InvalidTlsStrategy(_))));

@@ -35,6 +35,8 @@ serde_repr = "^0.1"
 url = "^2.5"
 uuid = { version = "^1.8", features = ["serde", "v4"] }
 log = "0.4.28"
+chrono = { version = "0.4", features = ["serde"] }
+cron = "0.15"
 
 
 [build-dependencies]
