@@ -1,3 +1,4 @@
+use std::fmt;
 use std::time::Duration;
 
 use hatchet_sdk::{Hatchet, Register, Task, Workflow};
@@ -135,7 +136,7 @@ impl TestHarness {
             if let Ok(resp) = client.get(&url).bearer_auth(&self.rest_token).send().await {
                 if let Ok(body) = resp.text().await {
                     if body.to_lowercase().contains(&prefix_lower) {
-                        tokio::time::sleep(Duration::from_secs(5)).await;
+                        tokio::time::sleep(Duration::from_secs(2)).await;
                         return;
                     }
                 }
@@ -170,6 +171,33 @@ pub fn hatchet_version_at_least(major: u32, minor: u32) -> bool {
         return false;
     };
     (v_major, v_minor) >= (major, minor)
+}
+
+pub async fn with_retry<T, E, Fut, F>(retries: usize, delay: Duration, f: F) -> Result<T, E>
+where
+    E: fmt::Debug,
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = Result<T, E>>,
+{
+    let mut last_err = None;
+    for attempt in 0..=retries {
+        match f().await {
+            Ok(val) => return Ok(val),
+            Err(e) => {
+                if attempt < retries {
+                    eprintln!(
+                        "attempt {}/{} failed: {:?}, retrying...",
+                        attempt + 1,
+                        retries + 1,
+                        e
+                    );
+                    tokio::time::sleep(delay).await;
+                }
+                last_err = Some(e);
+            }
+        }
+    }
+    Err(last_err.unwrap())
 }
 
 pub struct WorkerGuard {

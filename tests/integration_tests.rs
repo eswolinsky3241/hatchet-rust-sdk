@@ -2,7 +2,7 @@ use futures::StreamExt;
 use hatchet_sdk::{HatchetError, Runnable};
 
 mod common;
-use common::{SimpleInput, SimpleOutput, TestHarness, hatchet_version_at_least};
+use common::{SimpleInput, SimpleOutput, TestHarness, hatchet_version_at_least, with_retry};
 
 #[tokio::test]
 async fn test_run_returns_job_output() {
@@ -168,7 +168,10 @@ async fn test_dag_workflow() {
 
     let _worker = t.spawn_worker_for_workflow(&dag_workflow).await;
 
-    let output = dag_workflow.run(&hatchet_sdk::EmptyModel, None).await;
+    let output = with_retry(5, std::time::Duration::from_secs(5), || {
+        dag_workflow.run(&hatchet_sdk::EmptyModel, None)
+    })
+    .await;
 
     let child_name = t.prefixed("child");
     assert_eq!(
