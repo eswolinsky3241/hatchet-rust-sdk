@@ -1,17 +1,17 @@
 use hatchet_sdk::serde::{Deserialize, Serialize};
 use hatchet_sdk::{
     ConcurrencyExpression, ConcurrencyLimitStrategy, Context, Hatchet, RateLimit,
-    RateLimitDuration, Runnable, tokio,
+    RateLimitDuration, Runnable, Register, tokio,
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "hatchet_sdk::serde")]
 pub struct ProviderInput {
     pub provider_id: String,
     pub payload: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "hatchet_sdk::serde")]
 pub struct ProviderOutput {
     pub result: String,
@@ -44,6 +44,7 @@ pub async fn create_flow_control_task() -> hatchet_sdk::Task<ProviderInput, Prov
         }])
         // Rate limit: at most 10 units per minute per provider, consuming 1 unit per run
         .rate_limits(vec![RateLimit::Dynamic {
+            key: "provider-limit".to_string(),
             key_expr: "input.provider_id".to_string(),
             units: 1,
             limit: 10,
@@ -65,6 +66,25 @@ async fn main() {
         payload: "important-data".to_string(),
     };
 
+    let worker_task = task.clone();
+    let hatchet_clone = Hatchet::from_env().await.unwrap();
+    let worker_handle = tokio::spawn(async move {
+        hatchet_clone
+            .worker("flow-control-worker")
+            .build()
+            .unwrap()
+            .add_task_or_workflow(&worker_task)
+            .start()
+            .await
+            .unwrap();
+    });
+
+    println!("Waiting for worker to register task...");
+    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
+    println!("Triggering workflow run...");
     let result = task.run(&input, None).await.unwrap();
     println!("Result: {}", result.result);
+    
+    worker_handle.abort();
 }

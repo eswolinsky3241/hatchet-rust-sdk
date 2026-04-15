@@ -1,0 +1,54 @@
+[package]
+name = "examples"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[dependencies]
+hatchet-sdk = { path = ".." }
+tokio = { version = "1.46.1", features = ["rt-multi-thread", "macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = "0.8"
+anyhow = "1"
+futures = "0.3"
+thiserror = "2"
+log = "0.4"
+env_logger = "0.11"
+dotenvy = "0.15"
+
+[[bin]]
+name = "simple"
+path = "src/simple.rs"
+
+[[bin]]
+name = "worker"
+path = "src/worker.rs"
+
+[[bin]]
+name = "dag"
+path = "src/dag.rs"
+
+[[bin]]
+name = "error"
+path = "src/error.rs"
+
+[[bin]]
+name = "dynamic_child_spawning"
+path = "src/dynamic_child_spawning.rs"
+
+[[bin]]
+name = "input_json_schema"
+path = "src/input_json_schema.rs"
+
+[[bin]]
+name = "streaming"
+path = "src/streaming.rs"
+
+[[bin]]
+name = "flow_control"
+path = "src/flow_control.rs"
+
+[[bin]]
+name = "rate_limits"
+path = "src/rate_limits.rs"

@@ -40,7 +40,7 @@ async fn main() {
     let (parent_workflow, child_workflow) = create_child_spawning_workflow().await;
     let schema_workflow = create_schema_workflow().await;
     let streaming_task = create_streaming_task().await;
-
+    
     hatchet
         .worker("example-worker")
         .build()
