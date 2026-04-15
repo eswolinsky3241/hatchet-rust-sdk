@@ -52,3 +52,7 @@ path = "src/flow_control.rs"
 [[bin]]
 name = "rate_limits"
 path = "src/rate_limits.rs"
+
+[[bin]]
+name = "concurrency"
+path = "src/concurrency.rs"

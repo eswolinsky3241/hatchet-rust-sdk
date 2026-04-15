@@ -3,48 +3,39 @@ use hatchet_sdk::{
     ConcurrencyExpression, ConcurrencyLimitStrategy, Context, Hatchet, RateLimit,
     RateLimitDuration, Runnable, Register, tokio,
 };
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "hatchet_sdk::serde")]
-pub struct ProviderInput {
+pub struct TestInput {
     pub provider_id: String,
-    pub payload: String,
+    pub index: i32,
+    pub delay_seconds: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "hatchet_sdk::serde")]
-pub struct ProviderOutput {
+pub struct TestOutput {
     pub result: String,
 }
 
-/// Demonstrates the "Double Lock" pattern:
-/// - **Concurrency control** (workflow-level): limits in-flight runs per provider.
-/// - **Dynamic rate limiting** (task-level): caps throughput per provider per minute.
-pub async fn create_flow_control_task() -> hatchet_sdk::Task<ProviderInput, ProviderOutput> {
-    let hatchet = Hatchet::from_env().await.unwrap();
-
-    hatchet
+pub async fn create_flow_control_task() -> hatchet_sdk::Task<TestInput, TestOutput> {
+    Hatchet::from_env().await.unwrap()
         .task(
-            "provider-sync",
-            async move |input: ProviderInput,
-                        ctx: Context|
-                        -> hatchet_sdk::anyhow::Result<ProviderOutput> {
-                ctx.log(&format!("Syncing provider {}", input.provider_id))
-                    .await?;
-                Ok(ProviderOutput {
-                    result: format!("synced:{}", input.payload),
-                })
+            "flow_control_test",
+            async move |input: TestInput, ctx: Context| -> hatchet_sdk::anyhow::Result<TestOutput> {
+                ctx.log(&format!("Starting flow control test {} for {}", input.index, input.provider_id)).await?;
+                tokio::time::sleep(Duration::from_secs(input.delay_seconds)).await;
+                Ok(TestOutput { result: "done".into() })
             },
         )
-        // Concurrency: at most 2 concurrent runs per provider_id
         .concurrency(vec![ConcurrencyExpression {
             expression: "input.provider_id".to_string(),
             max_runs: 2,
             limit_strategy: ConcurrencyLimitStrategy::GroupRoundRobin,
         }])
-        // Rate limit: at most 10 units per minute per provider, consuming 1 unit per run
         .rate_limits(vec![RateLimit::Dynamic {
-            key: "provider-limit".to_string(),
+            key: "provider-flow-rate-limit".to_string(),
             key_expr: "input.provider_id".to_string(),
             units: 1,
             limit: 10,
@@ -61,30 +52,29 @@ async fn main() {
 
     let task = create_flow_control_task().await;
 
-    let input = ProviderInput {
-        provider_id: "acme-corp".to_string(),
-        payload: "important-data".to_string(),
-    };
+    println!("Sending 20 events for flow control test...");
+    for i in 0..20 {
+        let input = TestInput {
+            provider_id: "acme-corp".to_string(),
+            index: i,
+            delay_seconds: 5,
+        };
 
-    let worker_task = task.clone();
-    let hatchet_clone = Hatchet::from_env().await.unwrap();
-    let worker_handle = tokio::spawn(async move {
-        hatchet_clone
-            .worker("flow-control-worker")
-            .build()
-            .unwrap()
-            .add_task_or_workflow(&worker_task)
-            .start()
-            .await
-            .unwrap();
-    });
+        task.run_no_wait(&input, None).await.unwrap();
+    }
 
-    println!("Waiting for worker to register task...");
-    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+    println!("\n========================================");
+    println!("          ALL TASKS QUEUED!             ");
+    println!("   Go observe them in the Hatchet UI!   ");
+    println!("========================================\n");
 
-    println!("Triggering workflow run...");
-    let result = task.run(&input, None).await.unwrap();
-    println!("Result: {}", result.result);
-    
-    worker_handle.abort();
+    println!("Starting worker...");
+    Hatchet::from_env().await.unwrap()
+        .worker("flow-control-worker")
+        .build()
+        .unwrap()
+        .add_task_or_workflow(&task)
+        .start()
+        .await
+        .unwrap();
 }
