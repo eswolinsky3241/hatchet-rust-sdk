@@ -445,3 +445,157 @@ async fn test_workflow_with_input_json_schema() {
     assert_eq!(10, output.value);
     worker_handle.abort()
 }
+
+#[tokio::test]
+async fn test_task_with_flow_control() {
+    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
+    let server_url = format!(
+        "http://localhost:{}",
+        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
+    );
+    let grpc_broadcast_address = format!(
+        "localhost:{}",
+        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
+    );
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
+
+    let task = hatchet
+        .task(
+            "flow-control-step",
+            async move |input: SimpleInput,
+                        _ctx: hatchet_sdk::Context|
+                        -> anyhow::Result<SimpleOutput> {
+                Ok(SimpleOutput {
+                    transformed_message: format!("synced:{}", input.message),
+                })
+            },
+        )
+        .concurrency(vec![hatchet_sdk::ConcurrencyExpression {
+            expression: "\"test\"".to_string(),
+            max_runs: 2,
+            limit_strategy: hatchet_sdk::ConcurrencyLimitStrategy::GroupRoundRobin,
+        }])
+        .rate_limits(vec![hatchet_sdk::RateLimit::Dynamic {
+            key: "test-limit".to_string(),
+            key_expr: "\"test\"".to_string(),
+            units: 1,
+            limit: 10,
+            duration: hatchet_sdk::RateLimitDuration::Minute,
+        }])
+        .build()
+        .unwrap();
+
+    let task_clone = task.clone();
+    let worker_handle = tokio::spawn(async move {
+        hatchet_sdk::worker::worker::WorkerBuilder::default()
+            .name(String::from("flow-control-worker"))
+            .client(hatchet.clone())
+            .build()
+            .unwrap()
+            .add_task_or_workflow(&task_clone)
+            .start()
+            .await
+            .unwrap()
+    });
+
+    // Give worker time to register task
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    let output = task
+        .run(
+            &SimpleInput {
+                message: "payload".to_string()
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!("synced:payload", output.transformed_message);
+    worker_handle.abort()
+}
+
+#[tokio::test]
+async fn test_concurrency_cancel_newest() {
+    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
+    let server_url = format!(
+        "http://localhost:{}",
+        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
+    );
+    let grpc_broadcast_address = format!(
+        "localhost:{}",
+        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
+    );
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
+
+    let task = hatchet
+        .task(
+            "conc-cancel-step",
+            async move |_input: SimpleInput,
+                        _ctx: hatchet_sdk::Context|
+                        -> anyhow::Result<SimpleOutput> {
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                Ok(SimpleOutput {
+                    transformed_message: format!("done"),
+                })
+            },
+        )
+        .concurrency(vec![hatchet_sdk::ConcurrencyExpression {
+            expression: "\"test\"".to_string(),
+            max_runs: 1,
+            limit_strategy: hatchet_sdk::ConcurrencyLimitStrategy::CancelNewest,
+        }])
+        .build()
+        .unwrap();
+
+    let task_clone = task.clone();
+    let hatchet_clone = hatchet.clone();
+    let worker_handle = tokio::spawn(async move {
+        hatchet_sdk::worker::worker::WorkerBuilder::default()
+            .name(String::from("conc-worker"))
+            .client(hatchet_clone)
+            .build()
+            .unwrap()
+            .add_task_or_workflow(&task_clone)
+            .start()
+            .await
+            .unwrap()
+    });
+
+    // Give worker time to register task
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    // Run first task
+    let _run1 = task
+        .run_no_wait(
+            &SimpleInput { message: "payload".to_string() },
+            None,
+        )
+        .await
+        .unwrap();
+        
+    // Wait slightly to let it transition to running
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    // Run second task, which should exceed max_runs and be cancelled
+    let run2 = task
+        .run_no_wait(
+            &SimpleInput { message: "payload".to_string() },
+            None,
+        )
+        .await
+        .unwrap();
+        
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    let res2 = hatchet.workflow_rest_client.get(&run2).await.unwrap();
+    let status2 = format!("{:?}", res2.run.status);
+    println!("STATUS2: {}, RUN2 RESULT: {:?}", status2, res2);
+    assert!(status2 == "Cancelled" || status2 == "Failed", "Status was {}", status2);
+    worker_handle.abort()
+}
+

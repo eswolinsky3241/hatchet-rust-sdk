@@ -95,6 +95,8 @@ pub enum RateLimit {
     },
     /// A dynamic rate limit whose key is derived at runtime via a CEL expression.
     Dynamic {
+        /// The base rate limit key string.
+        key: String,
         /// A CEL expression evaluated against task input to determine the rate limit key.
         key_expr: String,
         /// Number of rate limit units this task consumes per execution.
@@ -118,12 +120,13 @@ impl RateLimit {
                 duration: None,
             },
             RateLimit::Dynamic {
+                key,
                 key_expr,
                 units,
                 limit,
                 duration,
             } => CreateTaskRateLimit {
-                key: String::new(),
+                key: key.clone(),
                 units: Some(*units),
                 key_expr: Some(key_expr.clone()),
                 units_expr: None,
