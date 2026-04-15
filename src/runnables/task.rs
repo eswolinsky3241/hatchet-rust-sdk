@@ -90,7 +90,7 @@ pub struct Task<I, O> {
     #[builder(default = vec![])]
     rate_limits: Vec<RateLimit>,
     #[builder(default = vec![])]
-    concurrency: Vec<ConcurrencyExpression>,
+    pub(crate) concurrency: Vec<ConcurrencyExpression>,
 }
 
 impl<I, O> Task<I, O>

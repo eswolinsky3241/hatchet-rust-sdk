@@ -61,6 +61,7 @@ where
 
         self.tasks.push(task.to_task_proto(&self.name));
         self.executable_tasks.push(task.into_executable());
+        self.concurrency.extend(task.concurrency.clone());
         self
     }
 

@@ -599,3 +599,98 @@ async fn test_concurrency_cancel_newest() {
     worker_handle.abort()
 }
 
+/// Verifies that concurrency expressions defined on a Task are correctly
+/// hoisted to the Workflow when the task is added via `Workflow::add_task()`.
+///
+/// This mirrors `test_concurrency_cancel_newest` but wraps the task in a
+/// Workflow. Before the hoisting fix, concurrency would have been silently
+/// dropped and the second run would NOT be cancelled.
+#[tokio::test]
+async fn test_workflow_hoists_task_concurrency() {
+    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
+    let server_url = format!(
+        "http://localhost:{}",
+        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
+    );
+    let grpc_broadcast_address = format!(
+        "localhost:{}",
+        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
+    );
+    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
+        .await
+        .unwrap();
+
+    // Define a task with CancelNewest concurrency (max_runs: 1).
+    let task = hatchet
+        .task(
+            "wf-conc-step",
+            async move |_input: SimpleInput,
+                        _ctx: hatchet_sdk::Context|
+                        -> anyhow::Result<SimpleOutput> {
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                Ok(SimpleOutput {
+                    transformed_message: "done".to_string(),
+                })
+            },
+        )
+        .concurrency(vec![hatchet_sdk::ConcurrencyExpression {
+            expression: "\"test\"".to_string(),
+            max_runs: 1,
+            limit_strategy: hatchet_sdk::ConcurrencyLimitStrategy::CancelNewest,
+        }])
+        .build()
+        .unwrap();
+
+    // Wrap the task in a Workflow. The concurrency should be hoisted.
+    let workflow = hatchet
+        .workflow::<SimpleInput, serde_json::Value>("wf-conc-test")
+        .build()
+        .unwrap()
+        .add_task(&task);
+
+    let workflow_clone = workflow.clone();
+    let hatchet_clone = hatchet.clone();
+    let worker_handle = tokio::spawn(async move {
+        hatchet_sdk::worker::worker::WorkerBuilder::default()
+            .name(String::from("wf-conc-worker"))
+            .client(hatchet_clone)
+            .build()
+            .unwrap()
+            .add_task_or_workflow(&workflow_clone)
+            .start()
+            .await
+            .unwrap()
+    });
+
+    // Give worker time to register workflow
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    // Run first workflow — should start executing
+    let _run1 = workflow
+        .run_no_wait(
+            &SimpleInput { message: "payload".to_string() },
+            None,
+        )
+        .await
+        .unwrap();
+
+    // Wait slightly to let it transition to running
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    // Run second workflow — should exceed max_runs and be cancelled
+    let run2 = workflow
+        .run_no_wait(
+            &SimpleInput { message: "payload".to_string() },
+            None,
+        )
+        .await
+        .unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    let res2 = hatchet.workflow_rest_client.get(&run2).await.unwrap();
+    let status2 = format!("{:?}", res2.run.status);
+    println!("STATUS2: {}, RUN2 RESULT: {:?}", status2, res2);
+    assert!(status2 == "Cancelled" || status2 == "Failed", "Status was {}", status2);
+    worker_handle.abort()
+}

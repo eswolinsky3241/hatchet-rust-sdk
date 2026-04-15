@@ -56,3 +56,7 @@ path = "src/rate_limits.rs"
 [[bin]]
 name = "concurrency"
 path = "src/concurrency.rs"
+
+[[bin]]
+name = "workflow_concurrency"
+path = "src/workflow_concurrency.rs"
