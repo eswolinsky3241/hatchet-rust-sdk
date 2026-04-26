@@ -18,18 +18,12 @@ pub struct TestOutput {
     pub result: String,
 }
 
-/// Demonstrates concurrency defined on a **Task** that is then added to a
-/// **Workflow**. Hatchet evaluates concurrency at the workflow level, so the
-/// SDK must hoist task-level concurrency expressions up to the workflow when
-/// `Workflow::add_task()` is called.
+/// Returns a workflow that demonstrates concurrency defined on a **Task** being
+/// hoisted to the **Workflow** level when `Workflow::add_task()` is called.
 ///
 /// Without the hoisting fix, these concurrency rules would be silently dropped
 /// and all 20 runs would execute without any concurrency limit.
-#[tokio::main]
-#[allow(dead_code)]
-async fn main() {
-    dotenvy::dotenv().ok();
-
+pub async fn create_workflow_concurrency() -> hatchet_sdk::Workflow<TestInput, serde_json::Value> {
     let hatchet = Hatchet::from_env().await.unwrap();
 
     // Define a task with concurrency — max 2 concurrent runs per provider_id.
@@ -57,12 +51,20 @@ async fn main() {
         .unwrap();
 
     // Wrap the task inside a Workflow. The task's concurrency expressions
-    // should be hoisted to the workflow level automatically.
-    let workflow = hatchet
+    // are hoisted to the workflow level automatically.
+    hatchet
         .workflow::<TestInput, serde_json::Value>("workflow-concurrency-test")
         .build()
         .unwrap()
-        .add_task(&task);
+        .add_task(&task)
+}
+
+#[tokio::main]
+async fn main() {
+    dotenvy::dotenv().ok();
+
+    let hatchet = Hatchet::from_env().await.unwrap();
+    let workflow = create_workflow_concurrency().await;
 
     println!("Sending 20 events for workflow concurrency test...");
     for i in 0..20 {
@@ -81,9 +83,7 @@ async fn main() {
     println!("========================================\n");
 
     println!("Starting worker...");
-    Hatchet::from_env()
-        .await
-        .unwrap()
+    hatchet
         .worker("workflow-concurrency-worker")
         .build()
         .unwrap()

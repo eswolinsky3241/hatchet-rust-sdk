@@ -489,9 +489,8 @@ async fn test_task_with_flow_control() {
 
     let task_clone = task.clone();
     let worker_handle = tokio::spawn(async move {
-        hatchet_sdk::worker::worker::WorkerBuilder::default()
-            .name(String::from("flow-control-worker"))
-            .client(hatchet.clone())
+        hatchet
+            .worker("flow-control-worker")
             .build()
             .unwrap()
             .add_task_or_workflow(&task_clone)
@@ -540,7 +539,7 @@ async fn test_concurrency_cancel_newest() {
                         -> anyhow::Result<SimpleOutput> {
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                 Ok(SimpleOutput {
-                    transformed_message: format!("done"),
+                    transformed_message: "done".to_string(),
                 })
             },
         )
@@ -555,9 +554,8 @@ async fn test_concurrency_cancel_newest() {
     let task_clone = task.clone();
     let hatchet_clone = hatchet.clone();
     let worker_handle = tokio::spawn(async move {
-        hatchet_sdk::worker::worker::WorkerBuilder::default()
-            .name(String::from("conc-worker"))
-            .client(hatchet_clone)
+        hatchet_clone
+            .worker("conc-worker")
             .build()
             .unwrap()
             .add_task_or_workflow(&task_clone)
@@ -578,8 +576,8 @@ async fn test_concurrency_cancel_newest() {
         .await
         .unwrap();
         
-    // Wait slightly to let it transition to running
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    // Wait for run1 to transition to Running
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     // Run second task, which should exceed max_runs and be cancelled
     let run2 = task
@@ -589,12 +587,20 @@ async fn test_concurrency_cancel_newest() {
         )
         .await
         .unwrap();
-        
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
-    let res2 = hatchet.workflow_rest_client.get(&run2).await.unwrap();
-    let status2 = format!("{:?}", res2.run.status);
-    println!("STATUS2: {}, RUN2 RESULT: {:?}", status2, res2);
+    // Poll until run2 reaches a terminal state (Cancelled or Failed).
+    // The concurrency engine processes cancellations asynchronously.
+    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(15);
+    let mut status2 = String::new();
+    while tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        let res2 = hatchet.workflow_rest_client.get(&run2).await.unwrap();
+        status2 = format!("{:?}", res2.run.status);
+        println!("STATUS2: {}, RUN2 RESULT: {:?}", status2, res2);
+        if status2 == "Cancelled" || status2 == "Failed" {
+            break;
+        }
+    }
     assert!(status2 == "Cancelled" || status2 == "Failed", "Status was {}", status2);
     worker_handle.abort()
 }
@@ -651,9 +657,8 @@ async fn test_workflow_hoists_task_concurrency() {
     let workflow_clone = workflow.clone();
     let hatchet_clone = hatchet.clone();
     let worker_handle = tokio::spawn(async move {
-        hatchet_sdk::worker::worker::WorkerBuilder::default()
-            .name(String::from("wf-conc-worker"))
-            .client(hatchet_clone)
+        hatchet_clone
+            .worker("wf-conc-worker")
             .build()
             .unwrap()
             .add_task_or_workflow(&workflow_clone)
@@ -674,8 +679,8 @@ async fn test_workflow_hoists_task_concurrency() {
         .await
         .unwrap();
 
-    // Wait slightly to let it transition to running
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    // Wait for run1 to transition to Running
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     // Run second workflow — should exceed max_runs and be cancelled
     let run2 = workflow
@@ -686,11 +691,19 @@ async fn test_workflow_hoists_task_concurrency() {
         .await
         .unwrap();
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-    let res2 = hatchet.workflow_rest_client.get(&run2).await.unwrap();
-    let status2 = format!("{:?}", res2.run.status);
-    println!("STATUS2: {}, RUN2 RESULT: {:?}", status2, res2);
+    // Poll until run2 reaches a terminal state (Cancelled or Failed).
+    // The concurrency engine processes cancellations asynchronously.
+    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(15);
+    let mut status2 = String::new();
+    while tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        let res2 = hatchet.workflow_rest_client.get(&run2).await.unwrap();
+        status2 = format!("{:?}", res2.run.status);
+        println!("STATUS2: {}, RUN2 RESULT: {:?}", status2, res2);
+        if status2 == "Cancelled" || status2 == "Failed" {
+            break;
+        }
+    }
     assert!(status2 == "Cancelled" || status2 == "Failed", "Status was {}", status2);
     worker_handle.abort()
 }
