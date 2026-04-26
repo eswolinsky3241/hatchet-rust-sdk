@@ -1,6 +1,6 @@
 use hatchet_sdk::serde::{Deserialize, Serialize};
 use hatchet_sdk::{
-    ConcurrencyExpression, ConcurrencyLimitStrategy, Context, Hatchet, Runnable, Register, tokio,
+    ConcurrencyExpression, ConcurrencyLimitStrategy, Context, Hatchet, Runnable, tokio,
 };
 use std::time::Duration;
 
@@ -60,10 +60,10 @@ pub async fn create_workflow_concurrency() -> hatchet_sdk::Workflow<TestInput, s
 }
 
 #[tokio::main]
+#[allow(dead_code)]
 async fn main() {
     dotenvy::dotenv().ok();
 
-    let hatchet = Hatchet::from_env().await.unwrap();
     let workflow = create_workflow_concurrency().await;
 
     println!("Sending 20 events for workflow concurrency test...");
@@ -81,14 +81,4 @@ async fn main() {
     println!("       ALL WORKFLOW RUNS QUEUED!        ");
     println!("   Go observe them in the Hatchet UI!   ");
     println!("========================================\n");
-
-    println!("Starting worker...");
-    hatchet
-        .worker("workflow-concurrency-worker")
-        .build()
-        .unwrap()
-        .add_task_or_workflow(&workflow)
-        .start()
-        .await
-        .unwrap();
 }

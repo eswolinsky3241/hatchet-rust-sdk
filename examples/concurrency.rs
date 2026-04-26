@@ -1,6 +1,6 @@
 use hatchet_sdk::serde::{Deserialize, Serialize};
 use hatchet_sdk::{
-    ConcurrencyExpression, ConcurrencyLimitStrategy, Context, Hatchet, Runnable, Register, tokio,
+    ConcurrencyExpression, ConcurrencyLimitStrategy, Context, Hatchet, Runnable, tokio,
 };
 use std::time::Duration;
 
@@ -59,14 +59,4 @@ async fn main() {
     println!("          ALL TASKS QUEUED!             ");
     println!("   Go observe them in the Hatchet UI!   ");
     println!("========================================\n");
-
-    println!("Starting worker...");
-    Hatchet::from_env().await.unwrap()
-        .worker("concurrency-worker")
-        .build()
-        .unwrap()
-        .add_task_or_workflow(&task)
-        .start()
-        .await
-        .unwrap();
 }

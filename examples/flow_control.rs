@@ -1,7 +1,7 @@
 use hatchet_sdk::serde::{Deserialize, Serialize};
 use hatchet_sdk::{
     ConcurrencyExpression, ConcurrencyLimitStrategy, Context, Hatchet, RateLimit,
-    RateLimitDuration, Runnable, Register, tokio,
+    RateLimitDuration, Runnable, tokio,
 };
 use std::time::Duration;
 
@@ -38,7 +38,7 @@ pub async fn create_flow_control_task() -> hatchet_sdk::Task<TestInput, TestOutp
             key: "provider-flow-rate-limit".to_string(),
             key_expr: "input.provider_id".to_string(),
             units: 1,
-            limit: 10,
+            limit: 5,
             duration: RateLimitDuration::Minute,
         }])
         .build()
@@ -57,7 +57,7 @@ async fn main() {
         let input = TestInput {
             provider_id: "acme-corp".to_string(),
             index: i,
-            delay_seconds: 5,
+            delay_seconds: 2,
         };
 
         task.run_no_wait(&input, None).await.unwrap();
@@ -67,14 +67,4 @@ async fn main() {
     println!("          ALL TASKS QUEUED!             ");
     println!("   Go observe them in the Hatchet UI!   ");
     println!("========================================\n");
-
-    println!("Starting worker...");
-    Hatchet::from_env().await.unwrap()
-        .worker("flow-control-worker")
-        .build()
-        .unwrap()
-        .add_task_or_workflow(&task)
-        .start()
-        .await
-        .unwrap();
 }

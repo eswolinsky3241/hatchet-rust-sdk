@@ -1,7 +1,7 @@
 use hatchet_sdk::serde::{Deserialize, Serialize};
 use hatchet_sdk::{
     Context, Hatchet, RateLimit,
-    RateLimitDuration, Runnable, Register, tokio,
+    RateLimitDuration, Runnable, tokio,
 };
 use std::time::Duration;
 
@@ -62,14 +62,4 @@ async fn main() {
     println!("          ALL TASKS QUEUED!             ");
     println!("   Go observe them in the Hatchet UI!   ");
     println!("========================================\n");
-
-    println!("Starting worker...");
-    Hatchet::from_env().await.unwrap()
-        .worker("rate-limit-worker")
-        .build()
-        .unwrap()
-        .add_task_or_workflow(&task)
-        .start()
-        .await
-        .unwrap();
 }

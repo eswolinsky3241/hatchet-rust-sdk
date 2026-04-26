@@ -24,6 +24,22 @@ use input_json_schema::create_schema_workflow;
 mod streaming;
 use streaming::create_streaming_task;
 
+#[path = "concurrency.rs"]
+mod concurrency;
+use concurrency::create_concurrency_task;
+
+#[path = "rate_limits.rs"]
+mod rate_limits;
+use rate_limits::create_rate_limit_task;
+
+#[path = "flow_control.rs"]
+mod flow_control;
+use flow_control::create_flow_control_task;
+
+#[path = "workflow_concurrency.rs"]
+mod workflow_concurrency;
+use workflow_concurrency::create_workflow_concurrency;
+
 #[tokio::main]
 #[allow(dead_code)]
 async fn main() {
@@ -40,7 +56,11 @@ async fn main() {
     let (parent_workflow, child_workflow) = create_child_spawning_workflow().await;
     let schema_workflow = create_schema_workflow().await;
     let streaming_task = create_streaming_task().await;
-    
+    let concurrency_task = create_concurrency_task().await;
+    let rate_limit_task = create_rate_limit_task().await;
+    let flow_control_task = create_flow_control_task().await;
+    let workflow_concurrency = create_workflow_concurrency().await;
+
     hatchet
         .worker("example-worker")
         .build()
@@ -52,6 +72,10 @@ async fn main() {
         .add_task_or_workflow(&child_workflow)
         .add_task_or_workflow(&schema_workflow)
         .add_task_or_workflow(&streaming_task)
+        .add_task_or_workflow(&concurrency_task)
+        .add_task_or_workflow(&rate_limit_task)
+        .add_task_or_workflow(&flow_control_task)
+        .add_task_or_workflow(&workflow_concurrency)
         .start()
         .await
         .unwrap();
