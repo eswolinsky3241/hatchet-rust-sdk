@@ -15,7 +15,8 @@ pub use clients::rest::features::pagination::PaginationResponse;
 pub use clients::rest::features::schedules::{
     CreateScheduleOpts, ListSchedulesOpts, ScheduleOptions, ScheduledRun, ScheduledRunList,
 };
-pub(crate) use clients::{Configuration, GetWorkflowRunResponse, WorkflowStatus};
+pub(crate) use clients::Configuration;
+pub use clients::{GetWorkflowRunResponse, WorkflowStatus};
 pub use clients::{CronsClient, RunsClient, SchedulesClient};
 pub(crate) use config::{HatchetConfig, TlsStrategy};
 pub use context::Context;

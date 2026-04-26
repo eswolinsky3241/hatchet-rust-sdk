@@ -38,6 +38,7 @@ pub async fn create_flow_control_task() -> hatchet_sdk::Task<TestInput, TestOutp
             key: "provider-flow-rate-limit".to_string(),
             key_expr: "input.provider_id".to_string(),
             units: 1,
+            units_expr: None,
             limit: 5,
             duration: RateLimitDuration::Minute,
         }])

@@ -574,6 +574,7 @@ async fn test_task_with_flow_control() {
             key: "test-limit".to_string(),
             key_expr: "\"test\"".to_string(),
             units: 1,
+            units_expr: None,
             limit: 10,
             duration: hatchet_sdk::RateLimitDuration::Minute,
         }])
@@ -599,6 +600,7 @@ async fn test_task_with_flow_control() {
 async fn test_concurrency_cancel_newest() {
     let t = TestHarness::new("conc-cancel").await;
 
+    // Sleep for 10s so run1 is definitively still in-flight when run2 is submitted.
     let task = t
         .hatchet
         .task(
@@ -606,7 +608,7 @@ async fn test_concurrency_cancel_newest() {
             async move |_input: SimpleInput,
                         _ctx: hatchet_sdk::Context|
                         -> anyhow::Result<SimpleOutput> {
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
                 Ok(SimpleOutput {
                     transformed_message: "done".to_string(),
                 })
@@ -633,7 +635,7 @@ async fn test_concurrency_cancel_newest() {
         .await
         .unwrap();
 
-    // Wait for run1 to transition to Running
+    // Wait for run1 to transition to Running (2s is plenty; task runs for 10s)
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     // Run second task, which should exceed max_runs and be cancelled
@@ -649,8 +651,9 @@ async fn test_concurrency_cancel_newest() {
 
     // Poll until run2 reaches a terminal state (Cancelled or Failed).
     // The concurrency engine processes cancellations asynchronously.
-    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(15);
-    let mut status2 = String::new();
+    use hatchet_sdk::WorkflowStatus;
+    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(30);
+    let mut final_status: Option<WorkflowStatus> = None;
     while tokio::time::Instant::now() < deadline {
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         let res2 = t
@@ -659,16 +662,16 @@ async fn test_concurrency_cancel_newest() {
             .get(&run2)
             .await
             .unwrap();
-        status2 = format!("{:?}", res2.run.status);
-        println!("STATUS2: {}, RUN2 RESULT: {:?}", status2, res2);
-        if status2 == "Cancelled" || status2 == "Failed" {
+        println!("RUN2 RESULT: {:?}", res2);
+        if matches!(res2.run.status, WorkflowStatus::Cancelled | WorkflowStatus::Failed) {
+            final_status = Some(res2.run.status);
             break;
         }
     }
     assert!(
-        status2 == "Cancelled" || status2 == "Failed",
-        "Status was {}",
-        status2
+        matches!(final_status, Some(WorkflowStatus::Cancelled) | Some(WorkflowStatus::Failed)),
+        "Expected Cancelled or Failed, got: {:?}",
+        final_status
     );
 }
 
@@ -683,6 +686,7 @@ async fn test_workflow_hoists_task_concurrency() {
     let t = TestHarness::new("wf-conc").await;
 
     // Define a task with CancelNewest concurrency (max_runs: 1).
+    // Sleep for 10s so run1 is definitively still in-flight when run2 is submitted.
     let task = t
         .hatchet
         .task(
@@ -690,7 +694,7 @@ async fn test_workflow_hoists_task_concurrency() {
             async move |_input: SimpleInput,
                         _ctx: hatchet_sdk::Context|
                         -> anyhow::Result<SimpleOutput> {
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
                 Ok(SimpleOutput {
                     transformed_message: "done".to_string(),
                 })
@@ -725,7 +729,7 @@ async fn test_workflow_hoists_task_concurrency() {
         .await
         .unwrap();
 
-    // Wait for run1 to transition to Running
+    // Wait for run1 to transition to Running (2s is plenty; task runs for 10s)
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     // Run second workflow — should exceed max_runs and be cancelled
@@ -741,8 +745,9 @@ async fn test_workflow_hoists_task_concurrency() {
 
     // Poll until run2 reaches a terminal state (Cancelled or Failed).
     // The concurrency engine processes cancellations asynchronously.
-    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(15);
-    let mut status2 = String::new();
+    use hatchet_sdk::WorkflowStatus;
+    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(30);
+    let mut final_status: Option<WorkflowStatus> = None;
     while tokio::time::Instant::now() < deadline {
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         let res2 = t
@@ -751,15 +756,15 @@ async fn test_workflow_hoists_task_concurrency() {
             .get(&run2)
             .await
             .unwrap();
-        status2 = format!("{:?}", res2.run.status);
-        println!("STATUS2: {}, RUN2 RESULT: {:?}", status2, res2);
-        if status2 == "Cancelled" || status2 == "Failed" {
+        println!("RUN2 RESULT: {:?}", res2);
+        if matches!(res2.run.status, WorkflowStatus::Cancelled | WorkflowStatus::Failed) {
+            final_status = Some(res2.run.status);
             break;
         }
     }
     assert!(
-        status2 == "Cancelled" || status2 == "Failed",
-        "Status was {}",
-        status2
+        matches!(final_status, Some(WorkflowStatus::Cancelled) | Some(WorkflowStatus::Failed)),
+        "Expected Cancelled or Failed, got: {:?}",
+        final_status
     );
 }

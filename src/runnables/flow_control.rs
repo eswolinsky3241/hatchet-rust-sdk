@@ -101,6 +101,9 @@ pub enum RateLimit {
         key_expr: String,
         /// Number of rate limit units this task consumes per execution.
         units: i32,
+        /// Optional CEL expression evaluated against task input to determine the number of units
+        /// consumed per execution (e.g. `"input.weight"`). When `None`, `units` is used instead.
+        units_expr: Option<String>,
         /// Total number of rate limit units available in the window.
         limit: i32,
         /// The duration window for the rate limit.
@@ -123,13 +126,14 @@ impl RateLimit {
                 key,
                 key_expr,
                 units,
+                units_expr,
                 limit,
                 duration,
             } => CreateTaskRateLimit {
                 key: key.clone(),
                 units: Some(*units),
                 key_expr: Some(key_expr.clone()),
-                units_expr: None,
+                units_expr: units_expr.clone(),
                 limit_values_expr: Some(limit.to_string()),
                 duration: Some(duration.to_proto()),
             },
