@@ -259,6 +259,19 @@ struct AddOutput {
     value: i64,
 }
 
+/// Input used by `test_rate_limit_units_expr`.
+/// The `cost` field is referenced in the `units_expr` CEL expression so
+/// the server can compute how many rate-limit units each run consumes.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct CostInput {
+    cost: i32,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct CostOutput {
+    done: bool,
+}
+
 #[tokio::test]
 async fn test_workflow_with_input_json_schema() {
     let t = TestHarness::new("json-schema").await;
@@ -675,6 +688,92 @@ async fn test_concurrency_cancel_newest() {
     );
 }
 
+/// Verifies that `units_expr` on `RateLimit::Dynamic` is correctly wired to
+/// the Hatchet engine and affects the number of rate-limit units consumed per run.
+///
+/// **Regression oracle:** if `units_expr` were broken (silently `None`) the
+/// server would fall back to the static `units = 1` field.  With a `limit` of
+/// 2 and `units = 1`, two runs could proceed before the bucket empties.
+/// With `units_expr = "input.cost"` and `cost = 2`, a single run exhausts the
+/// entire bucket — so the second run must be `Queued` (rate-limited).  If it
+/// completes, `units_expr` is not being forwarded.
+#[tokio::test]
+async fn test_rate_limit_units_expr() {
+    let t = TestHarness::new("rl-units-expr").await;
+
+    // Use a test-scoped bucket key so this test doesn't share quota with others.
+    let bucket_key = t.prefixed("bucket");
+    // CEL string literal: all runs share the same named bucket.
+    let bucket_key_expr = format!("\"{}\"", bucket_key);
+
+    let task = t
+        .hatchet
+        .task(
+            &t.prefixed("step"),
+            async move |_input: CostInput,
+                        _ctx: hatchet_sdk::Context|
+                        -> anyhow::Result<CostOutput> {
+                // Intentionally slow so run1 is still registered in the rate-limit
+                // window when run2 is submitted.
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                Ok(CostOutput { done: true })
+            },
+        )
+        .rate_limits(vec![hatchet_sdk::RateLimit::Dynamic {
+            key: bucket_key,
+            key_expr: bucket_key_expr,
+            // Static fallback — if units_expr is broken, each run costs 1 unit
+            // and run2 would still fit inside the limit-2 bucket.
+            units: 1,
+            // Dynamic cost via CEL: each run costs `input.cost` units.
+            // run1 sends cost=2, which exhausts the entire limit-2 bucket.
+            units_expr: Some("input.cost".to_string()),
+            limit: 2,
+            duration: hatchet_sdk::RateLimitDuration::Minute,
+        }])
+        .build()
+        .unwrap();
+
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    // Run 1: cost=2 → consumes all 2 units from the bucket.
+    let _run1 = task
+        .run_no_wait(&CostInput { cost: 2 }, None)
+        .await
+        .unwrap();
+
+    // Brief pause to let the server process run1's rate-limit deduction
+    // before run2 is submitted.
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    // Run 2: cost=1, but 0 units remain — should be rate-limited (Queued).
+    let run2 = task
+        .run_no_wait(&CostInput { cost: 1 }, None)
+        .await
+        .unwrap();
+
+    // Give the concurrency engine time to make a scheduling decision.
+    // We do NOT wait long enough for the rate-limit window to reset (1 min).
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    use hatchet_sdk::WorkflowStatus;
+    let res2 = t
+        .hatchet
+        .workflow_rest_client
+        .get(&run2)
+        .await
+        .unwrap();
+
+    println!("RUN2 STATUS: {:?}", res2.run.status);
+
+    assert!(
+        matches!(res2.run.status, WorkflowStatus::Queued),
+        "Expected run2 to be rate-limited (Queued) because units_expr should have \
+         exhausted the bucket with run1. If this fails, units_expr may not be \
+         forwarded to the server. Got: {:?}",
+        res2.run.status
+    );
+}
 /// Verifies that concurrency expressions defined on a Task are correctly
 /// hoisted to the Workflow when the task is added via `Workflow::add_task()`.
 ///
