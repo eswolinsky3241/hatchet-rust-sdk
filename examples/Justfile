@@ -1,7 +1,0 @@
-set dotenv-load := true
-set dotenv-path := ".env"
-
-# Runs a specific cargo example with the .env loaded. Usage: just run <example-name>
-run example_name:
-    cargo run --bin {{example_name}}
-    
