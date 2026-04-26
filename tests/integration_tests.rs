@@ -1,29 +1,17 @@
 use futures::StreamExt;
-use hatchet_sdk::worker::worker::WorkerBuilder;
-use hatchet_sdk::{Hatchet, HatchetError, Register, Runnable};
-use serde::{Deserialize, Serialize};
+use hatchet_sdk::{HatchetError, Runnable};
 
 mod common;
-use common::{SimpleInput, SimpleOutput};
+use common::{SimpleInput, SimpleOutput, TestHarness, hatchet_version_at_least};
 
 #[tokio::test]
 async fn test_run_returns_job_output() {
-    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
-    let server_url = format!(
-        "http://localhost:{}",
-        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
-    );
-    let grpc_broadcast_address = format!(
-        "localhost:{}",
-        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
-    );
-    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-        .await
-        .unwrap();
+    let t = TestHarness::new("run-output").await;
 
-    let task = hatchet
+    let task = t
+        .hatchet
         .task(
-            "step1",
+            &t.prefixed("step"),
             async move |input: SimpleInput,
                         _ctx: hatchet_sdk::Context|
                         -> anyhow::Result<SimpleOutput> {
@@ -35,21 +23,7 @@ async fn test_run_returns_job_output() {
         .build()
         .unwrap();
 
-    let task_clone = task.clone();
-    let worker_handle: tokio::task::JoinHandle<()> = tokio::spawn(async move {
-        WorkerBuilder::default()
-            .name(String::from("test-worker"))
-            .client(hatchet.clone())
-            .build()
-            .unwrap()
-            .add_task_or_workflow(&task_clone)
-            .start()
-            .await
-            .unwrap()
-    });
-
-    // Give worker time to register task
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    let _worker = t.spawn_worker_for_task(&task).await;
 
     let options = hatchet_sdk::TriggerWorkflowOptionsBuilder::default()
         .additional_metadata(Some(serde_json::json!({
@@ -70,27 +44,16 @@ async fn test_run_returns_job_output() {
         .unwrap()
         .transformed_message
     );
-    worker_handle.abort()
 }
 
 #[tokio::test]
 async fn test_run_returns_error_if_job_fails() {
-    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
-    let server_url = format!(
-        "http://localhost:{}",
-        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
-    );
-    let grpc_broadcast_address = format!(
-        "localhost:{}",
-        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
-    );
-    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-        .await
-        .unwrap();
+    let t = TestHarness::new("run-error").await;
 
-    let task = hatchet
+    let task = t
+        .hatchet
         .task(
-            "step1",
+            &t.prefixed("step"),
             async move |_input: SimpleInput,
                         _ctx: hatchet_sdk::Context|
                         -> anyhow::Result<SimpleOutput> {
@@ -100,20 +63,7 @@ async fn test_run_returns_error_if_job_fails() {
         .build()
         .unwrap();
 
-    let task_clone = task.clone();
-    let worker_handle = tokio::spawn(async move {
-        hatchet
-            .worker("test-worker")
-            .build()
-            .unwrap()
-            .add_task_or_workflow(&task_clone)
-            .start()
-            .await
-            .unwrap()
-    });
-
-    // Give worker time to register task
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    let _worker = t.spawn_worker_for_task(&task).await;
 
     let output = task
         .run(
@@ -124,30 +74,17 @@ async fn test_run_returns_error_if_job_fails() {
         )
         .await;
 
-    let _err = HatchetError::WorkflowFailed("Task execution failed: Test failed".to_string());
-
-    assert!(matches!(output, Err(_err)));
-    worker_handle.abort()
+    assert!(matches!(output, Err(HatchetError::WorkflowFailed(_))));
 }
 
 #[tokio::test]
 async fn test_dynamically_spawn_child_workflow() {
-    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
-    let server_url = format!(
-        "http://localhost:{}",
-        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
-    );
-    let grpc_broadcast_address = format!(
-        "localhost:{}",
-        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
-    );
-    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-        .await
-        .unwrap();
+    let t = TestHarness::new("dynamic-child").await;
 
-    let child_task = hatchet
+    let child_task = t
+        .hatchet
         .task(
-            "child_task",
+            &t.prefixed("child"),
             async move |_input: hatchet_sdk::EmptyModel,
                         _ctx: hatchet_sdk::Context|
                         -> anyhow::Result<serde_json::Value> {
@@ -159,9 +96,10 @@ async fn test_dynamically_spawn_child_workflow() {
 
     let child_task_clone = child_task.clone();
 
-    let parent_task = hatchet
+    let parent_task = t
+        .hatchet
         .task(
-            "parent_task",
+            &t.prefixed("parent"),
             async move |_input: hatchet_sdk::EmptyModel,
                         _ctx: hatchet_sdk::Context|
                         -> anyhow::Result<serde_json::Value> {
@@ -174,22 +112,9 @@ async fn test_dynamically_spawn_child_workflow() {
         .build()
         .unwrap();
 
-    let task_clone = parent_task.clone();
-    let worker_handle = tokio::spawn(async move {
-        hatchet_sdk::worker::worker::WorkerBuilder::default()
-            .name(String::from("test-worker"))
-            .client(hatchet.clone())
-            .build()
-            .unwrap()
-            .add_task_or_workflow(&task_clone)
-            .add_task_or_workflow(&child_task_clone)
-            .start()
-            .await
-            .unwrap()
-    });
-
-    // Give worker time to register task
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    let _worker = t
+        .spawn_worker_for_tasks(&[&parent_task, &child_task_clone])
+        .await;
 
     let output = parent_task
         .run(&hatchet_sdk::EmptyModel, None)
@@ -197,27 +122,16 @@ async fn test_dynamically_spawn_child_workflow() {
         .unwrap();
 
     assert_eq!("Hello from child task", output.get("output").unwrap());
-    worker_handle.abort()
 }
 
 #[tokio::test]
 async fn test_dag_workflow() {
-    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
-    let server_url = format!(
-        "http://localhost:{}",
-        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
-    );
-    let grpc_broadcast_address = format!(
-        "localhost:{}",
-        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
-    );
-    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-        .await
-        .unwrap();
+    let t = TestHarness::new("dag").await;
 
-    let parent_task = hatchet
+    let parent_task = t
+        .hatchet
         .task(
-            "parent_task",
+            &t.prefixed("parent"),
             async move |_input: hatchet_sdk::EmptyModel,
                         _ctx: hatchet_sdk::Context|
                         -> anyhow::Result<serde_json::Value> {
@@ -227,13 +141,15 @@ async fn test_dag_workflow() {
         .build()
         .unwrap();
 
-    let child_task = hatchet
+    let parent_step_name = t.prefixed("parent");
+    let child_task = t
+        .hatchet
         .task(
-            "child_task",
+            &t.prefixed("child"),
             async move |_input: hatchet_sdk::EmptyModel,
                         ctx: hatchet_sdk::Context|
                         -> anyhow::Result<serde_json::Value> {
-                let parent_output = ctx.parent_output("parent_task").await?;
+                let parent_output = ctx.parent_output(&parent_step_name).await?;
                 let message = parent_output.get("message").unwrap();
                 Ok(serde_json::json!({"output": format!("Parent said: {}", message.to_string())}))
             },
@@ -242,78 +158,45 @@ async fn test_dag_workflow() {
         .unwrap()
         .add_parent(&parent_task);
 
-    let dag_workflow = hatchet
-        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>("parent-workflow")
+    let dag_workflow = t
+        .hatchet
+        .workflow::<hatchet_sdk::EmptyModel, serde_json::Value>(&t.prefixed("workflow"))
         .build()
         .unwrap()
         .add_task(&parent_task)
         .add_task(&child_task);
 
-    let dag_workflow_clone = dag_workflow.clone();
-    let worker_handle = tokio::spawn(async move {
-        hatchet_sdk::worker::worker::WorkerBuilder::default()
-            .name(String::from("test-worker"))
-            .client(hatchet.clone())
-            .build()
-            .unwrap()
-            .add_task_or_workflow(&dag_workflow_clone)
-            .start()
-            .await
-            .unwrap()
-    });
-
-    // Give worker time to register task
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    let _worker = t.spawn_worker_for_workflow(&dag_workflow).await;
 
     let output = dag_workflow.run(&hatchet_sdk::EmptyModel, None).await;
 
+    let child_name = t.prefixed("child");
     assert_eq!(
         "Parent said: \"I am your father\"",
         output
             .unwrap()
-            .get("child_task")
+            .get(&child_name)
             .unwrap()
             .get("output")
             .unwrap()
     );
-    worker_handle.abort()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
-struct AddInput {
-    first: i64,
-    second: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct AddOutput {
-    value: i64,
 }
 
 #[tokio::test]
 async fn test_streaming() {
-    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
-    let server_url = format!(
-        "http://localhost:{}",
-        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
-    );
-    let grpc_broadcast_address = format!(
-        "localhost:{}",
-        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
-    );
-    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-        .await
-        .unwrap();
+    let t = TestHarness::new("streaming").await;
 
     let expected_chunks: Vec<String> = (0..5).map(|i| format!("chunk-{}", i)).collect();
     let chunks_to_send = expected_chunks.clone();
 
-    let task = hatchet
+    let task = t
+        .hatchet
         .task(
-            "stream-step",
+            &t.prefixed("stream-step"),
             async move |_input: SimpleInput,
                         ctx: hatchet_sdk::Context|
                         -> anyhow::Result<SimpleOutput> {
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                 for chunk in &chunks_to_send {
                     ctx.put_stream(chunk.as_bytes().to_vec()).await?;
                 }
@@ -325,25 +208,8 @@ async fn test_streaming() {
         .build()
         .unwrap();
 
-    let task_clone = task.clone();
-    let mut hatchet_consumer = hatchet.clone();
-    let worker_handle = tokio::spawn(async move {
-        WorkerBuilder::default()
-            .name(String::from("test-stream-worker"))
-            .client(hatchet.clone())
-            .build()
-            .unwrap()
-            .add_task_or_workflow(&task_clone)
-            .start()
-            .await
-            .unwrap()
-    });
+    let _worker = t.spawn_worker_for_task(&task).await;
 
-    // Give worker time to register task
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-    // Trigger the task — run_no_wait returns the run ID immediately before the task
-    // is scheduled, so subscribing right after ensures we don't miss any stream events.
     let run_id = task
         .run_no_wait(
             &SimpleInput {
@@ -354,6 +220,7 @@ async fn test_streaming() {
         .await
         .unwrap();
 
+    let mut hatchet_consumer = t.hatchet.clone();
     let mut stream = hatchet_consumer
         .workflow_rest_client
         .subscribe_to_stream(&run_id)
@@ -379,31 +246,30 @@ async fn test_streaming() {
     }
 
     assert_eq!(expected_chunks, received_chunks);
-    worker_handle.abort();
 }
 
-// Verifies that workflows with input_json_schema can be registered and executed.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+struct AddInput {
+    first: i64,
+    second: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct AddOutput {
+    value: i64,
+}
+
 #[tokio::test]
 async fn test_workflow_with_input_json_schema() {
-    let (_postgres, hatchet_container, token) = common::start_containers_and_get_token().await;
-    let server_url = format!(
-        "http://localhost:{}",
-        hatchet_container.get_host_port_ipv4(8888).await.unwrap()
-    );
-    let grpc_broadcast_address = format!(
-        "localhost:{}",
-        hatchet_container.get_host_port_ipv4(7077).await.unwrap()
-    );
-    let hatchet = Hatchet::from_token(&server_url, &grpc_broadcast_address, token.trim(), "none")
-        .await
-        .unwrap();
+    let t = TestHarness::new("json-schema").await;
 
     let schema = schemars::schema_for!(AddInput);
     let schema_value = serde_json::to_value(schema).unwrap();
 
-    let task = hatchet
+    let task = t
+        .hatchet
         .task(
-            "add",
+            &t.prefixed("add"),
             async move |input: AddInput,
                         _context: hatchet_sdk::Context|
                         -> anyhow::Result<AddOutput> {
@@ -416,20 +282,7 @@ async fn test_workflow_with_input_json_schema() {
         .build()
         .unwrap();
 
-    let task_clone: hatchet_sdk::Task<AddInput, AddOutput> = task.clone();
-    let worker_handle = tokio::spawn(async move {
-        hatchet
-            .worker("test-worker")
-            .build()
-            .unwrap()
-            .add_task_or_workflow(&task_clone)
-            .start()
-            .await
-            .unwrap()
-    });
-
-    // Give worker time to register workflow.
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    let _worker = t.spawn_worker_for_task(&task).await;
 
     let output = task
         .run(
@@ -443,7 +296,257 @@ async fn test_workflow_with_input_json_schema() {
         .unwrap();
 
     assert_eq!(10, output.value);
-    worker_handle.abort()
+}
+
+#[tokio::test]
+async fn test_cron_lifecycle() {
+    let t = TestHarness::new("cron-lifecycle").await;
+    let task = t.simple_task("task");
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    let task_name = t.prefixed("task");
+    let cron = t
+        .hatchet
+        .crons
+        .create(
+            &task_name,
+            hatchet_sdk::CreateCronOpts {
+                name: t.prefixed("hourly"),
+                expression: "0 * * * *".to_string(),
+                input: serde_json::json!({"message": "cron-input"}),
+                additional_metadata: Some(serde_json::json!({"env": "test"})),
+                priority: Some(2),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert!(cron.enabled);
+    assert_eq!(cron.priority, Some(2));
+
+    let fetched = t.hatchet.crons.get(&cron.metadata_id).await.unwrap();
+    assert_eq!(fetched.metadata_id, cron.metadata_id);
+
+    let list = t.hatchet.crons.list(Default::default()).await.unwrap();
+    assert!(list.rows.iter().any(|r| r.metadata_id == cron.metadata_id));
+
+    t.hatchet.crons.delete(&cron.metadata_id).await.unwrap();
+
+    let after_delete = t.hatchet.crons.get(&cron.metadata_id).await;
+    assert!(after_delete.is_err());
+
+    let list_after = t.hatchet.crons.list(Default::default()).await.unwrap();
+    assert!(
+        !list_after
+            .rows
+            .iter()
+            .any(|r| r.metadata_id == cron.metadata_id)
+    );
+}
+
+#[tokio::test]
+async fn test_schedule_lifecycle() {
+    let t = TestHarness::new("schedule-lifecycle").await;
+    let task = t.simple_task("task");
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    let task_name = t.prefixed("task");
+    let trigger_at = hatchet_sdk::chrono::Utc::now() + hatchet_sdk::chrono::Duration::hours(1);
+    let scheduled = t
+        .hatchet
+        .schedules
+        .create(
+            &task_name,
+            hatchet_sdk::CreateScheduleOpts {
+                trigger_at,
+                input: serde_json::json!({"message": "scheduled-input"}),
+                additional_metadata: Some(serde_json::json!({"env": "test"})),
+                priority: Some(3),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert!(!scheduled.metadata_id.is_empty());
+    assert_eq!(scheduled.priority, Some(3));
+
+    // schedules.get() returns 500 on Hatchet < v0.75
+    if hatchet_version_at_least(0, 75) {
+        let fetched = t
+            .hatchet
+            .schedules
+            .get(&scheduled.metadata_id)
+            .await
+            .unwrap();
+        assert_eq!(fetched.metadata_id, scheduled.metadata_id);
+    }
+
+    let list = t.hatchet.schedules.list(Default::default()).await.unwrap();
+    assert!(
+        list.rows
+            .iter()
+            .any(|r| r.metadata_id == scheduled.metadata_id)
+    );
+
+    t.hatchet
+        .schedules
+        .delete(&scheduled.metadata_id)
+        .await
+        .unwrap();
+
+    if hatchet_version_at_least(0, 75) {
+        let after_delete = t.hatchet.schedules.get(&scheduled.metadata_id).await;
+        assert!(after_delete.is_err());
+    }
+
+    let list_after = t.hatchet.schedules.list(Default::default()).await.unwrap();
+    assert!(
+        !list_after
+            .rows
+            .iter()
+            .any(|r| r.metadata_id == scheduled.metadata_id)
+    );
+}
+
+#[tokio::test]
+async fn test_task_cron_convenience() {
+    let t = TestHarness::new("cron-conv").await;
+    let task = t.simple_task("task");
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    let cron = task
+        .cron(
+            &t.prefixed("every5"),
+            "*/5 * * * *",
+            &SimpleInput {
+                message: "via-convenience".to_string(),
+            },
+            Some(&hatchet_sdk::CronOptions {
+                additional_metadata: Some(serde_json::json!({"source": "convenience"})),
+                priority: Some(1),
+            }),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cron.priority, Some(1));
+
+    let list = t.hatchet.crons.list(Default::default()).await.unwrap();
+    assert!(list.rows.iter().any(|r| r.metadata_id == cron.metadata_id));
+
+    t.hatchet.crons.delete(&cron.metadata_id).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_task_schedule_convenience() {
+    let t = TestHarness::new("sched-conv").await;
+    let task = t.simple_task("task");
+    let _worker = t.spawn_worker_for_task(&task).await;
+
+    let trigger_at = hatchet_sdk::chrono::Utc::now() + hatchet_sdk::chrono::Duration::hours(2);
+    let scheduled = task
+        .schedule(
+            trigger_at,
+            &SimpleInput {
+                message: "via-convenience".to_string(),
+            },
+            Some(&hatchet_sdk::ScheduleOptions {
+                additional_metadata: Some(serde_json::json!({"source": "convenience"})),
+                priority: Some(2),
+            }),
+        )
+        .await
+        .unwrap();
+
+    assert!(!scheduled.metadata_id.is_empty());
+    assert_eq!(scheduled.priority, Some(2));
+
+    let list = t.hatchet.schedules.list(Default::default()).await.unwrap();
+    assert!(
+        list.rows
+            .iter()
+            .any(|r| r.metadata_id == scheduled.metadata_id)
+    );
+
+    t.hatchet
+        .schedules
+        .delete(&scheduled.metadata_id)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn test_workflow_cron_convenience() {
+    let t = TestHarness::new("wf-cron-conv").await;
+
+    let task = t.simple_task("step");
+    let workflow = t
+        .hatchet
+        .workflow::<SimpleInput, SimpleOutput>(&t.prefixed("wf"))
+        .build()
+        .unwrap()
+        .add_task(&task);
+
+    let _worker = t.spawn_worker_for_workflow(&workflow).await;
+
+    let cron = workflow
+        .cron(
+            &t.prefixed("wf-cron"),
+            "0 * * * *",
+            &SimpleInput {
+                message: "workflow-cron".to_string(),
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    let list = t.hatchet.crons.list(Default::default()).await.unwrap();
+    assert!(list.rows.iter().any(|r| r.metadata_id == cron.metadata_id));
+
+    t.hatchet.crons.delete(&cron.metadata_id).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_workflow_schedule_convenience() {
+    let t = TestHarness::new("wf-sched-conv").await;
+
+    let task = t.simple_task("step");
+    let workflow = t
+        .hatchet
+        .workflow::<SimpleInput, SimpleOutput>(&t.prefixed("wf"))
+        .build()
+        .unwrap()
+        .add_task(&task);
+
+    let _worker = t.spawn_worker_for_workflow(&workflow).await;
+
+    let trigger_at = hatchet_sdk::chrono::Utc::now() + hatchet_sdk::chrono::Duration::hours(3);
+    let scheduled = workflow
+        .schedule(
+            trigger_at,
+            &SimpleInput {
+                message: "workflow-schedule".to_string(),
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert!(!scheduled.metadata_id.is_empty());
+
+    let list = t.hatchet.schedules.list(Default::default()).await.unwrap();
+    assert!(
+        list.rows
+            .iter()
+            .any(|r| r.metadata_id == scheduled.metadata_id)
+    );
+
+    t.hatchet
+        .schedules
+        .delete(&scheduled.metadata_id)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
