@@ -46,5 +46,46 @@ env_logger = "0.11.8"
 schemars = "0.8"
 testcontainers = "0.26.3"
 
-[workspace]
-members = ["examples"]
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+
+[[example]]
+name = "worker"
+path = "examples/worker.rs"
+
+[[example]]
+name = "dag"
+path = "examples/dag.rs"
+
+[[example]]
+name = "error"
+path = "examples/error.rs"
+
+[[example]]
+name = "dynamic_child_spawning"
+path = "examples/dynamic_child_spawning.rs"
+
+[[example]]
+name = "input_json_schema"
+path = "examples/input_json_schema.rs"
+
+[[example]]
+name = "streaming"
+path = "examples/streaming.rs"
+
+[[example]]
+name = "flow_control"
+path = "examples/flow_control.rs"
+
+[[example]]
+name = "rate_limits"
+path = "examples/rate_limits.rs"
+
+[[example]]
+name = "concurrency"
+path = "examples/concurrency.rs"
+
+[[example]]
+name = "workflow_concurrency"
+path = "examples/workflow_concurrency.rs"
