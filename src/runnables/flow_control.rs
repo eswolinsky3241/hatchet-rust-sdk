@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::clients::grpc::v1::workflows::{
-    ConcurrencyLimitStrategy as ProtoConcurrencyLimitStrategy, Concurrency as ProtoConcurrency,
+    Concurrency as ProtoConcurrency, ConcurrencyLimitStrategy as ProtoConcurrencyLimitStrategy,
     CreateTaskRateLimit, RateLimitDuration as ProtoRateLimitDuration,
 };
 

@@ -20,13 +20,23 @@ pub struct TestOutput {
 }
 
 pub async fn create_flow_control_task() -> hatchet_sdk::Task<TestInput, TestOutput> {
-    Hatchet::from_env().await.unwrap()
+    Hatchet::from_env()
+        .await
+        .unwrap()
         .task(
             "flow_control_test",
-            async move |input: TestInput, ctx: Context| -> hatchet_sdk::anyhow::Result<TestOutput> {
-                ctx.log(&format!("Starting flow control test {} for {}", input.index, input.provider_id)).await?;
+            async move |input: TestInput,
+                        ctx: Context|
+                        -> hatchet_sdk::anyhow::Result<TestOutput> {
+                ctx.log(&format!(
+                    "Starting flow control test {} for {}",
+                    input.index, input.provider_id
+                ))
+                .await?;
                 tokio::time::sleep(Duration::from_secs(input.delay_seconds)).await;
-                Ok(TestOutput { result: "done".into() })
+                Ok(TestOutput {
+                    result: "done".into(),
+                })
             },
         )
         .concurrency(vec![ConcurrencyExpression {

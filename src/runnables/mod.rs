@@ -4,7 +4,9 @@ mod runnable;
 mod task;
 mod workflow;
 
-pub use flow_control::{ConcurrencyExpression, ConcurrencyLimitStrategy, RateLimit, RateLimitDuration};
+pub use flow_control::{
+    ConcurrencyExpression, ConcurrencyLimitStrategy, RateLimit, RateLimitDuration,
+};
 pub use options::{TriggerWorkflowOptions, TriggerWorkflowOptionsBuilder};
 pub(crate) use runnable::ExtractRunnableOutput;
 pub use runnable::Runnable;

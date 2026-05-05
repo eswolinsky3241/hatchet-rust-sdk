@@ -7,6 +7,7 @@ pub mod runnables;
 pub mod utils;
 pub mod worker;
 
+pub(crate) use clients::Configuration;
 pub use clients::hatchet::Hatchet;
 pub use clients::rest::features::crons::{
     CreateCronOpts, CronOptions, CronTrigger, CronTriggerList, ListCronsOpts,
@@ -15,9 +16,8 @@ pub use clients::rest::features::pagination::PaginationResponse;
 pub use clients::rest::features::schedules::{
     CreateScheduleOpts, ListSchedulesOpts, ScheduleOptions, ScheduledRun, ScheduledRunList,
 };
-pub(crate) use clients::Configuration;
-pub use clients::{GetWorkflowRunResponse, WorkflowStatus};
 pub use clients::{CronsClient, RunsClient, SchedulesClient};
+pub use clients::{GetWorkflowRunResponse, WorkflowStatus};
 pub(crate) use config::{HatchetConfig, TlsStrategy};
 pub use context::Context;
 pub use error::HatchetError;

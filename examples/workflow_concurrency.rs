@@ -30,7 +30,9 @@ pub async fn create_workflow_concurrency() -> hatchet_sdk::Workflow<TestInput, s
     let task = hatchet
         .task(
             "wf_conc_step",
-            async move |input: TestInput, ctx: Context| -> hatchet_sdk::anyhow::Result<TestOutput> {
+            async move |input: TestInput,
+                        ctx: Context|
+                        -> hatchet_sdk::anyhow::Result<TestOutput> {
                 ctx.log(&format!(
                     "Starting workflow concurrency test {} for {}",
                     input.index, input.provider_id

@@ -669,20 +669,21 @@ async fn test_concurrency_cancel_newest() {
     let mut final_status: Option<WorkflowStatus> = None;
     while tokio::time::Instant::now() < deadline {
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        let res2 = t
-            .hatchet
-            .workflow_rest_client
-            .get(&run2)
-            .await
-            .unwrap();
+        let res2 = t.hatchet.workflow_rest_client.get(&run2).await.unwrap();
         println!("RUN2 RESULT: {:?}", res2);
-        if matches!(res2.run.status, WorkflowStatus::Cancelled | WorkflowStatus::Failed) {
+        if matches!(
+            res2.run.status,
+            WorkflowStatus::Cancelled | WorkflowStatus::Failed
+        ) {
             final_status = Some(res2.run.status);
             break;
         }
     }
     assert!(
-        matches!(final_status, Some(WorkflowStatus::Cancelled) | Some(WorkflowStatus::Failed)),
+        matches!(
+            final_status,
+            Some(WorkflowStatus::Cancelled) | Some(WorkflowStatus::Failed)
+        ),
         "Expected Cancelled or Failed, got: {:?}",
         final_status
     );
@@ -757,12 +758,7 @@ async fn test_rate_limit_units_expr() {
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     use hatchet_sdk::WorkflowStatus;
-    let res2 = t
-        .hatchet
-        .workflow_rest_client
-        .get(&run2)
-        .await
-        .unwrap();
+    let res2 = t.hatchet.workflow_rest_client.get(&run2).await.unwrap();
 
     println!("RUN2 STATUS: {:?}", res2.run.status);
 
@@ -849,20 +845,21 @@ async fn test_workflow_hoists_task_concurrency() {
     let mut final_status: Option<WorkflowStatus> = None;
     while tokio::time::Instant::now() < deadline {
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        let res2 = t
-            .hatchet
-            .workflow_rest_client
-            .get(&run2)
-            .await
-            .unwrap();
+        let res2 = t.hatchet.workflow_rest_client.get(&run2).await.unwrap();
         println!("RUN2 RESULT: {:?}", res2);
-        if matches!(res2.run.status, WorkflowStatus::Cancelled | WorkflowStatus::Failed) {
+        if matches!(
+            res2.run.status,
+            WorkflowStatus::Cancelled | WorkflowStatus::Failed
+        ) {
             final_status = Some(res2.run.status);
             break;
         }
     }
     assert!(
-        matches!(final_status, Some(WorkflowStatus::Cancelled) | Some(WorkflowStatus::Failed)),
+        matches!(
+            final_status,
+            Some(WorkflowStatus::Cancelled) | Some(WorkflowStatus::Failed)
+        ),
         "Expected Cancelled or Failed, got: {:?}",
         final_status
     );

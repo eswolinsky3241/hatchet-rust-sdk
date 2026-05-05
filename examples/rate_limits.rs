@@ -1,8 +1,5 @@
 use hatchet_sdk::serde::{Deserialize, Serialize};
-use hatchet_sdk::{
-    Context, Hatchet, RateLimit,
-    RateLimitDuration, Runnable, tokio,
-};
+use hatchet_sdk::{Context, Hatchet, RateLimit, RateLimitDuration, Runnable, tokio};
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -20,13 +17,23 @@ pub struct TestOutput {
 }
 
 pub async fn create_rate_limit_task() -> hatchet_sdk::Task<TestInput, TestOutput> {
-    Hatchet::from_env().await.unwrap()
+    Hatchet::from_env()
+        .await
+        .unwrap()
         .task(
             "rate_limit_test",
-            async move |input: TestInput, ctx: Context| -> hatchet_sdk::anyhow::Result<TestOutput> {
-                ctx.log(&format!("Starting rate limit test {} for {}", input.index, input.provider_id)).await?;
+            async move |input: TestInput,
+                        ctx: Context|
+                        -> hatchet_sdk::anyhow::Result<TestOutput> {
+                ctx.log(&format!(
+                    "Starting rate limit test {} for {}",
+                    input.index, input.provider_id
+                ))
+                .await?;
                 tokio::time::sleep(Duration::from_secs(input.delay_seconds)).await;
-                Ok(TestOutput { result: "done".into() })
+                Ok(TestOutput {
+                    result: "done".into(),
+                })
             },
         )
         .rate_limits(vec![RateLimit::Dynamic {
