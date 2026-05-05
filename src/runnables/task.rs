@@ -5,6 +5,7 @@ use std::sync::Arc;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use super::flow_control::{ConcurrencyExpression, RateLimit};
 use super::workflow::DefaultFilter;
 use super::{ExtractRunnableOutput, TriggerWorkflowOptions};
 use crate::clients::grpc::v1::workflows::{CreateTaskOpts, CreateWorkflowVersionRequest};
@@ -90,6 +91,10 @@ pub struct Task<I, O> {
     execution_timeout: std::time::Duration,
     #[builder(default)]
     input_json_schema: Option<serde_json::Value>,
+    #[builder(default = vec![])]
+    rate_limits: Vec<RateLimit>,
+    #[builder(default = vec![])]
+    pub(crate) concurrency: Vec<ConcurrencyExpression>,
 }
 
 impl<I, O> Task<I, O>
@@ -134,7 +139,7 @@ where
             inputs: String::from("{{}}"),
             parents: self.parents.clone(),
             retries: self.retries,
-            rate_limits: vec![],
+            rate_limits: self.rate_limits.iter().map(|rl| rl.to_proto()).collect(),
             worker_labels: std::collections::HashMap::new(),
             backoff_factor: None,
             backoff_max_seconds: None,
@@ -158,7 +163,7 @@ where
             on_failure_task: None,
             sticky: None,
             default_priority: Some(self.default_priority),
-            concurrency_arr: vec![],
+            concurrency_arr: self.concurrency.iter().map(|c| c.to_proto()).collect(),
             default_filters: self
                 .default_filters
                 .clone()
